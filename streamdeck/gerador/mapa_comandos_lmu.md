@@ -1,11 +1,11 @@
 # Mapa de comandos × ícones — Overlay LMU (Stream Deck XL)
 
-Fonte dos comandos: tabela `ATALHOS_LMU` do `ov_atalhos_lmu.py` (v1.4.0, 20 atalhos). Nenhum comando foi inventado fora dela.
+Fonte dos comandos: tabela `ATALHOS_LMU` do `ov_atalhos_lmu.py` (24 atalhos: 20 da v1.4.0 + 4 da v1.3.0 do pacote). Nenhum comando foi inventado fora dela.
 Chave de posição = **coluna,linha** (0,0 = canto superior esquerdo; XL: 0..7 × 0..3). Perfil: **Overlay LMU** (página principal + pasta Suporte).
 
 Combinações **diferentes** das do iRacing (Ctrl+Alt+Shift / Ctrl+Alt): LMU usa **Ctrl+Shift+F13..F24** (janelas) e **Alt+Shift+F13..F20** (controles).
 
-## 1. Janelas (12) — alternar mostrar/ocultar
+## 1. Janelas (16) — alternar mostrar/ocultar
 | Pos. | Janela | Atalho | Ícone |
 |---|---|---|---|
 | 0,0 | Telemetria | Ctrl+Shift+F13 | janela_telemetria |
@@ -20,6 +20,10 @@ Combinações **diferentes** das do iRacing (Ctrl+Alt+Shift / Ctrl+Alt): LMU usa
 | 1,1 | Alertas | Ctrl+Shift+F22 | janela_alertas |
 | 2,1 | Stints | Ctrl+Shift+F23 | janela_stints |
 | 3,1 | Tendência | Ctrl+Shift+F24 | janela_tendencia |
+| 3,3 | Luz ABS | Alt+Shift+F21 | janela_luz_abs |
+| 4,3 | Luz TC | Alt+Shift+F22 | janela_luz_tc |
+| 5,3 | Retorno à pista | Alt+Shift+F23 | janela_retorno |
+| 6,3 | Estratégia de pneus | Alt+Shift+F24 | janela_estrategia |
 
 ## 2. Controles
 | Pos. | Função | Atalho | Ícone |

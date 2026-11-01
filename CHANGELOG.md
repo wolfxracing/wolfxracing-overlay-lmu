@@ -2,6 +2,13 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.3.0] - 2026-11-01
+
+- **Novo:** botões de **Stream Deck** para as quatro janelas da 1.2.0: **Luz ABS**, **Luz TC**, **Retorno** e **Estratégia** (linha de baixo da página principal, posições 3,3 a 6,3). O perfil `Overlay LMU.streamDeckProfile` foi regenerado (30 botões na página principal) e os quatro ícones ficam na biblioteca.
+- **Novo:** atalhos globais `Alt+Shift+F21` (Luz ABS), `Alt+Shift+F22` (Luz TC), `Alt+Shift+F23` (Retorno) e `Alt+Shift+F24` (Estratégia). Entram no fim da tabela `ATALHOS_LMU`, então os 20 atalhos antigos não mudam; são 24 no total. Não colidem com os do overlay de iRacing (que usa `Alt+F13..F16` para as mesmas quatro janelas).
+- Quem já importou o perfil antigo: importe de novo (ou crie os quatro botões na mão com a ação *Hotkey*); os demais botões não mudam.
+- Sem mudança nas janelas, nos dados nem na configuração. Testes de atalhos atualizados para 24.
+
 ## [1.2.0] - 2026-11-01
 
 - **Alterado:** a janela **Telemetria** passou a ter o gráfico de pedais rolante por tempo (5 a 30 s), com degraus da marcha e marcas de ABS (amarelo) e TC (azul), ambas do próprio jogo.

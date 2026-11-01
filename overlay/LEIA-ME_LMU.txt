@@ -1,8 +1,11 @@
-OVERLAY LE MANS ULTIMATE (LMU) - GUIA RAPIDO - VERSAO 1.2.0 (numeracao do pacote publico)
+OVERLAY LE MANS ULTIMATE (LMU) - GUIA RAPIDO - VERSAO 1.3.0 (numeracao do pacote publico)
 =========================================================
 STATUS: PARCIALMENTE VALIDADO no jogo real (1o teste da v1.2: leitura de dados, energia, pneus, delta e gaps funcionaram;
 danos, vento e a janela por cima do jogo precisaram de ajuste). 368 verificacoes automaticas. Antes de confiar nos
 numeros em corrida, execute o "ROTEIRO_VALIDACAO_LMU.txt" com o Le Mans Ultimate de verdade.
+
+NOVO NA 1.3.0: Stream Deck com botoes para Luz ABS, Luz TC, Retorno e Estrategia (Alt+Shift+F21..F24; perfil e lista de
+atalhos atualizados; importe de novo o perfil "Overlay LMU.streamDeckProfile").
 
 NOVIDADES DA 1.2.0 (pacote publico)
  - TELEMETRIA: grafico de pedais por tempo (5 a 30 s), com degraus da marcha e marcas de ABS e TC (dados do jogo).
@@ -10,7 +13,7 @@ NOVIDADES DA 1.2.0 (pacote publico)
  - RETORNO A PISTA: PARE / CEDA / LIVRE + segundos ate o carro de tras chegar (parado ou fora da pista; nao avisa nos boxes/grid).
  - ESTRATEGIA DE PNEUS: SEGUIR / PREPARE-SE / TROCAR (chuva x seco) pela umidade da pista e o seu pneu. O LMU nao informa o pneu
    dos outros carros: sem vantagem em s/volta e sem contagem de rivais.
- - Sao 16 janelas. Sem atalhos de Stream Deck para as 4 novas. Validacao real: ROTEIRO_VALIDACAO_LMU.txt, TESTE 16.
+ - Sao 16 janelas. Atalhos de Stream Deck para as 4 novas: a partir da 1.3.0. Validacao real: ROTEIRO_VALIDACAO_LMU.txt, TESTE 16.
 
 NOVIDADES DA 1.4 (Stream Deck XL)
  - PERFIL PROPRIO DO STREAM DECK: "Overlay LMU" (pasta streamdeck_lmu, arquivo "Overlay LMU.streamDeckProfile"), no mesmo padrao

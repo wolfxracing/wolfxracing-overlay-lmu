@@ -109,6 +109,8 @@ JANELAS = [
     ("janela_energia", ["ENERGIA"], p_energia), ("janela_pneus", ["PNEUS E", "FREIOS"], p_pneus_freios),
     ("janela_danos", ["DANOS"], gi.p_danos), ("janela_alertas", ["ALERTAS"], p_alertas),
     ("janela_stints", ["STINTS"], p_stints), ("janela_tendencia", ["TENDÊNCIA"], p_tendencia),
+    ("janela_luz_abs", ["LUZ ABS"], gi.p_luz_abs), ("janela_luz_tc", ["LUZ TC"], gi.p_luz_tc),          # 1.3.0 (desenho-base do iRacing)
+    ("janela_retorno", ["RETORNO"], gi.p_retorno), ("janela_estrategia", ["ESTRATÉGIA"], gi.p_estrategia),
 ]
 CONTROLES = [  # (arquivo, rotulo, pictograma, tem_variante_desligada)
     ("ctrl_iniciar", ["INICIAR", "OVERLAY"], gi.p_play, False), ("ctrl_fechar", ["FECHAR", "OVERLAY"], gi.p_fechar, False),

@@ -170,6 +170,8 @@ TESTE 15 - STREAM DECK (perfil "Overlay LMU")                              (10 m
      bandeja muda junto. "Zerar pico de G" zera o pico; "Tamanho padrao" volta as janelas a 100 %.
   c) "Fechar overlay" fecha o overlay; "Iniciar overlay" abre de novo; "Forcar fechamento" encerra mesmo se travado.
   d) Pasta "Suporte": abre a lista de atalhos, guia, roteiro, testes e diagnostico; "Voltar" retorna.
+  d2) Botoes novos da 1.3.0 (linha de baixo: LUZ ABS, LUZ TC, RETORNO, ESTRATEGIA): cada um liga/desliga so a sua janela.
+      Esperado no log: "atalhos globais: 24 de 24 registrados".
   e) Com o overlay do iRacing aberto ao mesmo tempo, os botoes do perfil LMU NAO mexem no iRacing (e vice-versa).
  Anote: algum botao sem efeito ou que abriu o arquivo errado? Algum atalho que o overlay avisou nao ter conseguido registrar
  (veja "atalhos globais" no overlay_log_lmu.txt)? O Stream Deck aceitou a importacao sem mensagem de erro?

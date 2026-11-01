@@ -1,8 +1,8 @@
 BIBLIOTECA DE ICONES E PERFIL - OVERLAY LMU (STREAM DECK XL)
 ============================================================
 Conteudo
-  Overlay LMU.streamDeckProfile      perfil pronto para importar (pagina principal + pasta Suporte, 35 botoes)
-  icones/png/                        35 icones 144x144 (prontos para o Stream Deck)
+  Overlay LMU.streamDeckProfile      perfil pronto para importar (pagina principal + pasta Suporte, 37 botoes)
+  icones/png/                        39 icones 144x144 (prontos para o Stream Deck)
   icones/variantes_desligado/        versoes "desligada" (esmaecidas, olho riscado) - uso opcional
   previa_pagina_principal_lmu.png / previa_pasta_suporte_lmu.png    previa dos botoes
   layout_lmu.json                    posicao (coluna,linha) de cada botao

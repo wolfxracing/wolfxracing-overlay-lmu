@@ -44,6 +44,10 @@ Isso cria `...\_ajustado.streamDeckProfile` com o seu caminho; importe esse arqu
 | `Alt+Shift+F18` | Manter o overlay por cima do jogo (liga/desliga) |
 | `Alt+Shift+F19` | Restaurar o tamanho das janelas (100%) |
 | `Alt+Shift+F20` | **Fechar** o overlay |
+| `Alt+Shift+F21` | Mostrar/ocultar luz do ABS |
+| `Alt+Shift+F22` | Mostrar/ocultar luz do TC |
+| `Alt+Shift+F23` | Mostrar/ocultar retorno à pista |
+| `Alt+Shift+F24` | Mostrar/ocultar estratégia de pneus |
 
 - A lista é gerada a partir da tabela `ATALHOS_LMU` de `overlay/ov_atalhos_lmu.py`. As combinações são **diferentes** das do overlay de iRacing, então os dois perfis convivem sem colisão. O LMU não tem perfis Treino/Classificação/Corrida.
 - Os atalhos só funcionam com o **overlay aberto** e funcionam com o jogo em primeiro plano.

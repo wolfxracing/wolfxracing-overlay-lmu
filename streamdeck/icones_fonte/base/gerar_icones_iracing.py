@@ -58,6 +58,40 @@ def letra(txt, size, cx, cy, fill=DK, xs=0.9):
     return f'<path transform="translate({cx - w/2:.2f} {cy + size*0.36:.2f})" d="{d}" fill="{fill}"/>'
 
 
+def p_luz_abs():
+    """Aro com ABS e dois arcos de freio (simbolo do painel de instrumentos)."""
+    return (f'<circle cx="72" cy="48" r="31" fill="none" stroke="{A}" stroke-width="7"/>'
+            + letra("ABS", 25, 72, 48, W, 0.84)
+            + f'<path d="M28 24 A34 34 0 0 0 28 72" fill="none" stroke="{W}" stroke-width="6"/>'
+              f'<path d="M116 24 A34 34 0 0 1 116 72" fill="none" stroke="{W}" stroke-width="6"/>')
+
+
+def p_luz_tc():
+    """Carro derrapando: rastros ondulados embaixo (perda de tracao)."""
+    return (f'<path d="M24 58 Q24 48 34 46 L48 26 H94 L108 46 Q120 48 120 58 V64 H24 Z" fill="{A}"/>'
+            f'<path d="M55 32 H70 V46 H47 Z" fill="{DK}"/><path d="M76 32 H90 L100 46 H76 Z" fill="{DK}"/>'
+            f'<circle cx="48" cy="66" r="11" fill="#3A3C43" stroke="{W}" stroke-width="4"/>'
+            f'<circle cx="98" cy="66" r="11" fill="#3A3C43" stroke="{W}" stroke-width="4"/>'
+            f'<path d="M22 86 q10 -9 20 0 t20 0 t20 0 t20 0 t20 0" fill="none" stroke="{W}" stroke-width="5"/>')
+
+
+def p_retorno():
+    """Semaforo PARE / CEDA / LIVRE (vermelho, ambar, verde)."""
+    return (f'<rect x="46" y="4" width="52" height="90" rx="16" fill="#3A3C43"/>'
+            f'<circle cx="72" cy="22" r="11" fill="{RD}"/><circle cx="72" cy="49" r="11" fill="{A}"/>'
+            f'<circle cx="72" cy="76" r="11" fill="{GR}"/>'
+            f'<path d="M110 60 Q124 60 124 44 V34 M116 42 L124 32 L132 42" fill="none" stroke="{W}" stroke-width="5"/>')
+
+
+def p_estrategia():
+    """Pneu e gota de chuva: troca de composto conforme o tempo."""
+    t = '<circle cx="50" cy="56" r="30" fill="#3A3C43"/>'
+    t += "".join(f'<path d="M{50 + 23*math.cos(math.radians(i*30)):.1f} {56 + 23*math.sin(math.radians(i*30)):.1f} L{50 + 29*math.cos(math.radians(i*30)):.1f} {56 + 29*math.sin(math.radians(i*30)):.1f}" stroke="#8C919A" stroke-width="3"/>' for i in range(12))
+    return (t + f'<circle cx="50" cy="56" r="19" fill="none" stroke="{A}" stroke-width="6"/><circle cx="50" cy="56" r="7" fill="{DK}"/>'
+            f'<g transform="translate(-8 14)"><path d="M106 12 C106 12 88 36 88 50 A18 18 0 0 0 124 50 C124 36 106 12 106 12 Z" fill="{W}"/>'
+            f'<path d="M98 52 A9 9 0 0 0 106 60" fill="none" stroke="{GY}" stroke-width="4"/></g>')
+
+
 DEFS = f"""<defs>
 <linearGradient id="amb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD84D"/><stop offset="1" stop-color="#F29A00"/></linearGradient>
 <linearGradient id="amb2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E0A300"/><stop offset="1" stop-color="#9A5C00"/></linearGradient>
@@ -303,6 +337,8 @@ JANELAS = [
     ("janela_pneus", ["PNEUS"], p_pneu), ("janela_setores", ["SETORES"], p_setores),
     ("janela_clima", ["CLIMA"], p_clima), ("janela_danos", ["DANOS"], p_danos),
     ("janela_combustivel", ["COMBUSTÍVEL"], p_combustivel), ("janela_forca_g", ["FORÇA G"], p_forca_g),
+    ("janela_luz_abs", ["LUZ ABS"], p_luz_abs), ("janela_luz_tc", ["LUZ TC"], p_luz_tc),
+    ("janela_retorno", ["RETORNO"], p_retorno), ("janela_estrategia", ["ESTRATÉGIA"], p_estrategia),
 ]
 CONTROLES = [  # (arquivo, rotulo, pictograma, tem_variante_apagada)
     ("ctrl_iniciar", ["INICIAR", "OVERLAY"], p_play, False), ("ctrl_fechar", ["FECHAR", "OVERLAY"], p_fechar, False),

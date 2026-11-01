@@ -724,6 +724,7 @@ MOD_ALT, MOD_CONTROL, MOD_SHIFT, MOD_WIN, MOD_NOREPEAT = 0x0001, 0x0002, 0x0004,
 VK_F13 = 0x7C                      # F13 = 0x7C ... F24 = 0x87
 MODS_JANELAS = MOD_CONTROL | MOD_ALT | MOD_SHIFT
 MODS_CONTROLES = MOD_CONTROL | MOD_ALT
+MODS_NOVAS = MOD_ALT                # 1.3.0: as 4 janelas novas (Luz ABS/TC, Retorno, Estrategia); o LMU usa Alt+Shift+F21..F24
 ID_BASE_TECLA = 0x4F00             # ids de atalho do overlay (faixa permitida: 0x0000 a 0xBFFF)
 INTERVALO_MIN_ATALHO = 0.20        # s: um mesmo atalho repetido antes disso e ignorado (toque duplo/rebote)
 
@@ -779,6 +780,11 @@ ATALHOS = (
     AtalhoGlobal("zerar_pico_g", "Zerar o pico de G", MODS_CONTROLES, 20, "chamar", "zerar_pico_g"),
     AtalhoGlobal("limpar_impactos", "Limpar as marcas de impacto", MODS_CONTROLES, 21, "chamar", "limpar_impactos"),
     AtalhoGlobal("sair", "FECHAR o overlay (o mesmo que Sair no menu da bandeja)", MODS_CONTROLES, 22, "chamar", "sair"),
+    # 1.3.0: janelas novas da 1.2.0 (Alt+F13..F16). Acrescentadas NO FIM para nao mudar o codigo dos atalhos antigos.
+    AtalhoGlobal("janela_luz_abs", "Mostrar/ocultar luz do ABS", MODS_NOVAS, 13, "alternar", "mostrar_luz_abs"),
+    AtalhoGlobal("janela_luz_tc", "Mostrar/ocultar luz do TC (estimada)", MODS_NOVAS, 14, "alternar", "mostrar_luz_tc"),
+    AtalhoGlobal("janela_retorno", "Mostrar/ocultar retorno a pista", MODS_NOVAS, 15, "alternar", "mostrar_retorno"),
+    AtalhoGlobal("janela_estrategia", "Mostrar/ocultar estrategia de pneus", MODS_NOVAS, 16, "alternar", "mostrar_estrategia"),
 )
 TIPOS_ATALHO = ("alternar", "perfil", "chamar")
 

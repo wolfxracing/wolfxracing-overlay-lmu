@@ -12,7 +12,8 @@ PRINCIPAL.update({
     (4, 1): "ctrl_classif_todas", (5, 1): "ctrl_manter_topo", (6, 1): "ctrl_restaurar_tamanhos", (7, 1): "ctrl_zerar_pico_g",
     (0, 2): "ctrl_economia_cpu", (1, 2): "ctrl_aparecer_sozinho", (2, 2): "ctrl_travar_posicao",
     (5, 2): "sup_demo", (6, 2): "sup_log", (7, 2): "sup_pasta_overlay",
-    (0, 3): "ctrl_iniciar", (1, 3): "ctrl_fechar", (2, 3): "ctrl_forcar_fechamento", (7, 3): "sup_pasta_suporte"})
+    (0, 3): "ctrl_iniciar", (1, 3): "ctrl_fechar", (2, 3): "ctrl_forcar_fechamento", (7, 3): "sup_pasta_suporte",
+    (3, 3): "janela_luz_abs", (4, 3): "janela_luz_tc", (5, 3): "janela_retorno", (6, 3): "janela_estrategia"})
 SUP = {(0, 0): "sup_voltar", (1, 0): "sup_atalhos", (2, 0): "sup_guia", (3, 0): "sup_roteiro", (4, 0): "sup_testes",
        (5, 0): "sup_diagnostico", (6, 0): "sup_ver_diagnostico"}
 

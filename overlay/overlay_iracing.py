@@ -7218,7 +7218,7 @@ def definir_prioridade_baixa(ativa):
 
 def registrar_cabecalho():
     """Primeira linha da sessao no log: versoes (ajuda a diagnosticar problemas)."""
-    versoes = {"overlay": "1.2.0 (base Fase 20.2.2)", "nucleo": nucleo.VERSAO_NUCLEO, "python": sys.version.split()[0],
+    versoes = {"overlay": "1.3.0 (base Fase 20.2.2)", "nucleo": nucleo.VERSAO_NUCLEO, "python": sys.version.split()[0],
                "SO": sys.platform}
     try:
         import PySide6
@@ -7488,7 +7488,7 @@ def principal():
               config["auto_modo"], ao_auto, id_tecla="auto_modo")
     if sys.platform == "win32":
         adicionar("Iniciar junto com o Windows", inicio_automatico_ativo(), ao_inicio)
-    adicionar("Teclas de atalho para o Stream Deck (Ctrl+Alt+F13...F24)", config.get("teclas_globais", True),
+    adicionar("Teclas de atalho para o Stream Deck (Ctrl+Alt+F13...F24 e Alt+F13...F16)", config.get("teclas_globais", True),
               lambda marcado: ao_teclas(marcado), chave="teclas_globais")
     menu.addSeparator()
     rotulo_perfil = QAction("", menu)

@@ -58,7 +58,7 @@ from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 from ov_janela_lmu import JanelaClassificacaoLMU, JanelaClimaLMU      # classificacao com mais colunas (so no LMU)
 import ov_janelas_extra_lmu as extra_lmu              # janelas novas (energia, pneus, danos, alertas, stints, tendencia)
 
-VERSAO = "LMU 1.2.0 Glass/Sport (base iRacing 1.2.0)"
+VERSAO = "LMU 1.3.0 Glass/Sport (base iRacing 1.3.0)"
 NOME_JOGO = "Le Mans Ultimate"
 DEMO = "--demo" in sys.argv
 DIAGNOSTICO = "--diagnostico" in sys.argv
@@ -1148,7 +1148,7 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
         submenu_op.addAction(a)
         acoes.append(a)
     adicionar("Manter o overlay por cima do jogo (reforcar)", config["reforcar_topo"], guardar("reforcar_topo", ao_reforcar), chave="reforcar_topo")
-    adicionar("Teclas de atalho para o Stream Deck (Ctrl+Shift+F13...F24 e Alt+Shift+F13...F20)", config.get("teclas_globais", True),
+    adicionar("Teclas de atalho para o Stream Deck (Ctrl+Shift+F13...F24 e Alt+Shift+F13...F24)", config.get("teclas_globais", True),
               lambda marcado: ao_teclas(marcado), chave="teclas_globais")
     acao_tamanhos = QAction("Restaurar o tamanho das janelas (100%)", menu)
     acao_tamanhos.triggered.connect(ao_restaurar_tamanhos)

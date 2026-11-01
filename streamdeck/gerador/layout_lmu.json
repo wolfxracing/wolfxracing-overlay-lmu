@@ -25,7 +25,11 @@
   "0,3": "ctrl_iniciar",
   "1,3": "ctrl_fechar",
   "2,3": "ctrl_forcar_fechamento",
-  "7,3": "sup_pasta_suporte"
+  "7,3": "sup_pasta_suporte",
+  "3,3": "janela_luz_abs",
+  "4,3": "janela_luz_tc",
+  "5,3": "janela_retorno",
+  "6,3": "janela_estrategia"
  },
  "suporte": {
   "0,0": "sup_voltar",

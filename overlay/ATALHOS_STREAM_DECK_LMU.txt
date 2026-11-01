@@ -5,7 +5,7 @@ recebe) e usam F13..F24, teclas que quase nenhum teclado tem, para nao conflitar
 No Stream Deck, cada botao usa a acao "Hotkey" (Sistema > Hotkey) com a combinacao abaixo.
 Cada atalho faz EXATAMENTE o mesmo que o item correspondente do menu da bandeja (icone azul "LM").
 
-As combinacoes sao DIFERENTES das do overlay do iRacing (que usa Ctrl+Alt+Shift e Ctrl+Alt). Assim os dois perfis do Stream
+As combinacoes sao DIFERENTES das do overlay do iRacing (que usa Ctrl+Alt+Shift, Ctrl+Alt e Alt). Assim os dois perfis do Stream
 Deck convivem sem nenhuma colisao, mesmo com os dois overlays abertos ao mesmo tempo.
 
   Ctrl+Shift+F13  Mostrar/ocultar telemetria
@@ -28,9 +28,14 @@ Deck convivem sem nenhuma colisao, mesmo com os dois overlays abertos ao mesmo t
   Alt+Shift+F18   Manter o overlay por cima do jogo (liga/desliga)
   Alt+Shift+F19   Restaurar o tamanho das janelas (100%)
   Alt+Shift+F20   FECHAR o overlay (o mesmo que Sair no menu da bandeja)
+  Alt+Shift+F21   Mostrar/ocultar luz do ABS
+  Alt+Shift+F22   Mostrar/ocultar luz do TC
+  Alt+Shift+F23   Mostrar/ocultar retorno a pista
+  Alt+Shift+F24   Mostrar/ocultar estrategia de pneus
 
 COMO USAR
  - Janelas (Ctrl+Shift+F13..F24): cada toque liga ou desliga a janela (o estado fica salvo no config_lmu.json).
+ - Janelas novas da 1.2.0 (Alt+Shift+F21..F24): Luz ABS, Luz TC, Retorno a pista e Estrategia de pneus.
  - Controles (Alt+Shift+F13..F20): economia de CPU, aparecer sozinho, travar posicao, classificacao de todas as classes e
    manter por cima do jogo ligam/desligam; zerar pico de G e restaurar tamanhos executam na hora.
  - Alt+Shift+F20 FECHA o overlay (o mesmo que "Sair" no menu da bandeja). Para abrir de novo: botao "Iniciar Overlay".

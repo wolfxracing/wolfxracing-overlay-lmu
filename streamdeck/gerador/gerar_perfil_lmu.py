@@ -26,7 +26,8 @@ ACAO = {
     "sup_roteiro": ("abrir", "ROTEIRO_VALIDACAO_LMU.txt"), "sup_testes": ("abrir", "executar_testes_lmu.bat"),
     "sup_diagnostico": ("abrir", "diagnostico_lmu.bat"), "sup_ver_diagnostico": ("abrir", "diagnostico_lmu.txt"),
 }
-for n in ("telemetria", "voltas", "classificacao", "clima", "combustivel", "forca_g", "energia", "pneus", "danos", "alertas", "stints", "tendencia"):
+for n in ("telemetria", "voltas", "classificacao", "clima", "combustivel", "forca_g", "energia", "pneus", "danos", "alertas", "stints", "tendencia",
+          "luz_abs", "luz_tc", "retorno", "estrategia"):
     ACAO[f"janela_{n}"] = ("tecla", f"janela_{n}")
 
 
