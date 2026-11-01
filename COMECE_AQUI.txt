@@ -3,7 +3,7 @@ COMECE AQUI (leia em 2 minutos)
 ==========================================================
 
 O QUE E
-Overlay gratuito com 12 janelas sobre o jogo, mais um dash para o
+Overlay gratuito com 16 janelas sobre o jogo, mais um dash para o
 Simagic MagicDash 4 (SimHub) e um perfil para Stream Deck XL.
 Funciona so no Windows 10/11. Nao altera nem injeta nada no jogo.
 
@@ -42,7 +42,7 @@ STREAM DECK (opcional, modelo XL)
 
 SE ALGO NAO FUNCIONAR / MANUAL COMPLETO
 - Abra no navegador (duplo clique): docs\MANUAL.html  (com imagens,
-  instalacao, as 12 janelas e solucao de problemas).
+  instalacao, as 16 janelas e solucao de problemas).
   Tambem: docs\DASH.html e docs\STREAMDECK.html.
 - OS ARQUIVOS .md (README.md, CHANGELOG.md, etc.) sao textos para
   desenvolvedores: no Bloco de Notas aparecem com simbolos (#, **) e

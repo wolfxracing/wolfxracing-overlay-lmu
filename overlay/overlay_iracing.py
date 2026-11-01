@@ -62,6 +62,17 @@ except ImportError:                       # pacote incompleto: avisa em vez de f
         print(_msg)
     sys.exit(1)
 
+try:
+    import ov_v12 as v12                  # v1.2.0: logica dos novos overlays (sem Qt e sem SDK)
+except ImportError:
+    _msg12 = "Falta o arquivo 'ov_v12.py' na pasta do overlay. Copie TODOS os arquivos do pacote para a mesma pasta."
+    try:
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(0, _msg12, "Overlay iRacing", 0x10)
+    except Exception:
+        print(_msg12)
+    sys.exit(1)
+
 from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt, QTimer
 from PySide6.QtGui import (QAction, QBrush, QColor, QFont, QFontMetrics, QIcon, QLinearGradient,
                            QActionGroup, QImage, QPainter, QPainterPath, QPen, QPixmap, QRadialGradient)
@@ -167,9 +178,22 @@ def carregar_config():
         "tema_moderno": True, "tema_sport": False, "tema_vidro": True, "opacidade_fundo": 0.80,
         "x_combustivel": 60, "y_combustivel": 560, "mostrar_combustivel": True, "escala_combustivel": 1.0,
         "x_danos": 1330, "y_danos": 600, "mostrar_danos": True, "escala_danos": 1.0,
+        # ---- v1.2.0 ----
+        "inputs_segundos": 12, "inputs_marchas_fundo": True, "inputs_marca_abs": True, "inputs_marca_tc": False,
+        "inputs_origem": "carro",
+        "x_luz_abs": 800, "y_luz_abs": 900, "mostrar_luz_abs": True, "escala_luz_abs": 1.0,
+        "luz_abs_cor": "dourado", "luz_abs_modo": "ritmo", "luz_abs_apagada": False,
+        "x_luz_tc": 910, "y_luz_tc": 900, "mostrar_luz_tc": True, "escala_luz_tc": 1.0,
+        "luz_tc_cor": "azul", "luz_tc_modo": "ritmo", "luz_tc_apagada": False, "luz_tc_sens": "normal",
+        "luz_opacidade": 1.0,
+        "x_retorno": 800, "y_retorno": 760, "mostrar_retorno": True, "escala_retorno": 1.0,
+        "retorno_pare": 1.5, "retorno_ceda": 3.5, "retorno_sempre": False, "retorno_opacidade": 0.95,
+        "x_estrategia": 1060, "y_estrategia": 700, "mostrar_estrategia": True, "escala_estrategia": 1.0,
+        "estrategia_vantagem": True, "estrategia_rivais": True, "estrategia_pulsar": True,
     }
     # escala por eixo (largura / altura) de cada janela; None = acompanha a escala unica
-    for sufixo in ("", "_voltas", "_relativo", "_classificacao", "_mapa", "_radar", "_pneus", "_setores", "_clima", "_danos", "_combustivel", "_forca_g"):
+    for sufixo in ("", "_voltas", "_relativo", "_classificacao", "_mapa", "_radar", "_pneus", "_setores", "_clima", "_danos", "_combustivel", "_forca_g",
+                   "_luz_abs", "_luz_tc", "_retorno", "_estrategia"):
         padrao["escala_x" + sufixo] = None
         padrao["escala_y" + sufixo] = None
     try:
@@ -2467,6 +2491,11 @@ class Telemetria:
         self._vida_info = {}            # ultima MEDICAO real de desgaste (horario, volta, local)
         self._hist_chuva = deque()      # (instante, chuva %) para a tendencia
         self.impactos = DetectorImpactos()
+        self.v12_tc = v12.DetectorPatinagem("normal")          # v1.2.0
+        self.v12_retorno = v12.CalculadorRetorno()
+        self.v12_pneus = v12.EstrategiaPneus()
+        self.v12_ritmo = v12.RitmoPorPneu()
+        self._v12_sessao = None
         self._pico_g = 0.0
         self._sessao_g = None
         self._limitador = nucleo.Limitador()    # blocos lentos (classificacao, clima) nao precisam rodar a 30 Hz
@@ -2509,6 +2538,10 @@ class Telemetria:
             "clima": None,         # pista, ar, neblina, vento (direcao e velocidade)
             "tipo_sessao": None,   # CORRIDA / QUALIFICACAO / TREINO... (escolhe o perfil de exibicao)
             "forca_g": None,       # G lateral/longitudinal, total e pico
+            "luz_tc": None,        # v1.2.0: {"ativa", "patinagem" (~ estimativa), "estado"}
+            "retorno": None,       # v1.2.0: {"visivel", "estado" pare/ceda/livre, "segundos", "cor"}
+            "estrategia": None,    # v1.2.0: chuva x seco (SEGUIR / PREPARE-SE / TROCAR)
+            "pedais_cru": None,    # v1.2.0: pedais sem a calibracao do carro
             "danos": None,         # reparo necessario, avisos do motor, impactos detectados
             "no_carro": False,     # voce esta dentro do carro, no mundo do jogo (nao na garagem/menu)
             "replay": False,
@@ -2719,6 +2752,21 @@ class Telemetria:
         return montar_radar(self._pilotos_demo, 0, pcts, [3] * n, [False] * n, codigo, comprimento,
                             memoria=self._memoria_radar, agora=t)
 
+    def _demo_retorno(self, t):
+        fase = (t % 24.0) / 24.0
+        seg = max(0.4, 8.0 - fase * 11.0)
+        return {"visivel": fase < 0.7, "segundos": seg, "estado": v12.estado_retorno(seg),
+                "cor": v12.cor_retorno(seg), "idx": 7}
+
+    @staticmethod
+    def _demo_estrategia(t):
+        passo = int((t % 32.0) // 8)
+        acao = ("seguir", "prepare", "trocar", "pedido")[passo]
+        return {"nivel": (4, 3, 2, 2)[passo], "nivel_nome": v12.nome_nivel((4, 3, 2, 2)[passo]), "tendencia": "secando",
+                "acao": acao, "alvo": "seco", "minutos": 14 if acao == "prepare" else None, "vantagem": 1.4,
+                "vantagem_estimada": True, "meu_pneu": "chuva", "rivais_outro": 3, "rivais_mesmo": 5,
+                "pre_largada": False, "meu_pneu_nome": "Chuva"}
+
     def _demo(self):
         t = time.time() - self._t0
         ciclo = (t % 12.0) / 12.0  # 12 s por "volta" simulada
@@ -2771,6 +2819,11 @@ class Telemetria:
                 ciclo, self.margem_combustivel, 60.0),
             "painel_combustivel": self._demo_painel_combustivel(t, nivel),
             "tipo_sessao": "CORRIDA",
+            "luz_tc": {"ativa": ace > 0.9 and pos < 0.12, "patinagem": 0.07 if (ace > 0.9 and pos < 0.12) else 0.0,
+                       "estado": "ok"},
+            "pedais_cru": {"acelerador": ace * 0.96, "freio": fre * 0.92, "embreagem": 1.0 if pos > 0.96 else 0.0},
+            "retorno": self._demo_retorno(t),
+            "estrategia": self._demo_estrategia(t),
             "forca_g": {"lat": 2.4 * math.sin(t * 0.9), "lon": -1.6 * math.cos(t * 1.8) + 0.4,
                         "total": math.hypot(2.4 * math.sin(t * 0.9), -1.6 * math.cos(t * 1.8) + 0.4),
                         "pico": 3.1, "pista": "Road America", "temp": 24.0},
@@ -3052,6 +3105,114 @@ class Telemetria:
         temp = self._var_primeiro(("TrackTempCrew", "TrackTemp"))
         return {"lat": lat_g, "lon": lon_g, "total": total, "pico": self._pico_g,
                 "pista": self._nome_pista or "", "temp": float(temp) if temp is not None else None}
+
+    # ---- v1.2.0: Luz TC, Retorno a pista, Estrategia de pneus, pedais crus ----
+    def _tipo_pneu_de(self, idx, compostos):
+        comp = _item(compostos, idx, None)
+        if comp is None:
+            return None
+        try:
+            nome = self._tipos_pneu.get(int(comp)) if int(comp) >= 0 else None
+        except (TypeError, ValueError):
+            return None
+        est = estilo_pneu(nome)
+        return v12.classe_pneu(est[1] if est else None)
+
+    def _montar_v12(self, dados):
+        agora = time.monotonic()
+        chave = (self._var("SessionNum", 0), self._var("SessionUniqueID", 0))
+        if self._v12_sessao != chave:
+            if self._v12_sessao is not None:
+                registrar_info("v1.2: nova sessao, aprendizado da Luz TC e historicos reiniciados")
+            self._v12_sessao = chave
+            self.v12_tc.resetar()
+            self.v12_retorno.resetar()
+            self.v12_pneus.resetar()
+            self.v12_ritmo.resetar()
+        vivo = dados["no_carro"] and not dados["replay"]
+        # pedais crus (sem a calibracao do carro)
+        try:
+            ac, fr, em = (self._var("ThrottleRaw", None), self._var("BrakeRaw", None), self._var("ClutchRaw", None))
+            if ac is not None or fr is not None:
+                dados["pedais_cru"] = {"acelerador": float(ac) if ac is not None else None,
+                                       "freio": float(fr) if fr is not None else None,
+                                       "embreagem": (1.0 - float(em)) if em is not None else None}
+        except Exception:
+            registrar_erro("pedais crus")
+        # Luz TC (estimativa)
+        try:
+            if vivo:
+                limitador = bool(int(self._var("EngineWarnings", 0) or 0) & 0x10)
+                dados["luz_tc"] = self.v12_tc.atualizar(
+                    agora, dados["marcha"], dados["rpm"], dados["velocidade"] / 3.6, dados["acelerador"],
+                    dados["freio"], dados["embreagem"], self._rpm_max, limitador)
+        except Exception:
+            registrar_erro("luz TC")
+        # Retorno a pista
+        try:
+            if dados["no_carro"] or dados["velocidade"] > 0:
+                self._atualizar_pilotos()
+                self._atualizar_pista()
+                dados["retorno"] = self.v12_retorno.atualizar(
+                    agora, int(self._var("PlayerCarIdx", -1)), self._var("CarIdxLapDistPct", None),
+                    self._var("CarIdxTrackSurface", None), self._var("CarIdxOnPitRoad", None), self._comprimento,
+                    dados["velocidade"] / 3.6, self._ref_volta, validos=set(self._pilotos))
+        except Exception:
+            registrar_erro("retorno a pista")
+        # Estrategia de pneus (2 vezes por segundo)
+        try:
+            dados["estrategia"] = self._cacheado("estrategia", 0.5, lambda: self._montar_estrategia(dados))
+        except Exception:
+            registrar_erro("estrategia de pneus")
+
+    def _montar_estrategia(self, dados):
+        agora = time.monotonic()
+        self._atualizar_pilotos()
+        meu = int(self._var("PlayerCarIdx", -1))
+        clima = dados.get("clima") or {}
+        compostos = self._var("CarIdxTireCompound", None)
+        meu_tipo = self._tipo_pneu_de(meu, compostos)
+        if meu_tipo is None:
+            pc = self._var("PlayerTireCompound", None)
+            if pc is not None:
+                comp_lista = {meu: pc}
+                meu_tipo = self._tipo_pneu_de(meu, comp_lista)
+        tem_chuva = any(v12.classe_pneu((estilo_pneu(n) or (None, None))[1]) == "chuva"
+                        for n in self._tipos_pneu.values())
+        # pneu pedido nos boxes (so se houver troca de pneus marcada)
+        pedido = None
+        flags = self._var("PitSvFlags", None)
+        if flags is not None and int(flags) & 0x0F:
+            pc = self._var("PitSvTireCompound", None)
+            if pc is not None:
+                pedido = self._tipo_pneu_de(0, {0: pc})
+        # rivais da sua classe
+        eu = self._pilotos.get(meu) or {}
+        classe = eu.get("classe_id")
+        idxs = [i for i, pl in self._pilotos.items() if pl.get("classe_id") == classe] if classe is not None else [meu]
+        completadas = self._var("CarIdxLapCompleted", None)
+        ultimas = self._var("CarIdxLastLapTime", None)
+        no_pit = self._var("CarIdxOnPitRoad", None)
+        outros = {"seco": 0, "chuva": 0}
+        for i in idxs:
+            tipo = self._tipo_pneu_de(i, compostos)
+            if i != meu and tipo in outros:
+                outros[tipo] += 1
+            self.v12_ritmo.atualizar(agora, i, _item(completadas, i, None), _item(ultimas, i, None), tipo,
+                                     bool(_item(no_pit, i, False)))
+        outro = "chuva" if meu_tipo == "seco" else "seco"
+        vant, _n = self.v12_ritmo.vantagem(agora, meu_tipo, idxs)
+        estado = self._var("SessionState", None)
+        tipo_sessao = self._tipo_sessao
+        pre = ((tipo_sessao == "CORRIDA" and estado is not None and int(estado) <= 3)
+               or (tipo_sessao == "QUALIFICACAO" and (bool(self._var("IsInGarage", False))
+                                                      or bool(self._var("OnPitRoad", False)))))
+        res = self.v12_pneus.atualizar(
+            agora, clima.get("pista_molhada"), clima.get("chuva"), meu_tipo, tem_chuva, pedido, pre, vant,
+            outros.get(outro, 0), outros.get(meu_tipo, 0) + 1 if meu_tipo in outros else 0)
+        nome = None
+        res["meu_pneu_nome"] = nome
+        return res
 
     def zerar_pico_g(self):
         self._pico_g = 0.0
@@ -3619,6 +3780,8 @@ class Telemetria:
         "CarIdxLapCompleted", "CarIdxTireCompound", "CarLeftRight", "LatAccel", "LongAccel",
         "TrackTemp", "AirTemp", "WindDir", "WindVel", "Precipitation", "PitRepairLeft", "EngineWarnings",
         "LFtempCL", "LFwearL", "dcBrakeBias", "dcABS", "dcTractionControl",
+        "BrakeABSactive", "ThrottleRaw", "BrakeRaw", "ClutchRaw", "TrackWetness", "CarIdxLastLapTime",
+        "PitSvFlags", "PitSvTireCompound",
     )
 
     def _relatorio_variaveis(self):
@@ -3707,6 +3870,7 @@ class Telemetria:
             bias = self._var("dcBrakeBias", None)
             dados["bias"] = float(bias) if bias is not None else None
             dados["volante"] = math.degrees(float(self._var("SteeringWheelAngle", 0.0)))
+            self._montar_v12(dados)
 
             # --- Fase 2: voltas, delta e combustivel ---
             dados["volta"] = max(0, int(self._var("Lap", 0)))
@@ -4325,6 +4489,95 @@ class JanelaBase(QWidget):
         return True
 
 
+def desenhar_grafico_inputs(p, ret, hist, c, marchas_max):
+    """Grafico rolante de pedais (acelerador verde, freio vermelho), degraus da marcha e marcas de ABS/TC."""
+    p.setPen(QPen(QColor(255, 255, 255, 40), 1))
+    p.setBrush(QColor(0, 0, 0, 90))
+    p.drawRoundedRect(ret, 6, 6)
+    seg = hist.segundos
+    p.setPen(QPen(QColor(255, 255, 255, 28), 1))
+    p.drawLine(QPointF(ret.left(), ret.center().y()), QPointF(ret.right(), ret.center().y()))
+    passo = max(1.0, seg / 6.0)
+    k = passo
+    while k < seg:
+        xx = ret.right() - ret.width() * k / seg
+        p.drawLine(QPointF(xx, ret.top()), QPointF(xx, ret.bottom()))
+        k += passo
+    am = hist.amostras()
+    if len(am) < 2:
+        return
+    agora = am[-1][0]
+    topo, base = ret.top() + 5, ret.bottom() - 5
+    altura = base - topo
+
+    def pt(t, v):
+        return QPointF(ret.right() - ret.width() * (agora - t) / seg, base - altura * max(0.0, min(1.0, v)))
+
+    def linha(indice, cor, esp, filtro=None):
+        caminho = QPainterPath()
+        primeiro = True
+        for a in am:
+            v = a[indice]
+            if v is None:
+                continue
+            q = pt(a[0], v)
+            if primeiro:
+                caminho.moveTo(q)
+                primeiro = False
+            else:
+                caminho.lineTo(q)
+        p.setPen(QPen(cor, esp, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        p.setBrush(Qt.NoBrush)
+        p.drawPath(caminho)
+
+    if c.get("inputs_marchas_fundo", True):
+        maxg = max(2, marchas_max)
+        caminho = QPainterPath()
+        primeiro = True
+        for a in am:
+            q = pt(a[0], max(0, a[5]) / float(maxg))
+            if primeiro:
+                caminho.moveTo(q)
+                primeiro = False
+            else:
+                caminho.lineTo(QPointF(q.x(), caminho.currentPosition().y()))     # degrau
+                caminho.lineTo(q)
+        p.setPen(QPen(QColor(150, 150, 165, 120), 1.5))
+        p.setBrush(Qt.NoBrush)
+        p.drawPath(caminho)
+    origem = c.get("inputs_origem", "carro")
+    if origem in ("cru", "ambos"):
+        linha(6, QColor(60, 200, 90, 255 if origem == "cru" else 110), 2.0 if origem == "ambos" else 2.4)
+    if origem in ("carro", "ambos"):
+        linha(1, COR_VERDE, 2.6)
+    if origem in ("cru", "ambos"):
+        linha(7, QColor(235, 60, 60, 255 if origem == "cru" else 110), 2.0 if origem == "ambos" else 2.4)
+    if origem in ("carro", "ambos"):
+        linha(2, COR_VERMELHO, 2.6)
+    # marcas de ABS (amarelo, sobre o freio) e TC (azul, sobre o acelerador)
+    for ativo_idx, cor, valor_idx, ligado in ((3, QColor(250, 200, 40), 2, c.get("inputs_marca_abs", True)),
+                                              (4, QColor(80, 150, 255), 1, c.get("inputs_marca_tc", False))):
+        if not ligado:
+            continue
+        trecho = []
+        for a in am + [None]:
+            if a is not None and a[ativo_idx]:
+                trecho.append(pt(a[0], a[valor_idx]))
+            elif trecho:
+                if len(trecho) >= 2:
+                    cam = QPainterPath(trecho[0])
+                    for q in trecho[1:]:
+                        cam.lineTo(q)
+                    p.setPen(QPen(cor, 4.0, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+                    p.setBrush(Qt.NoBrush)
+                    p.drawPath(cam)
+                else:
+                    p.setPen(Qt.NoPen)
+                    p.setBrush(cor)
+                    p.drawEllipse(trecho[0], 2.5, 2.5)
+                trecho = []
+
+
 # ---- Janela 1: telemetria (marcha, velocidade, RPM, pedais e grafico) ----------------
 class JanelaTelemetria(JanelaBase):
     CHAVE = "principal"            # mantem a posicao (x, y) ja salva pelo usuario
@@ -4332,7 +4585,8 @@ class JanelaTelemetria(JanelaBase):
     TAXA_HZ = 30.0
 
     def __init__(self, config):
-        self.hist = deque(maxlen=AMOSTRAS_GRAFICO)  # (acelerador, freio, abs)
+        self.hist = v12.HistoricoInputs(config.get("inputs_segundos", 12))
+        self._marchas_max = 6
         super().__init__(config)
 
     def tamanho(self):
@@ -4347,8 +4601,16 @@ class JanelaTelemetria(JanelaBase):
     def atualizar(self, dados):
         self.dados = dados
         if dados["conectado"]:
-            self.hist.append((dados["acelerador"], dados["freio"], bool(dados.get("abs"))))
+            tc = (dados.get("luz_tc") or {}).get("ativa")
+            cru = dados.get("pedais_cru") or {}
+            self.hist.adicionar(time.monotonic(), dados["acelerador"], dados["freio"], dados.get("abs"), bool(tc),
+                                dados["marcha"], cru.get("acelerador"), cru.get("freio"))
+            self._marchas_max = max(self._marchas_max, int(dados["marcha"] or 0))
         self._repintar()
+
+    def reconfigurar(self):
+        self.hist.definir_segundos(self.config.get("inputs_segundos", 12))
+        self.update()
 
     def paintEvent(self, _evento):
         p = self._pintor()
@@ -4395,10 +4657,14 @@ class JanelaTelemetria(JanelaBase):
         p.drawText(130, 108, 180, 20, Qt.AlignRight | Qt.AlignVCenter, f"{int(d['rpm']):,} rpm".replace(",", "."))
 
         # Pedais: embreagem, freio, acelerador
+        cru = d.get("pedais_cru") or {}
+        usar_cru = self.config.get("inputs_origem", "carro") == "cru"
+        v_fre = cru.get("freio") if usar_cru and cru.get("freio") is not None else d["freio"]
+        v_ace = cru.get("acelerador") if usar_cru and cru.get("acelerador") is not None else d["acelerador"]
         pedais = [
             ("EMB", d["embreagem"], QColor(70, 140, 255)),
-            ("FRE", d["freio"], COR_VERMELHO),
-            ("ACE", d["acelerador"], COR_VERDE),
+            ("FRE", v_fre, COR_VERMELHO),
+            ("ACE", v_ace, COR_VERDE),
         ]
         x = 340
         for nome, valor, cor in pedais:
@@ -4509,46 +4775,7 @@ class JanelaTelemetria(JanelaBase):
         p.setPen(COR_VERMELHO)
         p.drawText(x1 - 75, 8, 75, 18, Qt.AlignRight | Qt.AlignVCenter, f"{d['freio'] * 100:.0f}%")
 
-        # Linhas de referencia: 0 %, 50 % e 100 %
-        p.setPen(QPen(QColor(255, 255, 255, 40), 1))
-        for fracao in (0.0, 0.5, 1.0):
-            y = int(y_base - fracao * (y_base - y_topo))
-            p.drawLine(x0, y, x1, y)
-
-        amostras = list(self.hist)
-        n = len(amostras)
-        if n < 2:
-            return
-        passo = (x1 - x0) / float(AMOSTRAS_GRAFICO - 1)
-        altura = y_base - y_topo
-
-        def ponto(i, valor):
-            valor = max(0.0, min(1.0, valor))
-            return (x1 - (n - 1 - i) * passo, y_base - valor * altura)
-
-        def caminho(indice):
-            c = QPainterPath()
-            for i, a in enumerate(amostras):
-                x, y = ponto(i, a[indice])
-                if i == 0:
-                    c.moveTo(x, y)
-                else:
-                    c.lineTo(x, y)
-            return c
-
-        p.setBrush(Qt.NoBrush)
-        p.setPen(QPen(COR_VERDE, 2, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
-        p.drawPath(caminho(0))
-        p.setPen(QPen(COR_VERMELHO, 2, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
-        p.drawPath(caminho(1))
-
-        # Trechos com ABS ativo destacados em amarelo
-        p.setPen(QPen(COR_AMARELO, 2, Qt.SolidLine, Qt.RoundCap))
-        for i in range(1, n):
-            if amostras[i][2]:
-                xa, ya = ponto(i - 1, amostras[i - 1][1])
-                xb, yb = ponto(i, amostras[i][1])
-                p.drawLine(int(xa), int(ya), int(xb), int(yb))
+        desenhar_grafico_inputs(p, QRectF(x0, y_topo, x1 - x0, y_base - y_topo), self.hist, self.config, self._marchas_max)
 
 
 # ---- Janela 2: delta, voltas e combustivel ----------------------------------------------
@@ -6467,6 +6694,341 @@ class JanelaForcaG(JanelaBase):
         p.drawText(188, y1, 54, 30, Qt.AlignLeft | Qt.AlignVCenter, f"{temp:.0f}\u00b0C" if temp is not None else "--")
 
 
+# --------------------------------------------------------------------------
+# Versao 1.2.0: Inputs, Luz ABS, Luz TC, Retorno a pista e Estrategia de pneus
+# --------------------------------------------------------------------------
+CORES_LUZ = {"dourado": (250, 190, 40), "vermelho": (235, 60, 60), "branco": (245, 245, 248), "azul": (70, 140, 255)}
+ROTULO_ACAO = {"seguir": "SEGUIR", "prepare": "PREPARE-SE", "trocar": "TROCAR", "pedido": "PEDIDO NOS BOXES"}
+
+
+def _texto_contorno(p, rect, flags, texto, fonte_, cor, contorno=QColor(0, 0, 0, 235), largura=5.0):
+    """Texto com borda preta (le-se de qualquer fundo: grama, brita, asfalto)."""
+    caminho = QPainterPath()
+    fm = QFontMetrics(fonte_)
+    r = QRectF(rect)
+    x = r.x() + (r.width() - fm.horizontalAdvance(texto)) / 2.0 if flags & Qt.AlignHCenter else r.x()
+    y = r.y() + (r.height() + fm.ascent() - fm.descent()) / 2.0
+    caminho.addText(x, y, fonte_, texto)
+    p.save()
+    p.setPen(QPen(contorno, largura, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+    p.setBrush(Qt.NoBrush)
+    p.drawPath(caminho)
+    p.setPen(Qt.NoPen)
+    p.setBrush(cor)
+    p.drawPath(caminho)
+    p.restore()
+
+
+class _JanelaLuz(JanelaBase):
+    """Icone solto (sem painel) que acende e apaga como a luz de um painel de carro."""
+    TAXA_HZ = 30.0
+    LADO = 96
+    CHAVE_COR = CHAVE_MODO = CHAVE_APAGADA = ""
+
+    def __init__(self, config):
+        self.pisca = v12.PiscaLuz(config.get(self.CHAVE_MODO, "ritmo"))
+        self.acesa = False
+        super().__init__(config)
+
+    def tamanho(self):
+        return (self.LADO, self.LADO)
+
+    def cor(self):
+        return CORES_LUZ.get(self.config.get(self.CHAVE_COR), CORES_LUZ["dourado"])
+
+    def sinal(self, dados):
+        return False
+
+    def testar(self, segundos=5.0):
+        """Pisca sozinha por alguns segundos (para posicionar sem ir para a pista)."""
+        self._teste_ate = time.monotonic() + segundos
+
+    def atualizar(self, dados):
+        self.dados = dados
+        agora = time.monotonic()
+        self.pisca.definir_modo(self.config.get(self.CHAVE_MODO, "ritmo"))
+        ativo = self.sinal(dados) if dados.get("conectado") else False
+        teste = getattr(self, "_teste_ate", 0.0)
+        if agora < teste:
+            ativo = ativo or (int(agora * 6) % 2 == 0)
+        acesa = self.pisca.atualizar(ativo, agora)
+        if acesa != self.acesa:
+            self.acesa = acesa
+            self._t_pintura = agora
+            self.update()
+        elif not self.config["travado"] or agora < teste:
+            self._repintar()
+
+    def _mostrar_apagada(self):
+        return (bool(self.config.get(self.CHAVE_APAGADA, False)) or not self.config["travado"]
+                or time.monotonic() < getattr(self, "_teste_ate", 0.0))
+
+    def paintEvent(self, _evento):
+        p = self._pintor()
+        p.setRenderHint(QPainter.Antialiasing)
+        if not self.config["travado"]:
+            self._fundo(p, True, com_fundo=False)
+        if not self.acesa and not self._mostrar_apagada():
+            return                                       # janela transparente: nao ocupa nada na tela
+        cor = QColor(*self.cor()) if self.acesa else QColor(95, 98, 108, 190)
+        opacidade = float(self.config.get("luz_opacidade", 1.0))
+        p.setOpacity(max(0.2, min(1.0, opacidade)))
+        if self.acesa:
+            brilho = QRadialGradient(self.LADO / 2.0, self.LADO / 2.0, self.LADO / 2.0)
+            c1 = QColor(cor)
+            c1.setAlpha(110)
+            c2 = QColor(cor)
+            c2.setAlpha(0)
+            brilho.setColorAt(0.0, c1)
+            brilho.setColorAt(1.0, c2)
+            p.setPen(Qt.NoPen)
+            p.setBrush(brilho)
+            p.drawEllipse(QRectF(0, 0, self.LADO, self.LADO))
+        self.icone(p, cor)
+
+    def icone(self, p, cor):
+        pass
+
+
+class JanelaLuzAbs(_JanelaLuz):
+    CHAVE = "luz_abs"
+    CHAVE_ATIVO = "mostrar_luz_abs"
+    CHAVE_COR = "luz_abs_cor"
+    CHAVE_MODO = "luz_abs_modo"
+    CHAVE_APAGADA = "luz_abs_apagada"
+
+    def sinal(self, dados):
+        return bool(dados.get("abs"))
+
+    def icone(self, p, cor):
+        c = self.LADO / 2.0
+        p.setBrush(Qt.NoBrush)
+        p.setPen(QPen(cor, 5.0, Qt.SolidLine, Qt.RoundCap))
+        p.drawEllipse(QRectF(c - 26, c - 26, 52, 52))
+        p.setPen(QPen(cor, 4.0, Qt.SolidLine, Qt.RoundCap))
+        p.drawArc(QRectF(c - 36, c - 30, 22, 60), 120 * 16, 120 * 16)        # parenteses dos dois lados
+        p.drawArc(QRectF(c + 14, c - 30, 22, 60), -60 * 16, 120 * 16)
+        p.setPen(cor)
+        p.setFont(fonte(17, QFont.Bold))
+        p.drawText(QRectF(c - 26, c - 14, 52, 28), Qt.AlignCenter, "ABS")
+
+
+class JanelaLuzTc(_JanelaLuz):
+    CHAVE = "luz_tc"
+    CHAVE_ATIVO = "mostrar_luz_tc"
+    CHAVE_COR = "luz_tc_cor"
+    CHAVE_MODO = "luz_tc_modo"
+    CHAVE_APAGADA = "luz_tc_apagada"
+
+    def sinal(self, dados):
+        return bool((dados.get("luz_tc") or {}).get("ativa"))
+
+    def icone(self, p, cor):
+        c = self.LADO / 2.0
+        p.setPen(Qt.NoPen)
+        p.setBrush(cor)
+        corpo = QPainterPath()
+        corpo.moveTo(c - 22, c + 4)
+        corpo.lineTo(c - 18, c - 10)
+        corpo.quadTo(c - 14, c - 20, c - 4, c - 20)
+        corpo.lineTo(c + 8, c - 20)
+        corpo.quadTo(c + 18, c - 20, c + 22, c - 8)
+        corpo.lineTo(c + 24, c + 4)
+        corpo.closeSubpath()
+        p.drawPath(corpo)
+        p.setBrush(QColor(20, 22, 28, 220))
+        p.drawEllipse(QRectF(c - 15, c, 9, 9))
+        p.drawEllipse(QRectF(c + 8, c, 9, 9))
+        p.setBrush(Qt.NoBrush)
+        p.setPen(QPen(cor, 3.2, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        for dx in (-14, 8):                                          # marcas em zigue-zague das rodas
+            caminho = QPainterPath(QPointF(c + dx, c + 14))
+            for k in range(3):
+                caminho.lineTo(c + dx + (5 if k % 2 == 0 else 0), c + 20 + k * 7)
+            p.drawPath(caminho)
+
+
+class JanelaRetorno(JanelaBase):
+    """Fora da pista ou parado: PARE / CEDA / LIVRE e os segundos para o carro de tras chegar. So aparece quando precisa."""
+    CHAVE = "retorno"
+    CHAVE_ATIVO = "mostrar_retorno"
+    TAXA_HZ = 30.0
+
+    def __init__(self, config):
+        self._teste_ate = 0.0
+        super().__init__(config)
+
+    def tamanho(self):
+        return (300, 120)
+
+    def testar(self, segundos=9.0):
+        self._teste_ate = time.monotonic() + segundos
+        self._teste_ini = time.monotonic()
+        self._teste_dur = segundos
+
+    def _estado_atual(self):
+        agora = time.monotonic()
+        lp, lc = self.config.get("retorno_pare", 1.5), self.config.get("retorno_ceda", 3.5)
+        lp, lc = v12.normalizar_limites(lp, lc)
+        if agora < self._teste_ate:                           # teste: percorre os tres estados, do livre ao pare
+            f = (agora - self._teste_ini) / self._teste_dur
+            seg = max(0.3, (lc + 2.0) * (1.0 - f))
+            return {"visivel": True, "segundos": seg, "estado": v12.estado_retorno(seg, lp, lc),
+                    "cor": v12.cor_retorno(seg, lp, lc)}
+        r = self.dados.get("retorno") if self.dados.get("conectado") else None
+        if r and (r.get("visivel") or self.config.get("retorno_sempre", False)):
+            return r
+        if not self.config["travado"]:
+            return {"visivel": True, "segundos": 2.4, "estado": "ceda", "cor": v12.cor_retorno(2.4, lp, lc)}
+        return None
+
+    def atualizar(self, dados):
+        self.dados = dados
+        if self._estado_atual() is not None or self.isVisible():
+            self._repintar()
+
+    def paintEvent(self, _evento):
+        p = self._pintor()
+        p.setRenderHint(QPainter.Antialiasing)
+        if not self.config["travado"]:
+            self._fundo(p, True, com_fundo=False)
+        r = self._estado_atual()
+        if r is None:
+            return
+        p.setOpacity(max(0.2, min(1.0, float(self.config.get("retorno_opacidade", 0.95)))))
+        cor = QColor(*r["cor"])
+        palavra = {"pare": "PARE", "ceda": "CEDA", "livre": "LIVRE"}[r["estado"]]
+        _texto_contorno(p, QRectF(0, 4, 300, 70), Qt.AlignHCenter, palavra, fonte_titulo(52), cor)
+        if r.get("segundos") is not None:
+            _texto_contorno(p, QRectF(0, 70, 300, 44), Qt.AlignHCenter, f"{fmt_dec(r['segundos'])} s",
+                            fonte(26, QFont.Bold), QColor(255, 255, 255), largura=4.0)
+
+
+class JanelaEstrategia(JanelaBase):
+    """Chuva x seco: qual pneu vale a pena agora (SEGUIR / PREPARE-SE / TROCAR) e com qual largar. So le dados."""
+    CHAVE = "estrategia"
+    CHAVE_ATIVO = "mostrar_estrategia"
+    TAXA_HZ = 15.0
+    LARG, ALT = 340, 158
+
+    def __init__(self, config):
+        self._pre = False
+        super().__init__(config)
+
+    def tamanho(self):
+        return (self.LARG, self.ALT)
+
+    def definir_auto_visivel(self, visivel):
+        super().definir_auto_visivel(bool(visivel) or self._pre)      # antes da largada aparece tambem na garagem
+
+    def atualizar(self, dados):
+        self.dados = dados
+        e = dados.get("estrategia") if dados.get("conectado") else None
+        self._pre = bool(e and e.get("pre_largada") and e.get("acao") not in (None, "sem_dado"))
+        self._repintar()
+
+    @staticmethod
+    def _pneu(p, x, y, tipo, raio=9):
+        p.setBrush(Qt.NoBrush)
+        cor = QColor(70, 150, 255) if tipo == "chuva" else QColor(240, 240, 245)
+        p.setPen(QPen(cor, 4))
+        p.drawEllipse(QRectF(x - raio, y - raio, 2 * raio, 2 * raio))
+        p.setPen(QPen(cor, 2))
+        p.drawEllipse(QRectF(x - 2.5, y - 2.5, 5, 5))
+
+    def paintEvent(self, _evento):
+        p = self._pintor()
+        d = self.dados
+        if not self._fundo(p, d["conectado"]):
+            return
+        pintar_superficie(p, QRectF(1, 1, self.LARG - 2, self.ALT - 2), 12)
+        e = d.get("estrategia")
+        if not e or e.get("acao") == "sem_dado":
+            p.setPen(COR_CINZA)
+            p.setFont(fonte(12, QFont.DemiBold))
+            motivo = (e or {}).get("motivo")
+            texto = ("Este carro nao tem pneu de chuva" if motivo == "carro_sem_chuva"
+                     else "Sem dados de pista molhada")
+            p.drawText(QRectF(0, 0, self.LARG, self.ALT), Qt.AlignCenter, "ESTRATEGIA DE PNEUS\n" + texto)
+            return
+        agora = time.monotonic()
+        pulso = 0.55 + 0.45 * (0.5 + 0.5 * math.sin(agora * 7.0))
+        # linha 1: para onde a pista vai + pneu montado
+        tend = {"secando": ("SECANDO", COR_VERDE), "molhando": ("MOLHANDO", QColor(90, 160, 255)),
+                "sem_chuva": ("SEM CHUVA", COR_CINZA), "estavel": ("ESTAVEL", COR_CINZA)}.get(e.get("tendencia"))
+        p.setFont(fonte_titulo(11))
+        p.setPen(COR_CINZA)
+        p.drawText(QRectF(14, 8, 150, 18), Qt.AlignLeft | Qt.AlignVCenter, "PARA A CORRIDA" if e.get("pre_largada") else "PISTA")
+        if tend:
+            p.setPen(tend[1])
+            p.setFont(fonte(11, QFont.Bold))
+            p.drawText(QRectF(90, 8, 150, 18), Qt.AlignLeft | Qt.AlignVCenter, tend[0])
+        self._pneu(p, self.LARG - 26, 18, e.get("meu_pneu"))
+        # linha 2: nivel (7 segmentos) + nome
+        nivel = e.get("nivel") or 0
+        for i in range(7):
+            ret = QRectF(14 + i * 25, 34, 22, 10)
+            if i < nivel:
+                f = i / 6.0
+                p.setBrush(QColor(int(200 - 130 * f), int(190 - 40 * f), int(120 + 135 * f)))
+            else:
+                p.setBrush(QColor(255, 255, 255, 30))
+            p.setPen(Qt.NoPen)
+            p.drawRoundedRect(ret, 3, 3)
+        p.setPen(QColor(255, 255, 255))
+        p.setFont(fonte(11, QFont.Bold))
+        p.drawText(QRectF(196, 28, 134, 22), Qt.AlignRight | Qt.AlignVCenter, f"{e.get('nivel_nome') or '-'}  {nivel}/7")
+        # linha 3: o que fazer
+        acao, alvo = e["acao"], e.get("alvo")
+        nome_alvo = {"seco": "SECO", "chuva": "CHUVA"}.get(alvo, "")
+        nome_meu = {"seco": "SECO", "chuva": "CHUVA"}.get(e.get("meu_pneu"), "")
+        pulsa = bool(self.config.get("estrategia_pulsar", True))
+        cor, texto, sub = COR_CINZA, "", ""
+        if acao == "seguir":
+            texto = f"SEGUIR COM {nome_meu}"
+        elif acao == "prepare":
+            cor = COR_LARANJA
+            texto = f"PREPARE-SE: {nome_alvo}"
+            sub = f"~{e['minutos']} min" if e.get("minutos") else ""
+        elif acao == "trocar":
+            cor = COR_LARANJA
+            texto = f"TROCAR PARA {nome_alvo}"
+        elif acao == "pedido":
+            cor = COR_VERDE
+            texto = f"{nome_alvo} PEDIDO NOS BOXES"
+        elif acao == "largar_ok":
+            cor = COR_VERDE
+            texto = f"LARGUE COM {nome_alvo}  ✓"
+        elif acao == "largar_trocar":
+            cor = COR_VERMELHO
+            texto = f"PARA A LARGADA: TROQUE PARA {nome_alvo}"
+        if cor in (COR_LARANJA, COR_VERMELHO) and acao in ("trocar", "largar_trocar") and pulsa:
+            cor = QColor(cor)
+            cor.setAlpha(int(255 * pulso))
+        p.setPen(cor)
+        p.setFont(fonte_titulo(19 if len(texto) < 22 else 14))
+        largura_sub = 70 if sub else 0
+        p.drawText(QRectF(14, 56, self.LARG - 28 - largura_sub, 40), Qt.AlignLeft | Qt.AlignVCenter, texto)
+        if sub:
+            p.setFont(fonte(14, QFont.Bold))
+            p.drawText(QRectF(self.LARG - 14 - largura_sub, 56, largura_sub, 40), Qt.AlignRight | Qt.AlignVCenter, sub)
+        # linha 4: vantagem e rivais (so informacao)
+        p.setFont(fonte(11))
+        p.setPen(COR_CINZA)
+        linhas = []
+        if e.get("pre_largada"):
+            if e.get("rivais_mesmo") is not None and acao == "largar_ok":
+                linhas.append(f"{e['rivais_mesmo']} da sua classe com esse pneu")
+        else:
+            if self.config.get("estrategia_vantagem", True):
+                v = e.get("vantagem")
+                linhas.append("Vantagem: ~" + (fmt_dec(abs(v), 1) + " s/volta" if v is not None and v > 0 else "-- s/volta"))
+            if self.config.get("estrategia_rivais", True) and e.get("rivais_outro"):
+                linhas.append(f"{e['rivais_outro']} da sua classe ja trocaram")
+        for i, t in enumerate(linhas[:2]):
+            p.drawText(QRectF(14, 100 + i * 20, self.LARG - 28, 20), Qt.AlignLeft | Qt.AlignVCenter, t)
+
+
 # Compatibilidade com a versao anterior
 Overlay = OverlayPrincipal = JanelaTelemetria
 
@@ -6656,7 +7218,7 @@ def definir_prioridade_baixa(ativa):
 
 def registrar_cabecalho():
     """Primeira linha da sessao no log: versoes (ajuda a diagnosticar problemas)."""
-    versoes = {"overlay": "Fase 20.2.2", "nucleo": nucleo.VERSAO_NUCLEO, "python": sys.version.split()[0],
+    versoes = {"overlay": "1.2.0 (base Fase 20.2.2)", "nucleo": nucleo.VERSAO_NUCLEO, "python": sys.version.split()[0],
                "SO": sys.platform}
     try:
         import PySide6
@@ -6711,14 +7273,21 @@ def principal():
     janela_danos = JanelaDanos(config)
     janela_combustivel = JanelaCombustivel(config)
     janela_forca_g = JanelaForcaG(config)
+    janela_luz_abs = JanelaLuzAbs(config)
+    janela_luz_tc = JanelaLuzTc(config)
+    janela_retorno = JanelaRetorno(config)
+    janela_estrategia = JanelaEstrategia(config)
     visib = VisibilidadeAuto(bool(config.get("auto_modo", True)) and not DEMO)
     janelas = [janela_telemetria, janela_voltas, janela_relativo, janela_classificacao,
-               janela_mapa, janela_radar, janela_pneus, janela_setores, janela_clima, janela_danos, janela_combustivel, janela_forca_g]
+               janela_mapa, janela_radar, janela_pneus, janela_setores, janela_clima, janela_danos, janela_combustivel, janela_forca_g,
+               janela_luz_abs, janela_luz_tc, janela_retorno, janela_estrategia]
     if not config["travado"]:
         visib.visivel = True               # destravado = posicionando: tudo visivel
     for j in janelas:
         j.definir_auto_visivel(visib.visivel)
     telemetria.margem_combustivel = float(config.get("margem_combustivel", 1.0))
+    telemetria.v12_tc.definir_sensibilidade(config.get("luz_tc_sens", "normal"))
+    telemetria.v12_retorno.definir_limites(config.get("retorno_pare", 1.5), config.get("retorno_ceda", 3.5))
     telemetria.estimador_pneus.desgaste_volta = max(0.001, float(config.get("pneu_desgaste_volta", 0.7)) / 100.0)
     telemetria.estimador_pneus.limite = float(config.get("pneu_vida_minima", 30)) / 100.0
     telemetria.estimador_pneus.inverter = bool(config.get("pneu_lado_invertido", False))
@@ -7044,6 +7613,123 @@ def principal():
     acao_refazer = QAction("Refazer o mapa desta pista", menu)
     acao_refazer.triggered.connect(ao_refazer_mapa)
     menu.addAction(acao_refazer)
+
+    # ---- v1.2.0: Inputs, Luz ABS, Luz TC, Retorno a pista, Estrategia de pneus ----
+    def _submenu_escolha(titulo, chave, opcoes, ao_mudar):
+        sub = menu.addMenu(titulo)
+        grupo = QActionGroup(sub)
+        grupo.setExclusive(True)
+        for valor, rotulo in opcoes:
+            a = QAction(rotulo, sub)
+            a.setCheckable(True)
+            a.setChecked(config.get(chave) == valor)
+            a.triggered.connect(lambda _m=False, v=valor: ao_mudar(chave, v))
+            grupo.addAction(a)
+            sub.addAction(a)
+            acoes.append(a)
+        return sub
+
+    def _definir(chave, valor, depois=None):
+        config[chave] = valor
+        if depois:
+            depois()
+        salvar_config(config)
+
+    def ao_inputs_opcao(chave, valor):
+        _definir(chave, valor, janela_telemetria.reconfigurar)
+
+    def ao_peca(chave):
+        def fn(marcado):
+            _definir(chave, bool(marcado), janela_telemetria.reconfigurar)
+        return fn
+
+    def ao_luz_abs(marcado):
+        janela_luz_abs.definir_ativo(marcado)
+        salvar_config(config)
+
+    def ao_luz_tc(marcado):
+        janela_luz_tc.definir_ativo(marcado)
+        salvar_config(config)
+
+    def ao_luz_opcao(chave, valor):
+        _definir(chave, valor, lambda: (janela_luz_abs.update(), janela_luz_tc.update()))
+
+    def ao_tc_sens(chave, valor):
+        _definir(chave, valor, lambda: telemetria.v12_tc.definir_sensibilidade(valor))
+
+    def ao_retorno(marcado):
+        janela_retorno.definir_ativo(marcado)
+        salvar_config(config)
+
+    def ao_retorno_limite(chave, valor):
+        def aplicar():
+            lp, lc = v12.normalizar_limites(config.get("retorno_pare", 1.5), config.get("retorno_ceda", 3.5))
+            config["retorno_pare"], config["retorno_ceda"] = lp, lc
+            telemetria.v12_retorno.definir_limites(lp, lc)
+        _definir(chave, valor, aplicar)
+
+    def ao_estrategia(marcado):
+        janela_estrategia.definir_ativo(marcado)
+        salvar_config(config)
+
+    def ao_flag(chave):
+        def fn(marcado):
+            _definir(chave, bool(marcado))
+        return fn
+
+    _submenu_escolha("   Telemetria: tempo do grafico de pedais", "inputs_segundos",
+                     [(5, "5 segundos"), (8, "8 segundos"), (12, "12 segundos (padrao)"), (20, "20 segundos"), (30, "30 segundos")],
+                     ao_inputs_opcao)
+    _submenu_escolha("   Telemetria: de onde vem os pedais", "inputs_origem",
+                     [("carro", "Como chegam ao carro (calibrados)"), ("cru", "Como o pe pisa (cru)"),
+                      ("ambos", "Os dois (mostra a calibracao)")], ao_inputs_opcao)
+    for rotulo_p, chave_p in (("Degraus das marchas no grafico", "inputs_marchas_fundo"),
+                              ("Marca do ABS (amarelo) no freio", "inputs_marca_abs"),
+                              ("Marca do TC (azul, estimada) no acelerador", "inputs_marca_tc")):
+        adicionar("   Telemetria: " + rotulo_p, config[chave_p], ao_peca(chave_p), chave=chave_p)
+    adicionar("Mostrar Luz do ABS", config["mostrar_luz_abs"], ao_luz_abs, chave="mostrar_luz_abs")
+    _submenu_escolha("   Luz do ABS: cor", "luz_abs_cor",
+                     [("dourado", "Dourado (padrao)"), ("vermelho", "Vermelho"), ("branco", "Branco")], ao_luz_opcao)
+    _submenu_escolha("   Luz do ABS: como pisca", "luz_abs_modo",
+                     [("ritmo", "No ritmo do ABS (padrao)"), ("suave", "Piscada suave"), ("fixa", "Luz fixa")], ao_luz_opcao)
+    adicionar("   Luz do ABS: deixar visivel e apagada quando nao atua", config["luz_abs_apagada"], ao_flag("luz_abs_apagada"),
+              chave="luz_abs_apagada")
+    acao_teste_abs = QAction("   Testar a Luz do ABS (5 s)", menu)
+    acao_teste_abs.triggered.connect(lambda: janela_luz_abs.testar(5.0))
+    menu.addAction(acao_teste_abs)
+    adicionar("Mostrar Luz do TC (perda de tracao, estimada)", config["mostrar_luz_tc"], ao_luz_tc, chave="mostrar_luz_tc")
+    _submenu_escolha("   Luz do TC: cor", "luz_tc_cor",
+                     [("azul", "Azul (padrao)"), ("dourado", "Dourado"), ("vermelho", "Vermelho"), ("branco", "Branco")],
+                     ao_luz_opcao)
+    _submenu_escolha("   Luz do TC: como pisca", "luz_tc_modo",
+                     [("ritmo", "No ritmo da patinagem (padrao)"), ("suave", "Piscada suave"), ("fixa", "Luz fixa")], ao_luz_opcao)
+    _submenu_escolha("   Luz do TC: sensibilidade", "luz_tc_sens",
+                     [("fina", "Fina (a partir de 3,5%)"), ("normal", "Normal (5%, padrao)"), ("grossa", "Grossa (7,5%)")],
+                     ao_tc_sens)
+    adicionar("   Luz do TC: deixar visivel e apagada quando nao atua", config["luz_tc_apagada"], ao_flag("luz_tc_apagada"),
+              chave="luz_tc_apagada")
+    acao_teste_tc = QAction("   Testar a Luz do TC (5 s)", menu)
+    acao_teste_tc.triggered.connect(lambda: janela_luz_tc.testar(5.0))
+    menu.addAction(acao_teste_tc)
+    adicionar("Mostrar Retorno a pista (PARE / CEDA / LIVRE)", config["mostrar_retorno"], ao_retorno, chave="mostrar_retorno")
+    _submenu_escolha("   Retorno: nao entre abaixo de (vermelho)", "retorno_pare",
+                     [(v, f"{v:g} s" + ("  (padrao)" if v == 1.5 else "")) for v in (1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0, 12.0)],
+                     ao_retorno_limite)
+    _submenu_escolha("   Retorno: entre cedendo abaixo de (laranja)", "retorno_ceda",
+                     [(v, f"{v:g} s" + ("  (padrao)" if v == 3.5 else "")) for v in (2.0, 3.5, 5.0, 7.0, 10.0, 15.0, 25.0)],
+                     ao_retorno_limite)
+    adicionar("   Retorno: deixar sempre visivel enquanto piloto", config["retorno_sempre"], ao_flag("retorno_sempre"),
+              chave="retorno_sempre")
+    acao_teste_ret = QAction("   Testar o aviso de Retorno (9 s)", menu)
+    acao_teste_ret.triggered.connect(lambda: janela_retorno.testar(9.0))
+    menu.addAction(acao_teste_ret)
+    adicionar("Mostrar Estrategia de pneus (chuva x seco)", config["mostrar_estrategia"], ao_estrategia, chave="mostrar_estrategia")
+    adicionar("   Estrategia: mostrar a vantagem em segundos por volta (estimada)", config["estrategia_vantagem"],
+              ao_flag("estrategia_vantagem"), chave="estrategia_vantagem")
+    adicionar("   Estrategia: mostrar quantos da sua classe ja trocaram", config["estrategia_rivais"],
+              ao_flag("estrategia_rivais"), chave="estrategia_rivais")
+    adicionar("   Estrategia: pulsar quando for hora de trocar", config["estrategia_pulsar"], ao_flag("estrategia_pulsar"),
+              chave="estrategia_pulsar")
     menu.addSeparator()
     adicionar("Visual moderno (desmarque para voltar ao visual classico)", config["tema_moderno"], ao_tema, chave="tema_moderno")
     adicionar("   Estilo Glass Fume (vidro escuro translucido)", config["tema_vidro"], ao_vidro, chave="tema_vidro")

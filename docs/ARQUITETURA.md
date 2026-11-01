@@ -22,7 +22,8 @@
 | `ov_demo_lmu.py` | Dados simulados para `--demo` |
 | `overlay_iracing.py`, `ov_nucleo.py` | **Base compartilhada** com o overlay de iRacing (janelas, tema, config, bandeja). Cópia embutida: este repositório é independente |
 | `pyLMUSharedMemory/` | Leitor da memória compartilhada do LMU (MIT, Tony Whitley e Xiang) |
-| `testes/teste_lmu.py` | Testes automáticos (jogo simulado) |
+| `ov_v12.py` | Lógica pura da 1.2.0 (sem Qt): Retorno à pista, Estratégia de pneus, histórico do gráfico de pedais (compartilhada com o overlay do iRacing) |
+| `testes/teste_lmu.py`, `testes/teste_lmu_v12.py` | Testes automáticos (jogo simulado) |
 
 ## Princípios do projeto
 

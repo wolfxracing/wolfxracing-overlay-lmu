@@ -1,14 +1,14 @@
 # Manual do usuário: WolfxRacing Overlay para Le Mans Ultimate
 
-> Versão do overlay neste pacote: **LMU 1.7.0 (estilos Glass Fumê e Sport)**. Os prints foram gerados no **modo demonstração** (dados simulados); as fontes e as medidas podem variar um pouco no seu Windows.
+> Versão do overlay neste pacote: **LMU 1.2.0 (estilos Glass Fumê e Sport + gráfico de pedais, Luz ABS, Luz TC, Retorno à pista e Estratégia de pneus)**. Os prints foram gerados no **modo demonstração** (dados simulados); as fontes e as medidas podem variar um pouco no seu Windows.
 
 ## Sumário
 
-1. [O que é](#1-o-que-é) · 2. [Instalação](#2-instalação-uma-única-vez) · 3. [Configurar o jogo](#3-configurar-o-le-mans-ultimate-obrigatório) · 4. [Uso diário](#4-uso-diário) · 5. [As 12 janelas](#5-as-janelas) · 6. [Como ler os números](#6-como-ler-os-números) · 7. [Dash e Stream Deck](#7-dash-e-stream-deck) · 8. [Solução de problemas](#8-solução-de-problemas) · 9. [Atualizar](#9-atualizar-para-uma-versão-nova) · 10. [Limites](#10-limites-conhecidos)
+1. [O que é](#1-o-que-é) · 2. [Instalação](#2-instalação-uma-única-vez) · 3. [Configurar o jogo](#3-configurar-o-le-mans-ultimate-obrigatório) · 4. [Uso diário](#4-uso-diário) · 5. [As 16 janelas](#5-as-janelas) · 6. [Como ler os números](#6-como-ler-os-números) · 7. [Dash e Stream Deck](#7-dash-e-stream-deck) · 8. [Solução de problemas](#8-solução-de-problemas) · 9. [Atualizar](#9-atualizar-para-uma-versão-nova) · 10. [Limites](#10-limites-conhecidos)
 
 ## 1. O que é
 
-12 janelas independentes e transparentes, sempre por cima do jogo, que podem ser movidas, redimensionadas e ligadas/desligadas pelo menu do ícone azul "LM" perto do relógio do Windows. Tudo roda localmente; nenhum dado seu é enviado para a internet.
+16 janelas independentes e transparentes, sempre por cima do jogo, que podem ser movidas, redimensionadas e ligadas/desligadas pelo menu do ícone azul "LM" perto do relógio do Windows. Tudo roda localmente; nenhum dado seu é enviado para a internet.
 
 ![Visão geral](imagens/overlay_visao_geral.png)
 
@@ -50,8 +50,11 @@ Os dois estilos usam a tipografia esportiva (itálico; títulos em Sui Generis, 
 
 ![Telemetria](imagens/overlay_telemetria.png)
 
-Marcha, velocidade, RPM, pedais, volante, TC, ABS, balanço de freio e gráfico de acelerador/freio.
+Marcha, velocidade, RPM, pedais, volante, TC, ABS, balanço de freio e **gráfico de acelerador/freio** (novo na 1.2.0: rola por tempo, de 5 a 30 s, com degraus da marcha, marca amarela do ABS no freio e marca azul do TC no acelerador).
 
+![Telemetria com o gráfico de pedais](imagens/overlay_telemetria_pedais.png)
+
+- Ajustes em *bandeja > Telemetria: tempo do gráfico de pedais*, *degraus das marchas*, *marca do ABS* e *marca do TC*. As marcas de ABS e TC vêm do jogo, não são estimativa.
 - Mesmo visual e posição das janelas do overlay de iRacing.
 
 ### 2. Voltas (delta)
@@ -142,12 +145,51 @@ Gráfico das voltas limpas (stint atual em amarelo, reta de tendência, melhor v
 
 - Volta limpa = sem box e dentro de 130% da melhor.
 
+### 13. Luz do ABS
+
+![Luz do ABS](imagens/overlay_luz_abs.png)
+
+Um ícone solto, sem painel e sem texto, que **acende enquanto o ABS está atuando** e apaga quando ele para. No LMU o **jogo informa** quando o ABS atua (não é estimativa). Uma piscada curta no ponto de freada é o ABS trabalhando bem; acesa até o meio da curva, a freada passou do ponto.
+
+- **Cor:** dourado (padrão), vermelho ou branco. **Como pisca:** *no ritmo do ABS* (padrão), *piscada suave* ou *luz fixa*.
+- Quando não atua, a janela é **totalmente transparente**; para vê-la apagada marque *deixar visível e apagada quando não atua* ou use *Testar a Luz do ABS (5 s)* na bandeja (útil para posicionar).
+- Carros sem ABS não acendem a luz (comportamento esperado).
+
+### 14. Luz do TC (controle de tração atuando)
+
+![Luz do TC](imagens/overlay_luz_tc.png)
+
+Ícone solto que **acende quando o controle de tração está cortando potência** (aviso do próprio jogo, `mTCActive`). No iRacing a mesma janela é uma estimativa; no LMU é dado do jogo.
+
+- Mesmas opções de cor, piscada, "visível e apagada" e teste de 5 s da Luz do ABS (cor padrão azul).
+- Acender muito = acelerador entrando cedo demais, ou o ajuste do TC do carro baixo demais para o piso.
+
+### 15. Retorno à pista (PARE / CEDA / LIVRE)
+
+![Retorno à pista](imagens/overlay_retorno.png)
+
+Aparece quando você está **parado na pista ou com as quatro rodas fora dela** e mostra se pode voltar: **PARE** (vermelho), **CEDA** (laranja) ou **LIVRE** (verde), com os **segundos** até o carro mais próximo que vem atrás chegar até você. Some sozinho depois que você volta a andar.
+
+- A velocidade de cada carro é medida ao vivo (avanço na pista); considera qualquer carro atrás de você, inclusive de outra classe. O LMU não informa a superfície dos outros carros: todos contam como "na pista".
+- Não avisa nos boxes, no grid nem na volta de apresentação.
+- Limites ajustáveis em *bandeja > Retorno*: vermelho abaixo de 1,5 s (padrão) e laranja abaixo de 3,5 s. *Deixar sempre visível enquanto piloto* e *Testar o aviso (9 s)* ajudam a posicionar.
+
+### 16. Estratégia de pneus (chuva x seco)
+
+![Estratégia de pneus](imagens/overlay_estrategia.png)
+
+Cartão que compara a **umidade da pista** e a **chuva** com o pneu montado e diz **SEGUIR**, **PREPARE-SE** (com minutos estimados quando a pista está secando) ou **TROCAR**. Antes da largada (e na garagem da classificação) mostra qual pneu largar.
+
+- Usa a escala "pista molhada" de 1 a 7 do overlay (apoio visual, não medida oficial) e o composto do seu carro.
+- **Limites no LMU:** o jogo não informa o pneu dos outros carros nem o pedido feito nos boxes, então **não há** "vantagem em s/volta" nem contagem de rivais (isso existe só no iRacing). A recomendação é pela pista e pelo seu pneu.
+- Não mexe no carro nem pede pneu: só informa.
+
 
 ## 6. Como ler os números: medido, calculado, estimado
 
-- **Medido pelo jogo** (sem marca): níveis (energia virtual, combustível, desgaste, temperaturas, pressão), composto, zonas de dano, bandeiras, boxes, penalidades.
+- **Medido pelo jogo** (sem marca): ABS e TC atuando, níveis (energia virtual, combustível, desgaste, temperaturas, pressão), composto, zonas de dano, bandeiras, boxes, penalidades.
 - **"~"** = **calculado** pelo overlay: consumo por volta, alcance, janela de pit, alvo de consumo, ritmo, tendência, distâncias e tempos entre carros, limite dos boxes (o jogo não informa; o overlay anota a velocidade com o limitador ligado nos boxes e só mostra depois da 1ª passagem).
-- O LMU **não informa**: % de dano, tempo de reparo, tempo de parada planejado, previsão do tempo, país/iRating dos pilotos nem pneus/dano dos outros carros. Essas informações **não existem** no overlay (nada é inventado). Vento e neblina dependem de o jogo preencher o dado; sem ele aparece "--".
+- O LMU **não informa**: o pneu dos outros carros e o pedido de pneu nos boxes (por isso a Estratégia não tem vantagem em s/volta), a superfície dos outros carros (Retorno), % de dano, tempo de reparo, tempo de parada planejado, previsão do tempo, país/iRating dos pilotos nem pneus/dano dos outros carros. Essas informações **não existem** no overlay (nada é inventado). Vento e neblina dependem de o jogo preencher o dado; sem ele aparece "--".
 - A **vida do pneu** vem de `mWear` (100% = novo). Quando o jogo entrega exatamente **0,0** numa roda, o overlay trata como *sem leitura* e mostra "--" em vez de "0%".
 - "Pista molhada" (1 a 7) e "céu" são **escalas do overlay** a partir de números do jogo: apoio visual, não medida oficial.
 

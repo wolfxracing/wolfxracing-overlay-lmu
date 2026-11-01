@@ -2,6 +2,16 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.2.0] - 2026-11-01
+
+- **Alterado:** a janela **Telemetria** passou a ter o gráfico de pedais rolante por tempo (5 a 30 s), com degraus da marcha e marcas de ABS (amarelo) e TC (azul), ambas do próprio jogo.
+- **Novo:** **Luz do ABS** e **Luz do TC**: ícones soltos que acendem quando o jogo informa ABS ou TC atuando (`mABSActive`, `mTCActive`); cor, modo de piscar e teste de 5 s. No LMU não é estimativa.
+- **Novo:** **Retorno à pista**: PARE / CEDA / LIVRE e os segundos até o carro mais próximo que vem atrás chegar até você; não avisa nos boxes, no grid nem na volta de apresentação. Limites ajustáveis.
+- **Novo:** **Estratégia de pneus** (chuva x seco): SEGUIR / PREPARE-SE / TROCAR pela umidade da pista, chuva e pneu montado; pneu para largar. O LMU não informa o pneu dos outros carros, então não há vantagem estimada nem contagem de rivais.
+- Base do overlay atualizada para a do iRacing 1.2.0 (novo módulo `overlay/ov_v12.py`); 16 janelas no total. Nova suíte `testes/teste_lmu_v12.py`.
+- Sem atalhos de Stream Deck para as quatro janelas novas nesta versão (use o menu da bandeja).
+- Testado só com jogo simulado: a validação com o LMU real (principalmente Luz do TC, Retorno e chuva) está no `ROTEIRO_VALIDACAO_LMU.txt`, teste 16.
+
 ## [1.1.0] - 2026-11-01
 
 - **Novo:** estilo visual **Glass Fumê** (vidro escuro translúcido, reflexo suave, bordas finas, com tipografia esportiva itálica). É o novo padrão do overlay; o Sport continua disponível em *bandeja > Estilo Sport* (os dois são excludentes).

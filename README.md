@@ -2,7 +2,7 @@
 
 # WolfxRacing Overlay para Le Mans Ultimate
 
-Overlay gratuito e de código aberto para **Le Mans Ultimate (LMU)** no Windows, com **12 janelas** independentes, **dash para o Simagic MagicDash 4** (SimHub) e **perfil de Stream Deck XL**.
+Overlay gratuito e de código aberto para **Le Mans Ultimate (LMU)** no Windows, com **16 janelas** independentes, **dash para o Simagic MagicDash 4** (SimHub) e **perfil de Stream Deck XL**.
 
 ![Visão geral do overlay](docs/imagens/overlay_visao_geral.png)
 
@@ -12,10 +12,16 @@ Overlay gratuito e de código aberto para **Le Mans Ultimate (LMU)** no Windows,
 
 | Pasta | Conteúdo |
 |---|---|
-| [`overlay/`](overlay) | O overlay (Python + PySide6): 12 janelas, perfis, atalhos globais, testes automáticos |
+| [`overlay/`](overlay) | O overlay (Python + PySide6): 16 janelas, perfis, atalhos globais, testes automáticos |
 | [`dash/`](dash) | Dash **MagicDash 4** nos estilos **Glass Fumê** e **Sport** (`.simhubdash`, 3 telas, 800x480) + ferramentas para gerar/alterar |
 | [`streamdeck/`](streamdeck) | Perfil para **Stream Deck XL**, biblioteca de ícones e gerador |
 | [`docs/`](docs) | Manual, guia do dash, guia do Stream Deck, arquitetura e histórico |
+
+## Novidades da 1.2.0
+
+A janela **Telemetria** ganhou o gráfico de pedais por tempo (5 a 30 s, com degraus da marcha e marcas de ABS/TC) e há quatro janelas novas: **Luz do ABS**, **Luz do TC** (as duas com dado do próprio jogo), **Retorno à pista** (PARE / CEDA / LIVRE com os segundos até o carro de trás chegar) e **Estratégia de pneus** (chuva x seco). Veja o [manual](docs/MANUAL.md#13-luz-do-abs) e o [CHANGELOG](CHANGELOG.md).
+
+![Novos overlays](docs/imagens/overlay_novos_1_2.png)
 
 ## Estilos visuais: Glass Fumê e Sport
 

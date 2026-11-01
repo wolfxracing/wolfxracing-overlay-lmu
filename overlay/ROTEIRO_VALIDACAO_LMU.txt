@@ -174,4 +174,19 @@ TESTE 15 - STREAM DECK (perfil "Overlay LMU")                              (10 m
  Anote: algum botao sem efeito ou que abriu o arquivo errado? Algum atalho que o overlay avisou nao ter conseguido registrar
  (veja "atalhos globais" no overlay_log_lmu.txt)? O Stream Deck aceitou a importacao sem mensagem de erro?
 
+TESTE 16 - LUZ ABS, LUZ TC, RETORNO A PISTA E ESTRATEGIA DE PNEUS (v1.2.0)         (40 min)
+ Faca: com o jogo em Borderless/Window e o overlay aberto, (1) use "Testar a Luz do ABS (5 s)" e "Testar a Luz do TC (5 s)" para
+ posicionar; (2) numa volta, freie forte e acelere cedo na saida de curva; (3) rode para a grama (ou pare na pista) com carros
+ chegando; (4) se possivel, uma sessao com chuva.
+ Esperado:
+  a) LUZ ABS acende so durante a atuacao do ABS (confira com a sensacao e o grafico da Telemetria: trecho amarelo no freio).
+  b) LUZ TC acende quando o carro corta potencia na saida de curva (trecho azul no acelerador, se ligado em "Marca do TC").
+     Mude o ajuste do TC no carro: a frequencia deve acompanhar.
+  c) RETORNO: parado na pista ou com as 4 rodas fora, aparece PARE/CEDA/LIVRE e os segundos ate o carro de tras; some ~1,5 s depois
+     de voltar a andar; NAO aparece nos boxes, no grid nem na volta de apresentacao. Confira se os segundos batem com o que voce ve.
+  d) ESTRATEGIA: com pneu de seco e pista molhando, vai a PREPARE-SE e TROCAR; com pneu de chuva e pista secando, idem para seco;
+     antes da largada, mostra o pneu indicado. Anote o "nivel" da pista que o overlay mostra x a sua percepcao.
+  e) DESEMPENHO: com as 16 janelas abertas, veja "desempenho" no overlay_log_lmu.txt e se o FPS do jogo caiu.
+ Anote: alguma luz atrasada ou acendendo sem motivo? Retorno aparecendo onde nao devia? Estrategia recomendando errado?
+
 ANEXE NA ISSUE DO GITHUB: diagnostico_lmu.txt, overlay_log_lmu.txt e as anotacoes de cada teste (PASSOU / FALHOU / DUVIDA).

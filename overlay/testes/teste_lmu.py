@@ -748,7 +748,7 @@ def teste_principal():
         QTimer.singleShot(1600, app.quit)
     codigo = m.principal(leitor=leitor, config_extra={"auto_modo": False, "travado": True}, ao_iniciar=ao_iniciar)
     confere(codigo == 0, "principal terminou sem erro")
-    confere(estado.get("janelas") == 12, f"12 janelas criadas (obtido {estado.get('janelas')})")
+    confere(estado.get("janelas") == 16, f"16 janelas criadas (obtido {estado.get('janelas')})")
     confere(estado.get("conectado") == lmu.OK, f"leitor em estado ok (obtido {estado.get('conectado')})")
     confere(estado.get("visiveis", 0) >= 10, f"janelas visiveis ({estado.get('visiveis')})")
     log = TMP / "log_principal.txt"

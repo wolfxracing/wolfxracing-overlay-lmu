@@ -48,6 +48,7 @@ import ov_alertas_lmu as alertas_lmu                  # alertas na pista (logica
 import ov_atalhos_lmu as atalhos_lmu                  # teclas globais para o Stream Deck (mapa proprio do LMU)
 import ov_demo_lmu                                    # dados simulados das janelas novas (--demo)
 import overlay_iracing as base                        # janelas e calculos ja homologados do overlay do iRacing
+import ov_v12 as v12                                  # v1.2.0: logica das Luzes, Retorno a pista e Estrategia de pneus (sem Qt)
 nucleo = base.nucleo
 
 from PySide6.QtCore import Qt, QTimer
@@ -57,7 +58,7 @@ from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 from ov_janela_lmu import JanelaClassificacaoLMU, JanelaClimaLMU      # classificacao com mais colunas (so no LMU)
 import ov_janelas_extra_lmu as extra_lmu              # janelas novas (energia, pneus, danos, alertas, stints, tendencia)
 
-VERSAO = "LMU 1.7.0 Glass/Sport (base iRacing Fase 20.2.2)"
+VERSAO = "LMU 1.2.0 Glass/Sport (base iRacing 1.2.0)"
 NOME_JOGO = "Le Mans Ultimate"
 DEMO = "--demo" in sys.argv
 DIAGNOSTICO = "--diagnostico" in sys.argv
@@ -225,6 +226,9 @@ class TelemetriaLMU:
         self._volta_ant = None            # (voltas completas, inicio da volta) para conferir a ultima volta do jogo
         self._avisos = set()
         self.ultimo_estado = lmu.SEM_JOGO
+        self.v12_retorno = v12.CalculadorRetorno()        # v1.2.0
+        self.v12_pneus = v12.EstrategiaPneus()
+        self._v12_sessao = None
 
     # -- eventos / diagnostico ----------------------------------------------------
     def _estado_mudou(self, anterior, estado, motivo):
@@ -319,6 +323,10 @@ class TelemetriaLMU:
         dados["abs_nivel"] = lmu.abs_nivel(tele)
         dados["bias"] = lmu.bias_dianteiro_pct(tele)
         dados["volante"] = lmu.volante_graus(tele)
+        try:
+            self._montar_v12(dados, snap, info, scor, tele, i_scor)
+        except Exception:
+            base.registrar_erro("v1.2.0 (luzes, retorno, estrategia)")
 
         # --- voltas e delta ---
         try:
@@ -335,6 +343,60 @@ class TelemetriaLMU:
         # --- janelas novas do LMU (cada bloco falha sozinho, sem derrubar o resto) ---
         self._montar_extras(dados, snap, info, scor, tele, i_scor)
         return dados
+
+    # -- v1.2.0: Luz do TC, Retorno a pista e Estrategia de pneus ----------------------------------------------------
+    def _montar_v12(self, dados, snap, info, scor, tele, i_scor):
+        agora = self._relogio()
+        chave = (int(info.mSession), round(float(info.mStartET)))
+        if self._v12_sessao != chave:
+            if self._v12_sessao is not None:
+                base.registrar_info("v1.2.0: nova sessao, historicos do Retorno e da Estrategia reiniciados")
+            self._v12_sessao = chave
+            self.v12_retorno.resetar()
+            self.v12_pneus.resetar()
+        # Luz do TC: o LMU informa mTCActive (dado do jogo, nao estimativa, ao contrario do iRacing)
+        dados["luz_tc"] = {"ativa": bool(tele.mTCActive), "patinagem": 0.0, "estado": "jogo"}
+        fase = int(info.mGamePhase)
+        antes_da_largada = fase <= 4                       # grid, volta de apresentacao e luzes: ninguem esta "parado na pista"
+        dados["retorno"] = self._cacheado("retorno", 0.1, lambda: self._montar_retorno(dados, snap, info, scor, tele, i_scor,
+                                                                                         agora, antes_da_largada))
+        dados["estrategia"] = self._cacheado("estrategia", 0.5, lambda: self._montar_estrategia(dados, info, scor, tele,
+                                                                                                 agora, antes_da_largada))
+
+    def _montar_retorno(self, dados, snap, info, scor, tele, i_scor, agora, antes_da_largada):
+        carros = extrair_carros(snap, i_scor)
+        comprimento = float(info.mLapDist)
+        meu = next((i for i, c in enumerate(carros) if c["eu"]), None)
+        if meu is None or comprimento <= 100.0:
+            return None
+        pcts = []
+        for c in carros:
+            d = c["dist"]
+            pcts.append((d / comprimento) % 1.0 if math.isfinite(d) else -1.0)
+        sup = [3] * len(carros)                            # 3 = na pista (o LMU nao informa a superficie dos outros carros)
+        sup_rodas = [int(tele.mWheels[i].mSurfaceType) for i in range(4)]
+        if all(s in (2, 3, 4) for s in sup_rodas):         # grama, terra ou cascalho nas quatro rodas = fora da pista
+            sup[meu] = 0
+        box = [bool(c["box"]) for c in carros]
+        if antes_da_largada or not dados.get("no_carro"):
+            box[meu] = True                                # no grid ou fora do carro nao faz sentido avisar
+        return self.v12_retorno.atualizar(agora, meu, pcts, sup, box, comprimento, dados["velocidade"] / 3.6,
+                                          dados.get("melhor_volta"))
+
+    def _montar_estrategia(self, dados, info, scor, tele, agora, antes_da_largada):
+        clima = dados.get("clima") or {}
+        nome = lmu.texto(tele.mFrontTireCompoundName) or lmu.texto(tele.mRearTireCompoundName)
+        est = base.estilo_pneu(nome)
+        meu_tipo = v12.classe_pneu(est[1] if est else None)
+        tipo_sessao = dados.get("tipo_sessao")
+        pre = ((tipo_sessao == "CORRIDA" and antes_da_largada)
+               or (tipo_sessao == "QUALIFICACAO" and bool(scor.mInGarageStall or scor.mInPits)))
+        # O LMU nao informa o pneu dos outros carros nem o pedido feito nos boxes: sem vantagem estimada e sem contagem de rivais.
+        # tem_chuva = True: no LMU todas as classes tem pneu de chuva disponivel (no iRacing nem todo carro tem)
+        res = self.v12_pneus.atualizar(agora, clima.get("pista_molhada"), clima.get("chuva"), meu_tipo,
+                                       True, None, pre, None, 0, 0)
+        res["meu_pneu_nome"] = nome or None
+        return res
 
     # -- blocos ---------------------------------------------------------------------
     @staticmethod
@@ -813,8 +875,14 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
     janela_alertas = extra_lmu.JanelaAlertasLMU(config)
     janela_stints = extra_lmu.JanelaStintsLMU(config)
     janela_tendencia = extra_lmu.JanelaTendenciaLMU(config)
+    janela_luz_abs = base.JanelaLuzAbs(config)
+    janela_luz_tc = base.JanelaLuzTc(config)
+    janela_retorno = base.JanelaRetorno(config)
+    janela_estrategia = base.JanelaEstrategia(config)
+    telemetria.v12_retorno.definir_limites(config.get("retorno_pare", 1.5), config.get("retorno_ceda", 3.5))
     janelas = [janela_telemetria, janela_voltas, janela_classificacao, janela_clima, janela_combustivel, janela_forca_g,
-               janela_energia, janela_pneus, janela_danos, janela_alertas, janela_stints, janela_tendencia]
+               janela_energia, janela_pneus, janela_danos, janela_alertas, janela_stints, janela_tendencia,
+               janela_luz_abs, janela_luz_tc, janela_retorno, janela_estrategia]
     for j in janelas:
         j.setWindowTitle("Overlay " + NOME_JOGO)
     visib = base.VisibilidadeAuto(bool(config.get("auto_modo", True)) and not DEMO)
@@ -974,6 +1042,95 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
     adicionar("Mostrar alertas na pista (LMU)", config["mostrar_lmu_alertas"], alternar_janela(janela_alertas), chave="mostrar_lmu_alertas")
     adicionar("Mostrar historico de stints (LMU)", config["mostrar_lmu_stints"], alternar_janela(janela_stints), chave="mostrar_lmu_stints")
     adicionar("Mostrar tendencia de ritmo (LMU)", config["mostrar_lmu_tendencia"], alternar_janela(janela_tendencia), chave="mostrar_lmu_tendencia")
+    menu.addSeparator()
+
+    # ---- v1.2.0: grafico de pedais da Telemetria, Luzes do ABS e do TC, Retorno a pista e Estrategia de pneus ----
+    def _submenu_escolha(titulo, chave, opcoes, ao_mudar):
+        sub = menu.addMenu(titulo)
+        grupo = QActionGroup(sub)
+        grupo.setExclusive(True)
+        for valor, rotulo in opcoes:
+            a = QAction(rotulo, sub)
+            a.setCheckable(True)
+            a.setChecked(config.get(chave) == valor)
+            a.triggered.connect(lambda _m=False, v=valor: ao_mudar(chave, v))
+            grupo.addAction(a)
+            sub.addAction(a)
+            acoes.append(a)
+        return sub
+
+    def _definir(chave, valor, depois=None):
+        config[chave] = valor
+        if depois:
+            depois()
+        base.salvar_config(config)
+
+    def ao_flag(chave):
+        def fn(marcado):
+            _definir(chave, bool(marcado))
+        return fn
+
+    def ao_inputs_opcao(chave, valor):
+        _definir(chave, valor, janela_telemetria.reconfigurar)
+
+    def ao_peca(chave):
+        def fn(marcado):
+            _definir(chave, bool(marcado), janela_telemetria.reconfigurar)
+        return fn
+
+    def ao_luz_opcao(chave, valor):
+        _definir(chave, valor, lambda: (janela_luz_abs.update(), janela_luz_tc.update()))
+
+    def ao_retorno_limite(chave, valor):
+        def aplicar():
+            lp, lc = v12.normalizar_limites(config.get("retorno_pare", 1.5), config.get("retorno_ceda", 3.5))
+            config["retorno_pare"], config["retorno_ceda"] = lp, lc
+            telemetria.v12_retorno.definir_limites(lp, lc)
+        _definir(chave, valor, aplicar)
+
+    _submenu_escolha("   Telemetria: tempo do grafico de pedais", "inputs_segundos",
+                     [(5, "5 segundos"), (8, "8 segundos"), (12, "12 segundos (padrao)"), (20, "20 segundos"), (30, "30 segundos")],
+                     ao_inputs_opcao)
+    for rotulo_p, chave_p in (("Degraus das marchas no grafico", "inputs_marchas_fundo"),
+                              ("Marca do ABS (amarelo) no freio", "inputs_marca_abs"),
+                              ("Marca do TC (azul) no acelerador", "inputs_marca_tc")):
+        adicionar("   Telemetria: " + rotulo_p, config[chave_p], ao_peca(chave_p), chave=chave_p)
+    adicionar("Mostrar Luz do ABS", config["mostrar_luz_abs"], alternar_janela(janela_luz_abs), chave="mostrar_luz_abs")
+    _submenu_escolha("   Luz do ABS: cor", "luz_abs_cor",
+                     [("dourado", "Dourado (padrao)"), ("vermelho", "Vermelho"), ("branco", "Branco")], ao_luz_opcao)
+    _submenu_escolha("   Luz do ABS: como pisca", "luz_abs_modo",
+                     [("ritmo", "No ritmo do ABS (padrao)"), ("suave", "Piscada suave"), ("fixa", "Luz fixa")], ao_luz_opcao)
+    adicionar("   Luz do ABS: deixar visivel e apagada quando nao atua", config["luz_abs_apagada"], ao_flag("luz_abs_apagada"),
+              chave="luz_abs_apagada")
+    acao_teste_abs = QAction("   Testar a Luz do ABS (5 s)", menu)
+    acao_teste_abs.triggered.connect(lambda: janela_luz_abs.testar(5.0))
+    menu.addAction(acao_teste_abs)
+    adicionar("Mostrar Luz do TC (controle de tracao atuando)", config["mostrar_luz_tc"], alternar_janela(janela_luz_tc), chave="mostrar_luz_tc")
+    _submenu_escolha("   Luz do TC: cor", "luz_tc_cor",
+                     [("azul", "Azul (padrao)"), ("dourado", "Dourado"), ("vermelho", "Vermelho"), ("branco", "Branco")],
+                     ao_luz_opcao)
+    _submenu_escolha("   Luz do TC: como pisca", "luz_tc_modo",
+                     [("ritmo", "No ritmo do TC (padrao)"), ("suave", "Piscada suave"), ("fixa", "Luz fixa")], ao_luz_opcao)
+    adicionar("   Luz do TC: deixar visivel e apagada quando nao atua", config["luz_tc_apagada"], ao_flag("luz_tc_apagada"),
+              chave="luz_tc_apagada")
+    acao_teste_tc = QAction("   Testar a Luz do TC (5 s)", menu)
+    acao_teste_tc.triggered.connect(lambda: janela_luz_tc.testar(5.0))
+    menu.addAction(acao_teste_tc)
+    adicionar("Mostrar Retorno a pista (PARE / CEDA / LIVRE)", config["mostrar_retorno"], alternar_janela(janela_retorno), chave="mostrar_retorno")
+    _submenu_escolha("   Retorno: nao entre abaixo de (vermelho)", "retorno_pare",
+                     [(v, f"{v:g} s" + ("  (padrao)" if v == 1.5 else "")) for v in (1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0, 12.0)],
+                     ao_retorno_limite)
+    _submenu_escolha("   Retorno: entre cedendo abaixo de (laranja)", "retorno_ceda",
+                     [(v, f"{v:g} s" + ("  (padrao)" if v == 3.5 else "")) for v in (2.0, 3.5, 5.0, 7.0, 10.0, 15.0, 25.0)],
+                     ao_retorno_limite)
+    adicionar("   Retorno: deixar sempre visivel enquanto piloto", config["retorno_sempre"], ao_flag("retorno_sempre"),
+              chave="retorno_sempre")
+    acao_teste_ret = QAction("   Testar o aviso de Retorno (9 s)", menu)
+    acao_teste_ret.triggered.connect(lambda: janela_retorno.testar(9.0))
+    menu.addAction(acao_teste_ret)
+    adicionar("Mostrar Estrategia de pneus (chuva x seco)", config["mostrar_estrategia"], alternar_janela(janela_estrategia), chave="mostrar_estrategia")
+    adicionar("   Estrategia: pulsar quando for hora de trocar", config["estrategia_pulsar"], ao_flag("estrategia_pulsar"),
+              chave="estrategia_pulsar")
     menu.addSeparator()
     adicionar("Visual moderno (desmarque para voltar ao visual classico)", config["tema_moderno"],
               guardar("tema_moderno", ao_tema))
