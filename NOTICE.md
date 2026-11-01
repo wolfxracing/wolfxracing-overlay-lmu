@@ -7,7 +7,7 @@ Este projeto é **independente** e **não é afiliado, aprovado ou patrocinado**
 | Componente | Licença | Onde |
 |---|---|---|
 | [pyLMUSharedMemory](https://github.com/TonyWhitley/pyRfactor2SharedMemory) (Tony Whitley, Xiang) | MIT | `overlay/pyLMUSharedMemory/` (texto em `License.txt`) |
-| Ícones do Stream Deck, fundos e ícones do dash | MIT (desenhos originais do projeto) | `streamdeck/`, `dash/tools/assets_sport/` |
+| Ícones do Stream Deck, fundos e ícones do dash | MIT (desenhos originais do projeto) | `streamdeck/`, `dash/tools/assets_sport/`, `dash/tools/assets_vidro/` |
 
 ## Instalados à parte (não distribuídos aqui)
 

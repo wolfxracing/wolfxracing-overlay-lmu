@@ -5,8 +5,10 @@ from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOGOS = '--com-logos' in sys.argv      # logos dos jogos so para uso pessoal (sao marcas registradas); o padrao publico e SEM logos
-ASSETS = os.path.join(HERE, 'assets_sport')
-OUT = os.path.join(HERE, 'out_sport')
+VIDRO = '--vidro' in sys.argv          # estilo Glass Fume (vidro escuro translucido); padrao anterior = Sport
+ASSETS = os.path.join(HERE, 'assets_vidro' if VIDRO else 'assets_sport')
+OUT = os.path.join(HERE, 'out_vidro' if VIDRO else 'out_sport')
+ESTILO = 'Glass' if VIDRO else 'Sport'
 os.makedirs(OUT, exist_ok=True)
 
 T = 'SimHub.Plugins.OutputPlugins.GraphicalDash.Models.'
@@ -20,6 +22,14 @@ CARD, CARDB, CELL = '#9E07080B', '#2EFFFFFF', '#17FFFFFF'
 YCARD, YBORDER = '#14FAC828', '#8CFAC828'
 FONT = 'Sui Generis'          # fonte esportiva inclinada (vem com o SimHub, pasta DashFonts)
 SK = 0.80                     # fator de tamanho (a Sui Generis e mais larga que a Bahnschrift)
+FSTYLE = 'Italic'
+if VIDRO:
+    # Glass Fume: vidro escuro translucido com tipografia esportiva (Sui Generis italico), acento gelo no lugar do vermelho
+    pass                      # tipografia esportiva (Sui Generis italico), igual ao Sport
+    TEXT, GRAY = '#FFF2F4F8', '#FFB4BAC6'
+    GOLD = '#FF9ED8FF'
+    CARD, CARDB, CELL = '#70161A22', '#52FFFFFF', '#1CFFFFFF'
+    YCARD, YBORDER = '#1CFAC828', '#99FAC828'
 
 
 def uid(seed):
@@ -98,7 +108,7 @@ class Screen:
              bind=None, color_bind=None, skip=3):
         it = {
             '$type': T + 'TextItem, SimHub.Plugins', 'IsTextItem': True,
-            'Font': FONT, 'FontStyle': 'Italic', 'FontSize': (float(size) if name in ('ChevPrev', 'ChevNext') else max(11.0, round(float(size) * SK, 1))), 'FontWeight': 'Bold' if bold else 'Normal',
+            'Font': FONT, 'FontStyle': FSTYLE, 'FontSize': (float(size) if name in ('ChevPrev', 'ChevNext') else max(11.0, round(float(size) * SK, 1))), 'FontWeight': 'Bold' if bold else 'Normal',
             'Text': txt, 'TextColor': color, 'HorizontalAlignment': align, 'VerticalAlignment': 1,
             'TextMask': '0000000000', 'BackgroundColor': '#00FFFFFF',
             'Height': float(h), 'Left': float(x), 'Top': float(y), 'Visible': True, 'Width': float(w),
@@ -178,8 +188,12 @@ def card(s, x, y, w, h, hot=False):
     if hot:
         s.rect(x, y, w, h, YCARD, YBORDER, 12)
     else:
-        s.rect(x, y, w, h, CARD, CARDB, 12)
-        s.rect(x + 10, y, 26, 3, GOLD, None, 1)          # detalhe de acento (estilo painel esportivo)
+        s.rect(x, y, w, h, CARD, CARDB, 14 if VIDRO else 12)
+        if VIDRO:
+            s.rect(x + 12, y + 1, w - 24, 1, '#38FFFFFF', None, 0)          # reflexo no topo do vidro
+            s.rect(x + 1, y + 1, w - 2, 16, '#0DFFFFFF', None, 13)            # brilho suave sob a borda superior
+        else:
+            s.rect(x + 10, y, 26, 3, GOLD, None, 1)          # detalhe de acento (estilo painel esportivo)
 
 
 def label(s, x, y, w, txt, size=18, color=GRAY, align=0):
@@ -207,7 +221,7 @@ def dock(s, game_tag, tabs, active, targets):
     n = len(tabs)
     # barra de RPM superior removida (o giro agora aparece no tacometro central)
     y0, hh = 10, 58
-    s.rect(0, 0, 800, 68, '#C7080C0C')
+    s.rect(0, 0, 800, 68, '#A0101419' if VIDRO else '#C7080C0C')
     s.rect(0, 67, 800, 1, CARDB)
     s.text(8, y0 + 2, 56, 44, '\u2039', 44, GRAY, True, 1, name='ChevPrev')
     s.text(736, y0 + 2, 56, 44, '\u203a', 44, GRAY, True, 1, name='ChevNext')
@@ -226,7 +240,7 @@ def dock(s, game_tag, tabs, active, targets):
     for i in range(n):
         s.rect(dx0 + i * 16, 57, 8, 8, GOLD if i == active else '#33FFFFFF', None, 4)
     # chip de bandeira
-    s.rect(580, y0 + 9, 110, 30, '#FF0B0C11', CARDB, 6)
+    s.rect(580, y0 + 9, 110, 30, '#8C0B0E13' if VIDRO else '#FF0B0C11', CARDB, 8 if VIDRO else 6)
     flag_js = ("var f=String($prop('%sFlag_Name')||'').toLowerCase(); "
                "if(f.indexOf('green')>=0) return 'VERDE'; if(f.indexOf('yellow')>=0) return 'AMARELA'; "
                "if(f.indexOf('blue')>=0) return 'AZUL'; if(f.indexOf('white')>=0) return 'BRANCA'; "
@@ -283,11 +297,11 @@ def dial_item():
         'ShowNeedle': False, 'NeedleLength': 100.0, 'NeedleOffset': 0.0, 'NeedleThickness': 6.0, 'CapRadius': 0.0,
         'Value': 3.95, 'Minimum': 0.0, 'Maximum': 8.0,
         'OuterRadius': float(OR), 'InnerRadius': 0.0, 'OuterStrokeThickness': 4.0, 'InnerStrokeThickness': 0.0,
-        'DialStrokeColor': solid('#FF3A3C44'), 'DialBackgroundColor': solid('#00000000'),
+        'DialStrokeColor': solid('#99C8D2E0' if VIDRO else '#FF3A3C44'), 'DialBackgroundColor': solid('#00000000'),
         'ShowDialGlassEffect': False, 'HorizontalAlignment': 1, 'VerticalAlignment': 1,
         'ScaleGlowRadius': 0.0, 'ScaleGlowColor': '#FF808080',
         'StartAngle': 135.0, 'SweepAngle': 270.0,
-        'ScaleLabelStyle': {'LabelFont': FONT, 'LabelFontSize': 24.0, 'LabelFontWeight': 'Bold', 'LabelFontStyle': 'Italic',
+        'ScaleLabelStyle': {'LabelFont': FONT, 'LabelFontSize': 24.0, 'LabelFontWeight': 'Bold', 'LabelFontStyle': FSTYLE,
                             'LabelColor': '#FFF2F2F6', 'LabelRadius': 128.0, 'LabelSize': '44,36'},
         'AlternateScaleLabelStyle': {'Enabled': False, 'LabelFont': 'Segoe UI', 'LabelFontSize': 20.0, 'LabelFontWeight': 'Normal',
                                      'LabelFontStyle': 'Normal', 'LabelColor': '#FFFFFFFF', 'LabelRadius': 100.0, 'LabelSize': '80,30'},
@@ -621,7 +635,7 @@ def build(dname, title, game, screens_spec, tabs, js_files=()):
     # miniatura simples (o SimHub gera a oficial ao salvar)
     tag = 'ir' if 'iRacing' in dname else 'lmu'
     def thumb_bytes(i):
-        fp = os.path.join(HERE, 'thumbs', '%s_%d.png' % (tag, i))
+        fp = os.path.join(HERE, 'thumbs_vidro' if VIDRO else 'thumbs', '%s_%d.png' % (tag, i))
         im = Image.open(fp if os.path.exists(fp) else os.path.join(ASSETS, 'MD4_bg.png')).convert('RGB')
         bio = io.BytesIO(); im.save(bio, 'PNG', optimize=True); return bio.getvalue()
     path = os.path.join(OUT, dname + '.simhubdash')
@@ -649,11 +663,11 @@ if __name__ == '__main__':
     JS = lambda *n: [os.path.join(HERE, 'js_sport', x) for x in n]
     feitos = []
     if SO in ('todos', 'iracing'):
-        feitos.append(build('MagicDash4 iRacing Sport', 'MagicDash4 iRacing Sport', 'iRacing',
+        feitos.append(build('MagicDash4 iRacing ' + ESTILO, 'MagicDash4 iRacing ' + ESTILO, 'iRacing',
                             [lambda s, t, g: screen1(s, 'iRacing', t, g), screen_ir_estrategia, screen_ir_sessao], IR_TABS,
                             js_files=JS('MD4_iracing_pneus.js', 'MD4_alertas.js')))
     if SO in ('todos', 'lmu'):
-        feitos.append(build('MagicDash4 LMU Sport', 'MagicDash4 LMU Sport', 'LMU',
+        feitos.append(build('MagicDash4 LMU ' + ESTILO, 'MagicDash4 LMU ' + ESTILO, 'LMU',
                             [lambda s, t, g: screen1(s, 'LMU', t, g), screen_lmu_energia, screen_lmu_pneus], LMU_TABS,
                             js_files=JS('MD4_lmu_temps.js', 'MD4_alertas.js')))
     for p, d in feitos:

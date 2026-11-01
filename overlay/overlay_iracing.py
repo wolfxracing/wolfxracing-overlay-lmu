@@ -164,7 +164,7 @@ def carregar_config():
         "x_clima": 1330, "y_clima": 60, "mostrar_clima": True, "escala_clima": 1.0,
         "vento_invertido": False,
         "x_forca_g": 1580, "y_forca_g": 60, "mostrar_forca_g": True, "escala_forca_g": 1.0, "g_max": 4.0,
-        "tema_moderno": True, "tema_sport": True, "opacidade_fundo": 0.80,
+        "tema_moderno": True, "tema_sport": False, "tema_vidro": True, "opacidade_fundo": 0.80,
         "x_combustivel": 60, "y_combustivel": 560, "mostrar_combustivel": True, "escala_combustivel": 1.0,
         "x_danos": 1330, "y_danos": 600, "mostrar_danos": True, "escala_danos": 1.0,
     }
@@ -3804,7 +3804,7 @@ COR_LARANJA = QColor(255, 150, 40)
 # --------------------------------------------------------------------------
 # Visual (tema moderno x classico)
 # --------------------------------------------------------------------------
-TEMA = {"moderno": True, "sport": True, "opacidade": 0.80}      # opacidade 0.80 = o fundo de sempre (alfa 205)
+TEMA = {"moderno": True, "sport": False, "vidro": True, "opacidade": 0.80}      # opacidade 0.80 = o fundo de sempre (alfa 205)
 COR_DESTAQUE = QColor(224, 49, 63)               # vermelho do visual Sport (mesmo do dash do MagicDash 4)
 _FAMILIAS = {True: ["Bahnschrift", "Segoe UI"], False: ["Segoe UI"]}
 _TEXTURA = []
@@ -3816,7 +3816,7 @@ def fonte(tamanho, peso=QFont.Normal):
     familias = _FAMILIAS[bool(TEMA["moderno"])]
     f = QFont(familias[0], tamanho, peso)
     f.setFamilies(familias)
-    if TEMA["moderno"] and TEMA["sport"]:
+    if TEMA["moderno"] and (TEMA["sport"] or TEMA["vidro"]):
         f.setItalic(True)                         # visual Sport: texto inclinado (v20.3)
     return f
 
@@ -3827,10 +3827,10 @@ _ARQ_FONTE_TITULO = ("C:/Program Files (x86)/SimHub/DashFonts/SUIGBI_.TTF", "C:/
 
 
 def fonte_titulo(tamanho):
-    """Fonte dos titulos das janelas. Visual Sport: Sui Generis Bold Italic (a mesma do dash do MagicDash 4), se estiver
+    """Fonte dos titulos das janelas. Visual Sport e Glass Fume: Sui Generis Bold Italic (a mesma do dash do MagicDash 4), se estiver
     instalada com o SimHub; sem ela, cai na fonte normal em negrito. So para texto simples (a Sui Generis nao tem alguns
     simbolos, como o grau). Nunca levanta erro."""
-    if TEMA["moderno"] and TEMA["sport"]:
+    if TEMA["moderno"] and (TEMA["sport"] or TEMA["vidro"]):
         try:
             if _FONTE_TITULO["familia"] is None:
                 _FONTE_TITULO["familia"] = ""
@@ -3851,9 +3851,17 @@ def fonte_titulo(tamanho):
     return fonte(tamanho, QFont.Bold)
 
 
-def definir_tema(moderno=None, opacidade=None, sport=None):
+def definir_tema(moderno=None, opacidade=None, sport=None, vidro=None):
+    """Estilos: Glass Fume (vidro escuro translucido), Sport (italico, carbono, detalhes vermelhos) ou so o moderno.
+    Glass Fume e Sport sao excludentes; se os dois vierem ligados (config antigo), vale o Glass Fume."""
     if sport is not None:
         TEMA["sport"] = bool(sport)
+        if sport:
+            TEMA["vidro"] = False
+    if vidro is not None:
+        TEMA["vidro"] = bool(vidro)
+        if vidro:
+            TEMA["sport"] = False
     if moderno is not None:
         TEMA["moderno"] = bool(moderno)
     if opacidade is not None:
@@ -3955,11 +3963,63 @@ def _superficie_sport(p, rect, raio, cartao):
         p.drawRect(QRectF(rect.left() + c + 2, rect.top(), min(18.0, rect.width() * 0.2), 2))
 
 
+def _superficie_vidro(p, rect, raio, cartao):
+    """Visual Glass Fume: vidro escuro translucido (fume). Degrade grafite com transparencia, reflexo suave no topo,
+    faixa de luz diagonal, borda fina clara (mais forte no canto superior esquerdo) e linha interna de profundidade.
+    Sem textura e sem detalhes vermelhos. Cartao: vidro mais leve, cantos suaves."""
+    a = int(255 * TEMA["opacidade"] * 0.92)
+    r = min(float(raio), 8.0) if cartao else max(float(raio), 12.0)
+    r = min(r, rect.height() / 2.0)
+    if cartao:
+        g = QLinearGradient(rect.left(), rect.top(), rect.left(), rect.bottom())
+        g.setColorAt(0.0, QColor(255, 255, 255, 30))
+        g.setColorAt(1.0, QColor(255, 255, 255, 9))
+        p.setBrush(g)
+        p.drawRoundedRect(rect, r, r)
+        p.setBrush(Qt.NoBrush)
+        p.setPen(QPen(QColor(255, 255, 255, 34), 1))
+        p.drawRoundedRect(rect.adjusted(0.5, 0.5, -0.5, -0.5), r, r)
+        return
+    g = QLinearGradient(rect.left(), rect.top(), rect.left(), rect.bottom())
+    g.setColorAt(0.0, QColor(58, 63, 74, a))
+    g.setColorAt(0.45, QColor(26, 29, 36, a))
+    g.setColorAt(1.0, QColor(12, 14, 18, a))
+    p.setBrush(g)
+    p.drawRoundedRect(rect, r, r)
+    # reflexo de vidro: faixa clara no topo que some ate a metade
+    topo = QLinearGradient(rect.left(), rect.top(), rect.left(), rect.top() + rect.height() * 0.5)
+    topo.setColorAt(0.0, QColor(255, 255, 255, 38))
+    topo.setColorAt(1.0, QColor(255, 255, 255, 0))
+    p.setBrush(topo)
+    p.drawRoundedRect(rect.adjusted(1, 1, -1, -1), r, r)
+    # faixa de luz diagonal bem suave
+    luz = QLinearGradient(rect.left(), rect.top(), rect.right(), rect.bottom())
+    luz.setColorAt(0.0, QColor(255, 255, 255, 0))
+    luz.setColorAt(0.30, QColor(255, 255, 255, 14))
+    luz.setColorAt(0.42, QColor(255, 255, 255, 0))
+    luz.setColorAt(1.0, QColor(255, 255, 255, 0))
+    p.setBrush(luz)
+    p.drawRoundedRect(rect, r, r)
+    # borda: clara no canto superior esquerdo, discreta no inferior direito
+    borda = QLinearGradient(rect.left(), rect.top(), rect.right(), rect.bottom())
+    borda.setColorAt(0.0, QColor(255, 255, 255, 120))
+    borda.setColorAt(0.5, QColor(255, 255, 255, 40))
+    borda.setColorAt(1.0, QColor(255, 255, 255, 22))
+    p.setBrush(Qt.NoBrush)
+    p.setPen(QPen(QBrush(borda), 1))
+    p.drawRoundedRect(rect.adjusted(0.5, 0.5, -0.5, -0.5), r, r)
+    p.setPen(QPen(QColor(0, 0, 0, 90), 1))
+    p.drawRoundedRect(rect.adjusted(1.5, 1.5, -1.5, -1.5), max(1.0, r - 1), max(1.0, r - 1))
+
+
 def pintar_superficie(p, rect, raio=12, cartao=False, borda_classica=False):
     """Fundo de janela ou de cartao. Moderno: degrade grafite, trama de carbono, borda fina e brilho no topo.
     Classico: cor lisa (como era antes)."""
     rect = QRectF(rect)
     p.setPen(Qt.NoPen)
+    if TEMA["moderno"] and TEMA["vidro"]:
+        _superficie_vidro(p, rect, raio, cartao)
+        return
     if TEMA["moderno"] and TEMA["sport"]:
         _superficie_sport(p, rect, raio, cartao)
         return
@@ -6632,7 +6692,9 @@ def principal():
 
     config = carregar_config()
     registrar_cabecalho()
-    definir_tema(config.get("tema_moderno", True), config.get("opacidade_fundo", 0.80), config.get("tema_sport", True))
+    if config.get("tema_vidro", True) and config.get("tema_sport", False):
+        config["tema_sport"] = False                  # Glass Fume e Sport sao excludentes (config antigo: vence o Glass Fume)
+    definir_tema(config.get("tema_moderno", True), config.get("opacidade_fundo", 0.80), config.get("tema_sport", False), config.get("tema_vidro", True))
     JanelaBase.MULT_TAXA = 0.5 if config.get("economia_cpu") else 1.0
     if config.get("prioridade_baixa", True) and not DEMO and definir_prioridade_baixa(True):
         registrar_info("prioridade do processo do overlay: abaixo do normal")
@@ -6749,9 +6811,30 @@ def principal():
             j.update()
         salvar_config(config)
 
+    def _sincronizar_estilo():
+        for chave in ("tema_sport", "tema_vidro"):
+            acao = acao_por_chave.get(chave)
+            if acao is not None and acao.isChecked() != bool(config[chave]):
+                acao.blockSignals(True)
+                acao.setChecked(bool(config[chave]))
+                acao.blockSignals(False)
+
     def ao_sport(marcado):
         config["tema_sport"] = bool(marcado)
+        if marcado:
+            config["tema_vidro"] = False
         definir_tema(sport=marcado)
+        _sincronizar_estilo()
+        for j in janelas:
+            j.update()
+        salvar_config(config)
+
+    def ao_vidro(marcado):
+        config["tema_vidro"] = bool(marcado)
+        if marcado:
+            config["tema_sport"] = False
+        definir_tema(vidro=marcado)
+        _sincronizar_estilo()
         for j in janelas:
             j.update()
         salvar_config(config)
@@ -6963,6 +7046,7 @@ def principal():
     menu.addAction(acao_refazer)
     menu.addSeparator()
     adicionar("Visual moderno (desmarque para voltar ao visual classico)", config["tema_moderno"], ao_tema, chave="tema_moderno")
+    adicionar("   Estilo Glass Fume (vidro escuro translucido)", config["tema_vidro"], ao_vidro, chave="tema_vidro")
     adicionar("   Estilo Sport (italico e detalhes vermelhos)", config["tema_sport"], ao_sport, chave="tema_sport")
     submenu_op = menu.addMenu("   Transparencia do fundo das janelas")
     grupo_op = QActionGroup(submenu_op)

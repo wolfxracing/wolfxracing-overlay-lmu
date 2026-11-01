@@ -34,7 +34,7 @@ TAM_TENDENCIA = (540, 296)
 # Pecas de desenho comuns
 # --------------------------------------------------------------------------------------------------------------
 def _titulo(p, texto, largura, direita=None, cor_direita=None):
-    p.setPen(COR_TEXTO if base.TEMA["sport"] and base.TEMA["moderno"] else COR_CINZA)
+    p.setPen(COR_TEXTO if (base.TEMA["sport"] or base.TEMA["vidro"]) and base.TEMA["moderno"] else COR_CINZA)
     p.setFont(base.fonte_titulo(9))
     p.drawText(16, 8, int(largura * 0.62) if direita else largura - 32, 20, Qt.AlignLeft | Qt.AlignVCenter, texto)
     if direita:

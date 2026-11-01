@@ -57,7 +57,7 @@ from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 from ov_janela_lmu import JanelaClassificacaoLMU, JanelaClimaLMU      # classificacao com mais colunas (so no LMU)
 import ov_janelas_extra_lmu as extra_lmu              # janelas novas (energia, pneus, danos, alertas, stints, tendencia)
 
-VERSAO = "LMU 1.6.0 Sport (base iRacing Fase 20.2.2)"
+VERSAO = "LMU 1.7.0 Glass/Sport (base iRacing Fase 20.2.2)"
 NOME_JOGO = "Le Mans Ultimate"
 DEMO = "--demo" in sys.argv
 DIAGNOSTICO = "--diagnostico" in sys.argv
@@ -791,7 +791,9 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
     except Exception:
         pass
     base._REGISTRO.cabecalho(versoes)
-    base.definir_tema(config.get("tema_moderno", True), config.get("opacidade_fundo", 0.80), config.get("tema_sport", True))
+    if config.get("tema_vidro", True) and config.get("tema_sport", False):
+        config["tema_sport"] = False                  # Glass Fume e Sport sao excludentes (config antigo: vence o Glass Fume)
+    base.definir_tema(config.get("tema_moderno", True), config.get("opacidade_fundo", 0.80), config.get("tema_sport", False), config.get("tema_vidro", True))
     base.JanelaBase.MULT_TAXA = 0.5 if config.get("economia_cpu") else 1.0
     if config.get("prioridade_baixa", True) and not DEMO and base.definir_prioridade_baixa(True):
         base.registrar_info("prioridade do processo do overlay: abaixo do normal")
@@ -866,8 +868,27 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
         for j in janelas:
             j.update()
 
+    def _sincronizar_estilo():
+        for chave in ("tema_sport", "tema_vidro"):
+            acao = acao_por_chave.get(chave)
+            if acao is not None and acao.isChecked() != bool(config.get(chave)):
+                acao.blockSignals(True)
+                acao.setChecked(bool(config.get(chave)))
+                acao.blockSignals(False)
+
     def ao_sport(marcado):
+        if marcado:
+            config["tema_vidro"] = False
         base.definir_tema(sport=marcado)
+        _sincronizar_estilo()
+        for j in janelas:
+            j.update()
+
+    def ao_vidro(marcado):
+        if marcado:
+            config["tema_sport"] = False
+        base.definir_tema(vidro=marcado)
+        _sincronizar_estilo()
         for j in janelas:
             j.update()
 
@@ -956,7 +977,8 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
     menu.addSeparator()
     adicionar("Visual moderno (desmarque para voltar ao visual classico)", config["tema_moderno"],
               guardar("tema_moderno", ao_tema))
-    adicionar("   Estilo Sport (italico e detalhes vermelhos)", config["tema_sport"], guardar("tema_sport", ao_sport))
+    adicionar("   Estilo Glass Fume (vidro escuro translucido)", config["tema_vidro"], guardar("tema_vidro", ao_vidro), chave="tema_vidro")
+    adicionar("   Estilo Sport (italico e detalhes vermelhos)", config["tema_sport"], guardar("tema_sport", ao_sport), chave="tema_sport")
     submenu_op = menu.addMenu("   Transparencia do fundo das janelas")
     grupo_op = QActionGroup(submenu_op)
     grupo_op.setExclusive(True)

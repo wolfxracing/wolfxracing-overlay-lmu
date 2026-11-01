@@ -1,6 +1,8 @@
-# Dash MagicDash 4 Sport para Le Mans Ultimate (LMU)
+# Dash MagicDash 4 (Glass Fumê e Sport) para Le Mans Ultimate (LMU)
 
-Dash para o **Simagic MagicDash 4** (800x480, tela de toque) feito no SimHub (Dash Studio), em estilo de painel de carro esportivo: fundo de fibra de carbono, fonte inclinada **Sui Generis** (já vem com o SimHub), detalhes vermelhos e luzes de aviso dentro do tacômetro.
+Dash para o **Simagic MagicDash 4** (800x480, tela de toque) feito no SimHub (Dash Studio), em dois estilos: **Glass Fumê** (vidro escuro translúcido, tipografia esportiva Sui Generis e acento azul gelo; novo) e **Sport** (painel de carro esportivo): fundo de fibra de carbono, fonte inclinada **Sui Generis** (já vem com o SimHub), detalhes vermelhos e luzes de aviso dentro do tacômetro.
+
+![Dash Glass Fumê](imagens/dash_glass_visao_geral.png)
 
 ![Visão geral](imagens/dash_visao_geral.png)
 
@@ -9,8 +11,8 @@ Dash para o **Simagic MagicDash 4** (800x480, tela de toque) feito no SimHub (Da
 ## Instalação
 
 1. Requisitos: SimHub 9.x (testado com 9.13) e o MagicDash 4 configurado no SimHub.
-2. Dê **duplo clique** em `dash/MagicDash4 LMU Sport.simhubdash`: o SimHub importa o dash (ou: *Dash Studio > Import/Add dashboard*).
-3. Em *Dash Studio*, selecione **MagicDash4 LMU Sport** como *Main dashboard* do MagicDash 4.
+2. Dê **duplo clique** em `dash/MagicDash4 LMU Glass.simhubdash` (ou no `Sport`): o SimHub importa o dash (ou: *Dash Studio > Import/Add dashboard*).
+3. Em *Dash Studio*, selecione **MagicDash4 LMU Glass** (ou Sport) como *Main dashboard* do MagicDash 4.
 4. Reimportar sobrescreve a versão anterior.
 
 ## Navegação
@@ -53,10 +55,12 @@ O `.simhubdash` é gerado por scripts Python em [`dash/tools`](../dash/tools) (r
 cd dash/tools
 python bg_sport.py && python bg_sport2.py   # fundos (opcional: já vêm em assets_sport/)
 python icons_sport.py                       # ícones das luzes (opcional)
+python bg_vidro.py                          # fundos do Glass Fumê (opcional: já vêm em assets_vidro/)
+python build_sport.py --so lmu --vidro      # gera out_vidro/MagicDash4 LMU Glass.simhubdash
 python build_sport.py --so lmu              # gera out_sport/MagicDash4 LMU Sport.simhubdash
 python check_sport.py                       # valida o resultado
 ```
 
-Opções do `build_sport.py`: `--so iracing|lmu|todos` e `--com-logos` (somente para **uso pessoal**: troca o emblema WolfxRacing pelo logo do jogo; coloque o seu `MD4_logo_<jogo>.png` em `assets_sport/`; não publique o resultado). As expressões (JavaScript do SimHub) ficam em `js_sport/`: `MD4_alertas.js` (luzes, posição, energia), `MD4_lmu_temps.js` (pneus).
+Opções do `build_sport.py`: `--so iracing|lmu|todos`, `--vidro` (estilo Glass Fumê; sem a opção, gera o Sport) e `--com-logos` (somente para **uso pessoal**: troca o emblema WolfxRacing pelo logo do jogo; coloque o seu `MD4_logo_<jogo>.png` em `assets_sport/`; não publique o resultado). As expressões (JavaScript do SimHub) ficam em `js_sport/`: `MD4_alertas.js` (luzes, posição, energia), `MD4_lmu_temps.js` (pneus).
 
 Dicas de desenvolvimento: abra o dash no navegador em `http://127.0.0.1:8888/Dash?r=1#<NomeDoDash>` (SimHub em execução) para ver as telas ao vivo e testar `$prop(...)` nas expressões.

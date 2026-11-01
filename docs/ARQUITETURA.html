@@ -3,7 +3,7 @@
 <ul>
 <li><strong>Overlay</strong>: Python 3.12 + PySide6. Janelas transparentes e sempre no topo, desenhadas com <code>QPainter</code> (sem imagens por janela). Tudo local.</li>
 <li><strong>Fluxo</strong>: <code>iniciar_overlay_lmu.bat</code> → <code>pyw -3.12 overlay_lmu.py</code> → leitura da memória compartilhada (<code>pyLMUSharedMemory</code>) → <code>ov_lmu.*</code> transforma em dicionários → janelas (<code>base.JanelaBase</code>) recebem <code>atualizar(dados)</code> e repintam numa taxa própria.</li>
-<li><strong>Visual</strong>: camada central em <code>overlay_iracing.py</code> (<code>TEMA</code>, <code>fonte()</code>, <code>fonte_titulo()</code>, <code>pintar_superficie()</code>): temas <em>clássico</em>, <em>moderno</em> e <em>Sport</em>. Mudar a aparência de todas as janelas = mexer aí.</li>
+<li><strong>Visual</strong>: camada central em <code>overlay_iracing.py</code> (<code>TEMA</code>, <code>fonte()</code>, <code>fonte_titulo()</code>, <code>pintar_superficie()</code>): temas <em>clássico</em>, <em>moderno</em>, <em>Sport</em> e <em>Glass Fumê</em> (<code>TEMA["vidro"]</code>, <code>_superficie_vidro()</code>). Mudar a aparência de todas as janelas = mexer aí.</li>
 <li><strong>Dash</strong>: scripts em <code>dash/tools</code> geram o <code>.simhubdash</code> (JSON do Dash Studio + imagens + JavaScript).</li>
 <li><strong>Stream Deck</strong>: scripts em <code>streamdeck/gerador</code> geram ícones e perfil a partir da tabela de atalhos.</li>
 </ul>

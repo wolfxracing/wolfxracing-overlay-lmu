@@ -1,6 +1,6 @@
 # Manual do usuário: WolfxRacing Overlay para Le Mans Ultimate
 
-> Versão do overlay neste pacote: **LMU 1.6.0 Sport**. Os prints foram gerados no **modo demonstração** (dados simulados); as fontes e as medidas podem variar um pouco no seu Windows.
+> Versão do overlay neste pacote: **LMU 1.7.0 (estilos Glass Fumê e Sport)**. Os prints foram gerados no **modo demonstração** (dados simulados); as fontes e as medidas podem variar um pouco no seu Windows.
 
 ## Sumário
 
@@ -33,10 +33,16 @@ Instalação manual (alternativa): `py -3.12 -m pip install PySide6-Essentials`.
 2. **Posicionar:** clique com o botão direito no ícone azul "LM" e **desmarque "Travar posição"**. Arraste cada janela (contorno amarelo = modo mover). Ao terminar, marque "Travar posição": as janelas aparecem sozinhas ao sentar no carro e somem nos menus.
 3. **Redimensionar:** arraste as bordas/cantos ou use **Ctrl + roda do mouse**. A classificação é mais larga que as demais (~846x240 em 100%): ajuste na primeira vez.
 4. **Primeira execução:** o layout inicial vem do layout padrão e depois é gravado em `config_lmu.json` (independente do iRacing, se você também usa o overlay dele).
-5. **Visual:** *Visual moderno*, **Estilo Sport** (itálico, cantos cortados, detalhes vermelhos) e *Transparência do fundo*. Desmarcar *Visual moderno* volta ao clássico.
+5. **Visual:** *Visual moderno*, **Estilo Glass Fumê** (vidro escuro translúcido, padrão), **Estilo Sport** (itálico, cantos cortados, detalhes vermelhos) e *Transparência do fundo*. Desmarcar *Visual moderno* volta ao clássico.
 6. **Manter o overlay por cima do jogo:** reafirma "sempre no topo" 10 vezes por segundo e na hora em que o foco muda.
 7. **Diagnóstico:** `overlay\diagnostico_lmu.bat` (com o jogo aberto e no carro) grava `diagnostico_lmu.txt` com o que o overlay enxerga do jogo; anexe-o em Issues.
 8. **Fechar:** *Sair* no menu da bandeja, `Alt+Shift+F20` (Stream Deck) ou, se travar, `overlay\fechar_overlay_lmu.bat`.
+
+### Estilos visuais
+
+Os dois estilos usam a tipografia esportiva (itálico; títulos em Sui Generis, se o SimHub estiver instalado). Glass Fumê e Sport não se combinam: ao marcar um, o outro desmarca. A *Transparência do fundo* vale para os dois (no Glass Fumê, valores entre 60% e 80% deixam o vidro mais evidente). O vidro é simulado com transparência e reflexos; o overlay não borra o que está atrás da janela.
+
+![Overlay em Glass Fumê](imagens/estilo_glass_overlay.png)
 
 ## 5. As janelas
 
@@ -147,7 +153,7 @@ Gráfico das voltas limpas (stint atual em amarelo, reta de tendência, melhor v
 
 ## 7. Dash e Stream Deck
 
-- **Dash MagicDash 4 Sport** (3 telas): veja [DASH.md](DASH.md).
+- **Dash MagicDash 4 Glass Fumê ou Sport** (3 telas): veja [DASH.md](DASH.md).
 - **Perfil de Stream Deck XL** (janelas, controles, iniciar/fechar, pasta Suporte): veja [STREAMDECK.md](STREAMDECK.md).
 
 ![Dash](imagens/dash_visao_geral.png)

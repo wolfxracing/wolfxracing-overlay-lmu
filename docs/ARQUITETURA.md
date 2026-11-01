@@ -4,7 +4,7 @@
 
 - **Overlay**: Python 3.12 + PySide6. Janelas transparentes e sempre no topo, desenhadas com `QPainter` (sem imagens por janela). Tudo local.
 - **Fluxo**: `iniciar_overlay_lmu.bat` → `pyw -3.12 overlay_lmu.py` → leitura da memória compartilhada (`pyLMUSharedMemory`) → `ov_lmu.*` transforma em dicionários → janelas (`base.JanelaBase`) recebem `atualizar(dados)` e repintam numa taxa própria.
-- **Visual**: camada central em `overlay_iracing.py` (`TEMA`, `fonte()`, `fonte_titulo()`, `pintar_superficie()`): temas *clássico*, *moderno* e *Sport*. Mudar a aparência de todas as janelas = mexer aí.
+- **Visual**: camada central em `overlay_iracing.py` (`TEMA`, `fonte()`, `fonte_titulo()`, `pintar_superficie()`): temas *clássico*, *moderno*, *Sport* e *Glass Fumê* (`TEMA["vidro"]`, `_superficie_vidro()`). Mudar a aparência de todas as janelas = mexer aí.
 - **Dash**: scripts em `dash/tools` geram o `.simhubdash` (JSON do Dash Studio + imagens + JavaScript).
 - **Stream Deck**: scripts em `streamdeck/gerador` geram ícones e perfil a partir da tabela de atalhos.
 

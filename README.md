@@ -13,13 +13,23 @@ Overlay gratuito e de código aberto para **Le Mans Ultimate (LMU)** no Windows,
 | Pasta | Conteúdo |
 |---|---|
 | [`overlay/`](overlay) | O overlay (Python + PySide6): 12 janelas, perfis, atalhos globais, testes automáticos |
-| [`dash/`](dash) | Dash **MagicDash 4 Sport** (`.simhubdash`, 3 telas, 800x480) + ferramentas para gerar/alterar |
+| [`dash/`](dash) | Dash **MagicDash 4** nos estilos **Glass Fumê** e **Sport** (`.simhubdash`, 3 telas, 800x480) + ferramentas para gerar/alterar |
 | [`streamdeck/`](streamdeck) | Perfil para **Stream Deck XL**, biblioteca de ícones e gerador |
 | [`docs/`](docs) | Manual, guia do dash, guia do Stream Deck, arquitetura e histórico |
 
-## Dash MagicDash 4 Sport
+## Estilos visuais: Glass Fumê e Sport
 
-![Dash](docs/imagens/dash_visao_geral.png)
+O overlay e o dash têm dois estilos. **Glass Fumê** (novo, padrão) é um vidro escuro translucido, com reflexo suave e bordas finas; **Sport** usa fibra de carbono e detalhes vermelhos. Os dois têm a **tipografia esportiva** (texto itálico, Sui Generis nos títulos). No overlay, troque em *bandeja > Estilo Glass Fumê / Estilo Sport*. No dash, importe o arquivo `Glass` ou `Sport`.
+
+![Overlay em Glass Fumê](docs/imagens/estilo_glass_overlay.png)
+
+### Dash MagicDash 4 Glass Fumê
+
+![Dash Glass Fumê](docs/imagens/dash_glass_visao_geral.png)
+
+### Dash MagicDash 4 Sport
+
+![Dash Sport](docs/imagens/dash_visao_geral.png)
 
 ## Início rápido
 
@@ -28,7 +38,7 @@ Overlay gratuito e de código aberto para **Le Mans Ultimate (LMU)** no Windows,
 1. Baixe o `.zip` da página de [Releases](../../releases) e extraia dentro de `C:\WolfxRacing` (o zip cria a pasta `wolfxracing-overlay-lmu`; recomendado; o perfil do Stream Deck assume este caminho, mas dá para ajustar).
 2. Dê duplo clique em **`overlay\instalar_lmu.bat`** (uma vez) e depois em **`overlay\testar_demo_lmu.bat`** para ver o overlay funcionando com dados simulados.
 3. Configure o jogo e abra o overlay com **`overlay\iniciar_overlay_lmu.bat`**.
-4. Dash: dê duplo clique em `dash\MagicDash4 LMU Sport.simhubdash` (o SimHub importa).
+4. Dash: dê duplo clique em `dash\MagicDash4 LMU Glass.simhubdash` (ou `...Sport.simhubdash`; o SimHub importa).
 5. Stream Deck (opcional): importe `streamdeck\Overlay LMU.streamDeckProfile`.
 
 Passo a passo completo e com prints: **[docs/MANUAL.md](docs/MANUAL.md)**.

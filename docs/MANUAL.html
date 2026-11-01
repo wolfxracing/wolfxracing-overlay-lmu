@@ -1,6 +1,6 @@
 <!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>MANUAL - WolfxRacing</title><style>body{font-family:Segoe UI,Arial,sans-serif;max-width:980px;margin:32px auto;padding:0 20px;line-height:1.55;color:#1b1d22;background:#fafafa}h1,h2,h3{font-family:Bahnschrift,Segoe UI,sans-serif;text-transform:uppercase;letter-spacing:.5px}h1{border-bottom:4px solid #c8102e;padding-bottom:8px}h2{border-bottom:1px solid #ddd;padding-bottom:4px;margin-top:36px}img{max-width:100%;height:auto;background:#14161a;border-radius:8px;padding:6px}table{border-collapse:collapse;width:100%;margin:12px 0}th,td{border:1px solid #d5d5d5;padding:6px 10px;text-align:left;vertical-align:top}th{background:#eee}code,pre{background:#eceef1;border-radius:4px;padding:1px 5px;font-family:Consolas,monospace}pre{padding:10px;overflow:auto}blockquote{border-left:4px solid #c8102e;margin:12px 0;padding:4px 14px;background:#fff}a{color:#b3122b}</style></head><body><h1 id="manual-do-usuario-wolfxracing-overlay-para-le-mans-ultimate">Manual do usuário: WolfxRacing Overlay para Le Mans Ultimate</h1>
 <blockquote>
-<p>Versão do overlay neste pacote: <strong>LMU 1.6.0 Sport</strong>. Os prints foram gerados no <strong>modo demonstração</strong> (dados simulados); as fontes e as medidas podem variar um pouco no seu Windows.</p>
+<p>Versão do overlay neste pacote: <strong>LMU 1.7.0 (estilos Glass Fumê e Sport)</strong>. Os prints foram gerados no <strong>modo demonstração</strong> (dados simulados); as fontes e as medidas podem variar um pouco no seu Windows.</p>
 </blockquote>
 <h2 id="sumario">Sumário</h2>
 <ol>
@@ -29,11 +29,14 @@
 <li><strong>Posicionar:</strong> clique com o botão direito no ícone azul "LM" e <strong>desmarque "Travar posição"</strong>. Arraste cada janela (contorno amarelo = modo mover). Ao terminar, marque "Travar posição": as janelas aparecem sozinhas ao sentar no carro e somem nos menus.</li>
 <li><strong>Redimensionar:</strong> arraste as bordas/cantos ou use <strong>Ctrl + roda do mouse</strong>. A classificação é mais larga que as demais (~846x240 em 100%): ajuste na primeira vez.</li>
 <li><strong>Primeira execução:</strong> o layout inicial vem do layout padrão e depois é gravado em <code>config_lmu.json</code> (independente do iRacing, se você também usa o overlay dele).</li>
-<li><strong>Visual:</strong> <em>Visual moderno</em>, <strong>Estilo Sport</strong> (itálico, cantos cortados, detalhes vermelhos) e <em>Transparência do fundo</em>. Desmarcar <em>Visual moderno</em> volta ao clássico.</li>
+<li><strong>Visual:</strong> <em>Visual moderno</em>, <strong>Estilo Glass Fumê</strong> (vidro escuro translúcido, padrão), <strong>Estilo Sport</strong> (itálico, cantos cortados, detalhes vermelhos) e <em>Transparência do fundo</em>. Desmarcar <em>Visual moderno</em> volta ao clássico.</li>
 <li><strong>Manter o overlay por cima do jogo:</strong> reafirma "sempre no topo" 10 vezes por segundo e na hora em que o foco muda.</li>
 <li><strong>Diagnóstico:</strong> <code>overlay\diagnostico_lmu.bat</code> (com o jogo aberto e no carro) grava <code>diagnostico_lmu.txt</code> com o que o overlay enxerga do jogo; anexe-o em Issues.</li>
 <li><strong>Fechar:</strong> <em>Sair</em> no menu da bandeja, <code>Alt+Shift+F20</code> (Stream Deck) ou, se travar, <code>overlay\fechar_overlay_lmu.bat</code>.</li>
 </ol>
+<h3 id="estilos-visuais">Estilos visuais</h3>
+<p>Os dois estilos usam a tipografia esportiva (itálico; títulos em Sui Generis, se o SimHub estiver instalado). Glass Fumê e Sport não se combinam: ao marcar um, o outro desmarca. A <em>Transparência do fundo</em> vale para os dois (no Glass Fumê, valores entre 60% e 80% deixam o vidro mais evidente). O vidro é simulado com transparência e reflexos; o overlay não borra o que está atrás da janela.</p>
+<p><img alt="Overlay em Glass Fumê" src="imagens/estilo_glass_overlay.png" /></p>
 <h2 id="5-as-janelas">5. As janelas</h2>
 <h3 id="1-telemetria">1. Telemetria</h3>
 <p><img alt="Telemetria" src="imagens/overlay_telemetria.png" /></p>
@@ -116,7 +119,7 @@
 </ul>
 <h2 id="7-dash-e-stream-deck">7. Dash e Stream Deck</h2>
 <ul>
-<li><strong>Dash MagicDash 4 Sport</strong> (3 telas): veja <a href="DASH.html">DASH.md</a>.</li>
+<li><strong>Dash MagicDash 4 Glass Fumê ou Sport</strong> (3 telas): veja <a href="DASH.html">DASH.md</a>.</li>
 <li><strong>Perfil de Stream Deck XL</strong> (janelas, controles, iniciar/fechar, pasta Suporte): veja <a href="STREAMDECK.html">STREAMDECK.md</a>.</li>
 </ul>
 <p><img alt="Dash" src="imagens/dash_visao_geral.png" /></p>

@@ -28,7 +28,8 @@ PASSO A PASSO
    - Para FECHAR: menu da bandeja > Sair  (ou overlay\fechar_overlay_lmu.bat).
 
 DASH (opcional, Simagic MagicDash 4)
-- De duplo clique em  dash\MagicDash4 LMU Sport.simhubdash  (o SimHub importa).
+- De duplo clique em  dash\MagicDash4 LMU Glass.simhubdash  (o SimHub importa).
+  (O estilo Sport continua em dash\MagicDash4 LMU Sport.simhubdash.)
 - No SimHub > Dash Studio, escolha o dash como "Main dashboard".
 - Troque de tela tocando na metade esquerda/direita do cabecalho.
 
