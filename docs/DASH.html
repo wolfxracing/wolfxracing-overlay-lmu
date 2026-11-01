@@ -1,0 +1,43 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>DASH - WolfxRacing</title><style>body{font-family:Segoe UI,Arial,sans-serif;max-width:980px;margin:32px auto;padding:0 20px;line-height:1.55;color:#1b1d22;background:#fafafa}h1,h2,h3{font-family:Bahnschrift,Segoe UI,sans-serif;text-transform:uppercase;letter-spacing:.5px}h1{border-bottom:4px solid #c8102e;padding-bottom:8px}h2{border-bottom:1px solid #ddd;padding-bottom:4px;margin-top:36px}img{max-width:100%;height:auto;background:#14161a;border-radius:8px;padding:6px}table{border-collapse:collapse;width:100%;margin:12px 0}th,td{border:1px solid #d5d5d5;padding:6px 10px;text-align:left;vertical-align:top}th{background:#eee}code,pre{background:#eceef1;border-radius:4px;padding:1px 5px;font-family:Consolas,monospace}pre{padding:10px;overflow:auto}blockquote{border-left:4px solid #c8102e;margin:12px 0;padding:4px 14px;background:#fff}a{color:#b3122b}</style></head><body><h1 id="dash-magicdash-4-sport-para-le-mans-ultimate-lmu">Dash MagicDash 4 Sport para Le Mans Ultimate (LMU)</h1>
+<p>Dash para o <strong>Simagic MagicDash 4</strong> (800x480, tela de toque) feito no SimHub (Dash Studio), em estilo de painel de carro esportivo: fundo de fibra de carbono, fonte inclinada <strong>Sui Generis</strong> (já vem com o SimHub), detalhes vermelhos e luzes de aviso dentro do tacômetro.</p>
+<p><img alt="Visão geral" src="imagens/dash_visao_geral.png" /></p>
+<blockquote>
+<p>O cabeçalho traz o emblema <strong>WolfxRacing</strong> e o nome do jogo em texto. Os prints são <strong>prévias com dados de exemplo</strong>, geradas fora do SimHub; o dash real pode ter pequenas diferenças. Os logos oficiais do jogo <strong>não</strong> são distribuídos (marcas registradas): no lugar fica o emblema WolfxRacing, com o nome do jogo em texto.</p>
+</blockquote>
+<h2 id="instalacao">Instalação</h2>
+<ol>
+<li>Requisitos: SimHub 9.x (testado com 9.13) e o MagicDash 4 configurado no SimHub.</li>
+<li>Dê <strong>duplo clique</strong> em <code>dash/MagicDash4 LMU Sport.simhubdash</code>: o SimHub importa o dash (ou: <em>Dash Studio &gt; Import/Add dashboard</em>).</li>
+<li>Em <em>Dash Studio</em>, selecione <strong>MagicDash4 LMU Sport</strong> como <em>Main dashboard</em> do MagicDash 4.</li>
+<li>Reimportar sobrescreve a versão anterior.</li>
+</ol>
+<h2 id="navegacao">Navegação</h2>
+<p>O SimHub não tem gesto de deslizar: toque na <strong>metade esquerda do cabeçalho</strong> para a tela anterior e na <strong>metade direita</strong> para a próxima (com volta ao início). Os pontos no cabeçalho indicam a tela atual.</p>
+<h2 id="telas">Telas</h2>
+<h3 id="tela-1-corrida">Tela 1: Corrida</h3>
+<p><img alt="Corrida" src="imagens/dash_tela1.png" /></p>
+<p>Tacômetro central com marcha, velocidade e RPM x1000, <strong>6 luzes de aviso</strong> (farol, motor, temperatura, limitador de boxes, ABS e TC), pneus (temperatura e desgaste), <strong>energia virtual</strong> e combustível, delta/melhor, tempos, <strong>posição na classe</strong> com chip da classe (Hypercar/LMP2/LMGT3...) e ajustes de TC, ABS e balanço de freio.</p>
+<h3 id="tela-2-energia">Tela 2: Energia</h3>
+<p><img alt="Energia" src="imagens/dash_tela2.png" /></p>
+<p>Energia virtual e combustível lado a lado (barras), consumo, alcance em voltas e tanque.</p>
+<h3 id="tela-3-pneus">Tela 3: Pneus</h3>
+<p><img alt="Pneus" src="imagens/dash_tela3.png" /></p>
+<p>Quatro pneus com temperatura, pressão e vida; temperatura dos freios; óleo e água.</p>
+<h2 id="notas">Notas</h2>
+<ul>
+<li><strong>Posição na classe:</strong> o SimHub não expõe a posição na classe do LMU. O dash usa o plugin <strong>Lovely</strong> (<code>LovelyPlugin.TeamLINQ.Opponents</code>) e, se existir, o NeoRed; sem eles mostra apenas a posição geral ("GERAL P#"). Confirmado com Lovely instalado.</li>
+<li><strong>Energia virtual</strong> vem de <code>GameRawData.PlayerNativeTelemetry.mVirtualEnergy</code> (0 a 1).</li>
+<li><strong>Luz do motor:</strong> acende com o motor superaquecendo, motor parado (ignição ligada sem rotação, igual à luz do painel do jogo) ou peça solta. <strong>Farol:</strong> lido do jogo.</li>
+<li>Valores com <code>~</code> são calculados/estimados; sem <code>~</code> são medidos pelo jogo.</li>
+<li>Em itens sem dado do jogo o dash mostra <code>--</code> (nada é inventado).</li>
+</ul>
+<h2 id="alterar-ou-gerar-o-dash">Alterar ou gerar o dash</h2>
+<p>O <code>.simhubdash</code> é gerado por scripts Python em <a href="../dash/tools"><code>dash/tools</code></a> (requer <code>pillow</code>, <code>numpy</code>; <code>playwright</code> só para as prévias):</p>
+<pre><code class="language-text">cd dash/tools
+python bg_sport.py &amp;&amp; python bg_sport2.py   # fundos (opcional: já vêm em assets_sport/)
+python icons_sport.py                       # ícones das luzes (opcional)
+python build_sport.py --so lmu              # gera out_sport/MagicDash4 LMU Sport.simhubdash
+python check_sport.py                       # valida o resultado
+</code></pre>
+<p>Opções do <code>build_sport.py</code>: <code>--so iracing|lmu|todos</code> e <code>--com-logos</code> (somente para <strong>uso pessoal</strong>: troca o emblema WolfxRacing pelo logo do jogo; coloque o seu <code>MD4_logo_&lt;jogo&gt;.png</code> em <code>assets_sport/</code>; não publique o resultado). As expressões (JavaScript do SimHub) ficam em <code>js_sport/</code>: <code>MD4_alertas.js</code> (luzes, posição, energia), <code>MD4_lmu_temps.js</code> (pneus).</p>
+<p>Dicas de desenvolvimento: abra o dash no navegador em <code>http://127.0.0.1:8888/Dash?r=1#&lt;NomeDoDash&gt;</code> (SimHub em execução) para ver as telas ao vivo e testar <code>$prop(...)</code> nas expressões.</p></body></html>

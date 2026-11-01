@@ -1,0 +1,177 @@
+OVERLAY LE MANS ULTIMATE - ROTEIRO DE VALIDACAO DA VERSAO 1.3 (sessao real)
+==========================================================================
+Objetivo: confirmar, com o Le Mans Ultimate de verdade, o que foi testado so com um jogo simulado.
+Tempo: cerca de 2 a 3 horas, em mais de uma sessao (testes 1 a 9 = janelas base; 10 a 14 = janelas novas da v1.2; correcoes na v1.3). Use sessao OFFLINE com IA (nao gasta nada) para quase tudo.
+REGRA: a versao so e considerada HOMOLOGADA quando os testes 2 a 14 estiverem anotados como PASSOU. As janelas novas
+(testes 10 a 14) podem ser homologadas separadamente das base: ate la, use-as como apoio visual. Teste simulado nao vale.
+Ao fim de cada teste anote: PASSOU, FALHOU ou DUVIDA (e o que viu).
+
+PREPARACAO
+ 1. No LMU: Settings > Gameplay > Enable Plugins LIGADO; video em Window ou Borderless (NAO Fullscreen). Reinicie o jogo.
+ 2. Use SEMPRE a pasta separada do LMU (Documents\overlay_iracing\overlay_lmu): os .bat "..._lmu.bat" ficam la. A pasta do
+    iRacing nao e usada nem alterada.
+ 3. (Opcional) executar_testes_lmu.bat: deve terminar com "TODOS OS TESTES PASSARAM".
+ 4. APAGUE overlay_log_lmu.txt antigo, se existir.
+
+TESTE 1 - CONEXAO E LOG                                                   (3 min)
+ Faca: abra o LMU, entre numa sessao e sente no carro. Execute diagnostico_lmu.bat. Depois iniciar_overlay_lmu.bat.
+ Esperado: diagnostico_lmu.txt com pista, clima, a lista de carros e a telemetria do seu carro; o overlay mostra as janelas
+   (travadas: aparecem sozinhas ao sentar no carro). overlay_log_lmu.txt com "inicio: overlay LMU 1.3.1 ..." e "LMU: sem_jogo -> ok".
+ Se "estado: incompativel": envie o diagnostico ao mantenedor (Issues do GitHub) (o jogo mudou o formato; nada sera mostrado de errado).
+ Anote: ENVIE diagnostico_lmu.txt (e o log) ao mantenedor (Issues do GitHub) - eles confirmam os pontos abaixo.
+
+TESTE 2 - CLASSIFICACAO DETALHADA                                         (20 min)
+ Faca: corrida offline multiclasse (Hypercar + LMP2 + LMGT3, se possivel), com pelo menos 8 voltas e 1 parada de um
+   carro da IA. Compare com o quadro oficial do jogo (tela de resultados/HUD).
+ Esperado (cada item = PASSOU / FALHOU / DUVIDA):
+  a) Classes agrupadas na ordem Hypercar, LMP2, LMGT3; posicao NA CLASSE (1, 2, 3...) correta; o seu carro destacado.
+  b) Numero e marca de cada carro corretos; nome do piloto abreviado ("J. Silva").
+  c) MELHOR e ULTIMA iguais ao jogo; roxo so na melhor da classe.
+  d) GAP e INT: compare 3 ou 4 carros com o jogo. Branco = medido; cinza com "~" = estimado (deve aparecer so quando ha
+     carro de OUTRA classe entre os dois). Lider = "V" + voltas completas; carro a uma volta ou mais = "+1 V".
+  e) Setas de grid (verde/vermelha): comparam com a posicao de largada. Confira 2 ou 3 carros. Fora da corrida nao aparecem.
+  f) PAR (paradas) soma 1 depois que o carro para; PIT aparece enquanto ele esta nos boxes; PEN aparece com penalidade.
+  g) COMB (%): bate com o nivel de combustivel que o jogo mostra para o carro (o seu carro: compare com o HUD) e cai
+     ao longo do stint; sobe depois do reabastecimento. Se o valor vier "--" ou sempre 0%, ANOTE (o jogo nao informou).
+  h) MED 5: depois de 3 voltas, confira a media das ultimas voltas de um carro com a sua conta; volta de box nao conta.
+  i) FIM/DNF/DSQ aparecem no fim da corrida / carro abandonado.
+  j) Cabecalho: tempo decorrido e total da sessao, volta, temperaturas.
+ O log traz a linha "calculo gap da classe LMU: jogo x calculado pela posicao" (a cada 60 s): ela diz se o intervalo
+   do jogo concorda com o calculado pela posicao na pista. ENVIE o log.
+ Anote: o numero do carro apareceu certo em TODOS? Os nomes das classes batem? Alguma classe nova/nome estranho?
+   Qual coluna mostrou valor claramente errado?
+
+TESTE 3 - CLIMA                                                           (10 min)
+ Faca: sessao com tempo variavel/chuva, se possivel (ou compare uma sessao seca e outra molhada).
+ Esperado: temperatura da pista e do ar iguais ao HUD do jogo (diferenca ate ~1 C); chuva sobe quando chove; "pista" muda
+   de seca para umida/molhada conforme a pista molha; vento coerente; neblina mostra "--". VENTO: a velocidade e a seta (relativa ao carro) devem fazer sentido; se mostrar "--", rode diagnostico_lmu.bat
+   e envie a linha "vento:" (vetor zero = o jogo nao informa o vento). Se a seta estiver ao contrario: menu > "Vento: inverter".
+ Anote: a escala "pista molhada" fez sentido (ex.: 3 = umida)? A "tendencia de chuva" apareceu depois de ~1 min de dados?
+
+TESTE 4 - COMBUSTIVEL E CALCULADORA                                       (20 min)
+ Faca: corrida (ou treino longo) de 5+ voltas; entre nos boxes e reabasteca; saia.
+ Esperado: litros no tanque iguais ao do jogo; consumo medio por volta aparece depois de 2-3 voltas LIMPAS (sem box) e
+   fica perto do consumo real; "voltas ate o fim" e "litros necessarios" coerentes; apos o reabastecimento o nivel
+   sobe e o consumo NAO e distorcido (volta com box nao entra na media); capacidade do tanque correta.
+ IMPORTANTE: observe tambem a ENERGIA VIRTUAL do carro no jogo. Esta calculadora (so litros) pode estar OTIMISTA se o
+   stint for limitado pela energia: para isso existe a janela ENERGIA (teste 10). Anote qual dos dois acaba primeiro.
+ Anote: litros iguais ao jogo? Consumo medio x consumo real que voce calcula? Capacidade correta?
+
+TESTE 5 - TELEMETRIA                                                      (5 min)
+ Esperado: marcha, velocidade (km/h) e RPM iguais ao HUD; barras de acelerador, freio e embreagem acompanhando os pedais;
+   volante gira para o MESMO lado que o seu; TC, ABS e balanco de freio (BB) iguais aos do MFD do carro (se o carro tiver).
+ Anote: sentido do volante certo? Valor de TC/ABS/BB igual ao do carro? Carro sem TC/ABS some da barra (correto)?
+
+TESTE 6 - FORCA G                                                         (5 min)
+ Esperado: curva para a ESQUERDA -> ponto vai para a esquerda; curva para a direita -> direita; FREADA forte -> ponto DESCE
+   no circulo; ACELERANDO forte -> ponto SOBE (mesma convencao do overlay do iRacing).
+   Valores plausiveis (GT3 ~1,5 a 2,5 g em curva; Hypercar mais, com carga aerodinamica).
+ Anote: algum eixo invertido (esquerda x direita ou freio x acelera)? Pico de G plausivel?
+
+TESTE 7 - DELTA                                                           (15 min)
+ Faca (treino, mesma pista e carro): 4 voltas limpas; depois 1 volta saindo da pista (grama); 1 volta entrando nos boxes;
+   mais 3 voltas limpas.
+ Esperado: depois da 1a volta limpa o delta aparece ("~ calc. - melhor volta limpa"); delta NEGATIVO quando voce esta mais
+   rapido que a melhor volta limpa, POSITIVO quando mais lento; volta fora da pista e volta dos boxes NAO viram referencia
+   (log: "delta: volta nao usada como referencia: motivo=...").
+ Compare: no log ha linhas "delta LMU: overlay x jogo (mDeltaBest)" - envie o log. Elas dizem se o delta do jogo concorda
+   com o calculado e se o SINAL e o mesmo (o delta do jogo ainda nao e exibido por causa disso).
+ Anote: o delta bate com o do jogo (se o HUD tiver)? Alguma volta boa foi descartada sem motivo?
+
+TESTE 8 - PAUSA, MENU E REABERTURA                                        (10 min)
+ Esperado: ao pausar/ESC em sessao offline as janelas somem depois de ~6 s e voltam ao retomar; ao ir para o menu/garagem
+   somem; FECHE o jogo e abra de novo SEM fechar o overlay: ele volta a ler sozinho (ate ~30 s apos o jogo reabrir uma sessao).
+ Anote: tempo ate sumir/voltar; se reconectou sozinho.
+
+TESTE 9 - DESEMPENHO E POSICAO                                            (20 min)
+ Esperado: sem queda perceptivel de FPS em 20 minutos de corrida; janelas na mesma posicao/tamanho do iRacing; opcoes do
+   icone da bandeja funcionando (travar, transparencia, economia de CPU).
+ Anote: FPS com e sem overlay. No log, procure linhas "desempenho" (ciclo em ms) e "aviso" e envie ao mantenedor (Issues do GitHub).
+
+TESTE 10 - ENERGIA VIRTUAL + COMBUSTIVEL (janela ENERGIA)                  (25 min)
+ Faca: corrida ou treino longo, 6+ voltas e uma parada. Deixe o HUD/MFD de energia virtual do jogo visivel para comparar.
+ Esperado (cada item = PASSOU / FALHOU / DUVIDA):
+  a) "ENERGIA VIRTUAL %" igual ao indicador de energia do jogo e cai a cada volta; sobe na parada (se reabastecer energia).
+  b) Depois de 2 a 3 voltas limpas aparece "~x,xx %/volta" e "alcance ~N V"; confira com sua conta (nivel / consumo).
+  c) "LIMITA: ENERGIA" (ou COMBUSTIVEL) acusa o recurso que realmente acaba primeiro no seu carro.
+  d) Com corrida por voltas ou tempo: "CHEGA AO FIM" / "1 PARADA NECESSARIA, parar entre as voltas A e B" coerentes com
+     o seu calculo; "alvo por volta" = nivel atual / voltas restantes.
+  e) Volta de box nao distorce o consumo; apos a parada o consumo continua parecido.
+  f) Carro sem energia virtual (se houver): a coluna fica "--" e o combustivel passa a limitar.
+ O diagnostico mostra "energia virtual: 0.xxx" (esperado: fracao de 0 a 1). O log traz "calculo energia virtual LMU".
+ Anote: a escala do valor (0 a 1 = 0 a 100 %)? Energia e combustivel sao reabastecidos juntos na parada?
+
+TESTE 11 - PNEUS E FREIOS                                                  (15 min)
+ Faca: 5+ voltas com pneu NOVO desde o inicio, depois troque o pneu na parada (se possivel mude o composto).
+ Esperado:
+  a) Temperatura (grande) de cada pneu igual ao MFD/HUD de pneus do jogo; a cor muda conforme esquenta/esfria.
+  b) Pressao em kPa igual ao jogo.
+  c) COMPOSTO: S macio, M medio, H duro, W chuva - confira com o pneu montado.
+  d) FREIO (C): sobe ao frear forte e cai nas retas; valores plausiveis para o carro.
+  e) VIDA (%) - TESTE CRITICO: com pneu NOVO deve mostrar perto de 100 % e CAIR ao longo das voltas. Se mostrar perto de
+     0 % com pneu novo (ou subir com o desgaste), FALHOU: o sentido esta invertido (correcao de uma linha; envie o
+     diagnostico: ele imprime "mWear" cru de cada roda).
+  f) Posicao das rodas: FL = dianteira esquerda, FR = dianteira direita, RL/RR = traseiras. Em curvas longas para o mesmo
+     lado a roda de FORA deve esquentar mais: confira com o jogo qual roda esquenta.
+  g) Oleo e agua do motor iguais ao jogo. Pneu furado/roda solta (se acontecer) aparece em vermelho.
+ O log traz "pneus LMU: valores crus do jogo" (a cada 60 s). Anote: vida certa? ordem das rodas certa?
+
+TESTE 12 - DANOS                                                           (10 min)
+ Faca: offline, bata DE LEVE e anote o local de cada batida: frente, traseira, lateral esquerda, lateral direita e as
+   quinas (se conseguir). Uma batida forte na frente (muro) tambem.
+ Esperado:
+  a) A zona do desenho que acende corresponde ao local da batida (amarelo = leve, vermelho = forte).
+  b) O texto "DANO FORTE" aparece quando ha zona vermelha; "ha mm:ss" do ultimo impacto confere com o relogio.
+  c) Peca solta, motor superaquecendo e roda furada (se ocorrerem) aparecem.
+ A ORDEM das 8 zonas foi CORRIGIDA na 1.3 com base em 1 batida real (frente-esquerda = indice 1; sentido anti-horario). Bata tambem
+ na direita, na traseira e nas quinas para confirmar os demais indices. A janela mostra o "LADO DO ULTIMO IMPACTO" (pela posicao
+ medida): ele deve concordar com o local da batida e com a zona acesa. Para cada batida anote qual zona acendeu. O log traz
+ "impacto LMU: forca ... | zonas (0-2) [...]" - ENVIE o log: com ele a ordem real e corrigida.
+ Anote: batida na FRENTE acendeu a zona da frente? Direita acendeu a direita? Algo trocado?
+
+TESTE 13 - ALERTAS NA PISTA                                                 (30 min)
+ Faca: corrida offline multiclasse com IA (peca a IA para fazer incidentes, se possivel) e uma parada nos boxes.
+ Esperado (cada item = PASSOU / FALHOU / DUVIDA / NAO OCORREU):
+  a) Amarela geral (FCY / safety car): "AMARELA GERAL (FCY)" enquanto durar, com o estado em texto.
+  b) Amarela local (incidente): "AMARELA NA PISTA". Anote em que setor estava o incidente e o que o log registra em
+     "bandeiras LMU: ... valores crus dos 3 setores [...]" (a numeracao dos setores precisa ser confirmada). Sem incidente, o alerta
+     "AMARELA NA PISTA" NAO deve aparecer (na 1.2 aparecia o tempo todo: corrigido na 1.3).
+  c) Bandeira azul: quando um carro de classe mais rapida chega, o jogo mostra a azul e o overlay mostra "BANDEIRA AZUL".
+  d) "CLASSE MAIS RAPIDA ATRAS": so aparece com carro de classe MAIS RAPIDA que a sua; a distancia confere com o que
+     voce ve no retrovisor/radar; o tempo "alcanca em ~N s" e coerente.
+  e) "CARRO LENTO/PARADO A FRENTE": pare um carro (ou use um carro da IA lento) e confira a distancia e o aviso.
+  f) Saida dos boxes: "SAINDO DOS BOXES" aparece ao sair; mostra carro chegando por tras quando ha.
+  g) Limite dos boxes: depois da 1a passagem com o limitador, o titulo da janela mostra "LIMITE BOXES xx km/h (medido)"
+     IGUAL ao limite da pista; passar do limite deixa o aviso vermelho.
+  h) "PARADA SOLICITADA": ao pedir a parada no MFD, mostra a distancia ate os boxes e ela diminui ate chegar.
+  i) Penalidade: "PENALIDADE" aparece com penalidade e some ao cumpri-la.
+ Anote: algum alerta falso (aparece sem motivo) ou ausente (devia aparecer e nao apareceu)? Os limiares (600 m, 350 m,
+ 70 km/h) estao bons para voce? (Podem ser ajustados no config_lmu.json.)
+
+TESTE 14 - STINTS E TENDENCIA DE RITMO                                      (40 min)
+ Faca: corrida ou treino com 2 stints completos (pelo menos 6 voltas cada) e uma parada.
+ Esperado:
+  a) STINTS: ao sair dos boxes nasce o stint seguinte; voltas, TEMPO, ENERGIA e COMB. gastos conferem com o que o jogo
+     mostrou no inicio e no fim do stint; PNEU = composto montado; DESG. = quanto a vida do pneu caiu; RITMO = media das
+     voltas limpas; "VS MELHOR" = diferenca para a melhor volta da sessao.
+  b) Abra o overlay NO MEIO de um stint: ele aparece com "*" (parcial) e os numeros dele valem so a partir da abertura.
+  c) TENDENCIA: so entram voltas limpas (sem boxes, sem volta lenta > 130 % da melhor, sem bandeira longa); depois de
+     4 voltas limpas aparece a reta amarela e "~+0,xx s/volta": positivo = ritmo piorando, negativo = melhorando;
+     confira com os seus tempos. A temperatura da pista e a variacao no periodo conferem com o jogo.
+  d) Uma volta com incidente ou de box NAO aparece no grafico.
+ Anote: alguma volta boa descartada (ou ruim aceita)? A tendencia concorda com a sua sensacao de ritmo?
+
+TESTE 15 - STREAM DECK (perfil "Overlay LMU")                              (10 min)
+ Faca: importe "streamdeck_lmu\Overlay LMU.streamDeckProfile" (passo a passo em ATALHOS_STREAM_DECK_LMU.txt), abra o overlay
+ do LMU e, com o jogo em Window/Borderless, aperte os botoes.
+ Esperado:
+  a) Cada botao de janela liga/desliga a janela certa (a ordem dos icones = ordem do menu da bandeja).
+  b) "Travar posicao", "Aparecer sozinho", "Economia de CPU", "Todas as classes" e "Manter no topo" alternam e o item do menu da
+     bandeja muda junto. "Zerar pico de G" zera o pico; "Tamanho padrao" volta as janelas a 100 %.
+  c) "Fechar overlay" fecha o overlay; "Iniciar overlay" abre de novo; "Forcar fechamento" encerra mesmo se travado.
+  d) Pasta "Suporte": abre a lista de atalhos, guia, roteiro, testes e diagnostico; "Voltar" retorna.
+  e) Com o overlay do iRacing aberto ao mesmo tempo, os botoes do perfil LMU NAO mexem no iRacing (e vice-versa).
+ Anote: algum botao sem efeito ou que abriu o arquivo errado? Algum atalho que o overlay avisou nao ter conseguido registrar
+ (veja "atalhos globais" no overlay_log_lmu.txt)? O Stream Deck aceitou a importacao sem mensagem de erro?
+
+ANEXE NA ISSUE DO GITHUB: diagnostico_lmu.txt, overlay_log_lmu.txt e as anotacoes de cada teste (PASSOU / FALHOU / DUVIDA).

@@ -1,0 +1,51 @@
+ATALHOS GLOBAIS PARA O STREAM DECK - OVERLAY LMU (v1.4.0)
+=========================================================
+O overlay do LMU registra estas combinacoes de teclas no Windows. Elas servem so para o overlay (o Le Mans Ultimate nao as
+recebe) e usam F13..F24, teclas que quase nenhum teclado tem, para nao conflitar com o jogo nem com outros programas.
+No Stream Deck, cada botao usa a acao "Hotkey" (Sistema > Hotkey) com a combinacao abaixo.
+Cada atalho faz EXATAMENTE o mesmo que o item correspondente do menu da bandeja (icone azul "LM").
+
+As combinacoes sao DIFERENTES das do overlay do iRacing (que usa Ctrl+Alt+Shift e Ctrl+Alt). Assim os dois perfis do Stream
+Deck convivem sem nenhuma colisao, mesmo com os dois overlays abertos ao mesmo tempo.
+
+  Ctrl+Shift+F13  Mostrar/ocultar telemetria
+  Ctrl+Shift+F14  Mostrar/ocultar voltas (delta e combustivel)
+  Ctrl+Shift+F15  Mostrar/ocultar classificacao
+  Ctrl+Shift+F16  Mostrar/ocultar clima e chuva
+  Ctrl+Shift+F17  Mostrar/ocultar painel de combustivel e pit
+  Ctrl+Shift+F18  Mostrar/ocultar forca G
+  Ctrl+Shift+F19  Mostrar/ocultar energia virtual e combustivel
+  Ctrl+Shift+F20  Mostrar/ocultar pneus e freios
+  Ctrl+Shift+F21  Mostrar/ocultar danos do carro
+  Ctrl+Shift+F22  Mostrar/ocultar alertas na pista
+  Ctrl+Shift+F23  Mostrar/ocultar historico de stints
+  Ctrl+Shift+F24  Mostrar/ocultar tendencia de ritmo
+  Alt+Shift+F13   Modo economia de CPU (liga/desliga)
+  Alt+Shift+F14   Aparecer sozinho ao entrar no carro (liga/desliga)
+  Alt+Shift+F15   Travar posicao das janelas (liga/desliga)
+  Alt+Shift+F16   Zerar o pico de G
+  Alt+Shift+F17   Classificacao: mostrar todas as classes (liga/desliga)
+  Alt+Shift+F18   Manter o overlay por cima do jogo (liga/desliga)
+  Alt+Shift+F19   Restaurar o tamanho das janelas (100%)
+  Alt+Shift+F20   FECHAR o overlay (o mesmo que Sair no menu da bandeja)
+
+COMO USAR
+ - Janelas (Ctrl+Shift+F13..F24): cada toque liga ou desliga a janela (o estado fica salvo no config_lmu.json).
+ - Controles (Alt+Shift+F13..F20): economia de CPU, aparecer sozinho, travar posicao, classificacao de todas as classes e
+   manter por cima do jogo ligam/desligam; zerar pico de G e restaurar tamanhos executam na hora.
+ - Alt+Shift+F20 FECHA o overlay (o mesmo que "Sair" no menu da bandeja). Para abrir de novo: botao "Iniciar Overlay".
+   Se o overlay travar e nao responder, use "fechar_overlay_lmu.bat" (fecha a forca, so o overlay do LMU).
+ - Os atalhos funcionam com o overlay aberto, mesmo com o jogo em primeiro plano (modo Window/Borderless).
+ - O LMU NAO tem perfis Treino/Classificacao/Corrida como o iRacing: por isso o perfil do Stream Deck do LMU nao tem esses botoes.
+ - O Stream Deck nao le o estado do overlay: o botao alterna (liga/desliga), mas o icone nao muda sozinho.
+ - Desligar tudo: menu da bandeja > desmarque "Teclas de atalho para o Stream Deck". Fica salvo.
+ - Se alguma combinacao ja estiver em uso por outro programa (por exemplo um plugin do Stream Deck), o overlay avisa
+   na bandeja e escreve em "overlay_log_lmu.txt" quais atalhos nao foram registrados; os demais continuam funcionando.
+ - Esta lista e gerada a partir do proprio programa (ov_atalhos_lmu.py, tabela ATALHOS_LMU); se mudar la, o teste automatico avisa.
+
+COMO IMPORTAR O PERFIL
+ 1. Abra o aplicativo do Stream Deck.
+ 2. Clique no nome do perfil (canto superior esquerdo) > "Importar..." (ou o botao "+" > Importar).
+ 3. Escolha o arquivo streamdeck_lmu\Overlay LMU.streamDeckProfile
+ 4. O perfil "Overlay LMU" aparece na lista ao lado do "Overlay iRacing" (o do iRacing nao e alterado).
+ Se aparecer a pergunta sobre o dispositivo, escolha o Stream Deck XL.

@@ -1,0 +1,117 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>STREAMDECK - WolfxRacing</title><style>body{font-family:Segoe UI,Arial,sans-serif;max-width:980px;margin:32px auto;padding:0 20px;line-height:1.55;color:#1b1d22;background:#fafafa}h1,h2,h3{font-family:Bahnschrift,Segoe UI,sans-serif;text-transform:uppercase;letter-spacing:.5px}h1{border-bottom:4px solid #c8102e;padding-bottom:8px}h2{border-bottom:1px solid #ddd;padding-bottom:4px;margin-top:36px}img{max-width:100%;height:auto;background:#14161a;border-radius:8px;padding:6px}table{border-collapse:collapse;width:100%;margin:12px 0}th,td{border:1px solid #d5d5d5;padding:6px 10px;text-align:left;vertical-align:top}th{background:#eee}code,pre{background:#eceef1;border-radius:4px;padding:1px 5px;font-family:Consolas,monospace}pre{padding:10px;overflow:auto}blockquote{border-left:4px solid #c8102e;margin:12px 0;padding:4px 14px;background:#fff}a{color:#b3122b}</style></head><body><h1 id="stream-deck-xl-le-mans-ultimate-lmu">Stream Deck XL: Le Mans Ultimate (LMU)</h1>
+<p>O overlay registra <strong>atalhos globais</strong> do Windows (teclas F13 a F24, que quase nenhum teclado tem, para não conflitar com o jogo) e cada um faz <strong>exatamente o mesmo</strong> que o item correspondente do menu da bandeja. O perfil do Stream Deck apenas aperta essas teclas (ação <em>Sistema &gt; Hotkey</em>) e abre arquivos do pacote (iniciar, log, guia...).</p>
+<p><img alt="Página principal" src="imagens/streamdeck_pagina_principal.png" /></p>
+<p><img alt="Pasta Suporte" src="imagens/streamdeck_pasta_suporte.png" /></p>
+<h2 id="importar-o-perfil">Importar o perfil</h2>
+<ol>
+<li>Abra o aplicativo do Stream Deck.</li>
+<li>Clique no nome do perfil (canto superior esquerdo) &gt; <strong>Importar...</strong> e escolha <code>streamdeck/Overlay LMU.streamDeckProfile</code>.</li>
+<li><strong>Caminho da pasta:</strong> as teclas que abrem arquivos usam o caminho <code>C:\WolfxRacing\wolfxracing-overlay-lmu\overlay</code>. Se você extraiu em <strong>outro lugar</strong>, rode antes:</li>
+</ol>
+<pre><code class="language-text">python streamdeck/ajustar_perfil.py &quot;D:\Caminho\Do\overlay&quot;
+</code></pre>
+<p>Isso cria <code>...\_ajustado.streamDeckProfile</code> com o seu caminho; importe esse arquivo.</p>
+<ol>
+<li>O perfil foi feito para o <strong>Stream Deck XL</strong> (8 colunas x 4 linhas = 32 teclas).</li>
+</ol>
+<h2 id="atalhos">Atalhos</h2>
+<table>
+<thead>
+<tr>
+<th>Atalho</th>
+<th>Função</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Ctrl+Shift+F13</code></td>
+<td>Mostrar/ocultar telemetria</td>
+</tr>
+<tr>
+<td><code>Ctrl+Shift+F14</code></td>
+<td>Mostrar/ocultar voltas (delta e combustível)</td>
+</tr>
+<tr>
+<td><code>Ctrl+Shift+F15</code></td>
+<td>Mostrar/ocultar classificação</td>
+</tr>
+<tr>
+<td><code>Ctrl+Shift+F16</code></td>
+<td>Mostrar/ocultar clima e chuva</td>
+</tr>
+<tr>
+<td><code>Ctrl+Shift+F17</code></td>
+<td>Mostrar/ocultar painel de combustível e pit</td>
+</tr>
+<tr>
+<td><code>Ctrl+Shift+F18</code></td>
+<td>Mostrar/ocultar força G</td>
+</tr>
+<tr>
+<td><code>Ctrl+Shift+F19</code></td>
+<td>Mostrar/ocultar energia virtual e combustível</td>
+</tr>
+<tr>
+<td><code>Ctrl+Shift+F20</code></td>
+<td>Mostrar/ocultar pneus e freios</td>
+</tr>
+<tr>
+<td><code>Ctrl+Shift+F21</code></td>
+<td>Mostrar/ocultar danos do carro</td>
+</tr>
+<tr>
+<td><code>Ctrl+Shift+F22</code></td>
+<td>Mostrar/ocultar alertas na pista</td>
+</tr>
+<tr>
+<td><code>Ctrl+Shift+F23</code></td>
+<td>Mostrar/ocultar histórico de stints</td>
+</tr>
+<tr>
+<td><code>Ctrl+Shift+F24</code></td>
+<td>Mostrar/ocultar tendência de ritmo</td>
+</tr>
+<tr>
+<td><code>Alt+Shift+F13</code></td>
+<td>Modo economia de CPU (liga/desliga)</td>
+</tr>
+<tr>
+<td><code>Alt+Shift+F14</code></td>
+<td>Aparecer sozinho ao entrar no carro (liga/desliga)</td>
+</tr>
+<tr>
+<td><code>Alt+Shift+F15</code></td>
+<td>Travar posição das janelas (liga/desliga)</td>
+</tr>
+<tr>
+<td><code>Alt+Shift+F16</code></td>
+<td>Zerar o pico de G</td>
+</tr>
+<tr>
+<td><code>Alt+Shift+F17</code></td>
+<td>Classificação: mostrar todas as classes (liga/desliga)</td>
+</tr>
+<tr>
+<td><code>Alt+Shift+F18</code></td>
+<td>Manter o overlay por cima do jogo (liga/desliga)</td>
+</tr>
+<tr>
+<td><code>Alt+Shift+F19</code></td>
+<td>Restaurar o tamanho das janelas (100%)</td>
+</tr>
+<tr>
+<td><code>Alt+Shift+F20</code></td>
+<td><strong>Fechar</strong> o overlay</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>A lista é gerada a partir da tabela <code>ATALHOS_LMU</code> de <code>overlay/ov_atalhos_lmu.py</code>. As combinações são <strong>diferentes</strong> das do overlay de iRacing, então os dois perfis convivem sem colisão. O LMU não tem perfis Treino/Classificação/Corrida.</li>
+<li>Os atalhos só funcionam com o <strong>overlay aberto</strong> e funcionam com o jogo em primeiro plano.</li>
+<li>Se uma combinação já for usada por outro programa, o overlay avisa na bandeja e registra no log quais atalhos não foram registrados; os demais continuam funcionando.</li>
+<li>Para desligar tudo: bandeja &gt; desmarque <em>Teclas de atalho para o Stream Deck</em> (fica salvo).</li>
+<li>Limite: o Stream Deck <strong>não lê o estado</strong> do overlay. O botão alterna (liga/desliga), mas o ícone não muda sozinho; confira olhando a tela.</li>
+<li>Sub-opções dentro de cada janela e outros itens do menu da bandeja <strong>não</strong> têm atalho global.</li>
+</ul>
+<h2 id="regenerar-icones-e-perfil">Regenerar ícones e perfil</h2>
+<p>Os ícones (144x144) e o perfil são gerados por scripts em <a href="../streamdeck/gerador"><code>streamdeck/gerador</code></a> a partir da tabela de atalhos do próprio overlay (nenhum comando é inventado nos scripts). Veja o <code>mapa_comandos*.md</code> para o mapa completo (posição das teclas x atalho x ícone). Os ícones são desenhos originais do projeto.</p></body></html>

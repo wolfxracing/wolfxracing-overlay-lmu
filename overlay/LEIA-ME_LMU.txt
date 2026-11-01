@@ -1,0 +1,144 @@
+OVERLAY LE MANS ULTIMATE (LMU) - GUIA RAPIDO - VERSAO 1.4.0
+=========================================================
+STATUS: PARCIALMENTE VALIDADO no jogo real (1o teste da v1.2: leitura de dados, energia, pneus, delta e gaps funcionaram;
+danos, vento e a janela por cima do jogo precisaram de ajuste). 368 verificacoes automaticas. Antes de confiar nos
+numeros em corrida, execute o "ROTEIRO_VALIDACAO_LMU.txt" com o Le Mans Ultimate de verdade.
+
+NOVIDADES DA 1.4 (Stream Deck XL)
+ - PERFIL PROPRIO DO STREAM DECK: "Overlay LMU" (pasta streamdeck_lmu, arquivo "Overlay LMU.streamDeckProfile"), no mesmo padrao
+   visual do "Overlay iRacing" do iRacing: pagina principal com as 12 janelas + controles + iniciar/fechar, e pasta "Suporte".
+ - 20 TECLAS GLOBAIS (F13..F24) proprias do LMU: Ctrl+Shift+F13..F24 = 12 janelas; Alt+Shift+F13..F20 = controles (economia de CPU,
+   aparecer sozinho, travar, zerar pico de G, todas as classes, manter por cima, restaurar tamanhos e FECHAR). Sao DIFERENTES das
+   do iRacing: os dois perfis convivem sem colisao. Lista completa e passo a passo de importacao: ATALHOS_STREAM_DECK_LMU.txt.
+ - Menu da bandeja: novo item "Teclas de atalho para o Stream Deck" (liga/desliga e fica salvo). Se uma combinacao ja estiver em uso
+   por outro programa, o overlay avisa e o log (overlay_log_lmu.txt) diz qual.
+ - Correcao: a trava de "overlay ja em execucao" agora e liberada ao sair (so afetava a bateria de testes).
+ - O overlay do iRacing e o perfil "Overlay iRacing" NAO foram alterados.
+
+NOVIDADES DA 1.3 (correcoes do primeiro teste no jogo real)
+ - DANOS: a ordem das 8 zonas estava espelhada (batida na esquerda acendia a direita). Corrigido e CONFERIDO em 4 batidas
+   reais (sentido anti-horario a partir da frente) e a janela agora mostra tambem o LADO DO ULTIMO IMPACTO, calculado pela posicao medida pelo jogo.
+ - AMARELA: o jogo usa 11 = sem amarela e 1 = amarela local (confirmado no log real); a 1.2 tratava 11 como amarela e acendia
+   o alerta o tempo todo. Agora so o valor 1 vale. Os valores crus vao para o log ("bandeiras LMU").
+ - VENTO: o LMU NAO informa o vento na memoria compartilhada (testado em 2 sessoes, ate com chuva e nuvens: vetor SEMPRE ZERADO,
+   log "clima LMU: vento cru"). O painel mostra "--" (nada e inventado). So muda se o diagnostico achar o vento na API local. Se o jogo informar o vento, a seta e relativa ao carro (o LMU nao tem norte). Valores crus no log ("clima LMU: vento
+   cru") e no diagnostico. Menu: "Vento: inverter a direcao da seta" caso esteja ao contrario.
+ - POR CIMA DO JOGO (CONCLUIDO): TELA CHEIA EXCLUSIVA ("Fullscreen") NAO TEM SOLUCAO - o log provou: com o jogo em Fullscreen o
+   overlay estava ACIMA na ordem do Windows em 99-100% do tempo e o Windows nao escondia as janelas, mas a tela cheia
+   exclusiva ignora a ordem das janelas. Use o modo de janela que o seu LMU oferece sem tela cheia exclusiva (testado: "Window",
+   que aparece como janela sem borda 3440x1440; Borderless tambem deve servir). Mesmo assim o overlay reafirma "sempre no topo"
+   10 vezes por segundo e NA HORA em que o foco muda (clique no jogo), e mede no log ("sobreposicao LMU", a cada 60 s) quanto
+   tempo o jogo fica ACIMA do overlay e se o Windows esconde as janelas. Antes (1.3): 3 vezes por segundo e registra no log/diagnostico como o jogo esta
+   na tela ("janela do jogo LMU"). Se o jogo estiver em TELA CHEIA EXCLUSIVA, nenhum overlay aparece: use Borderless.
+
+O QUE E
+DOZE janelas: as 6 primeiras com o mesmo visual, tamanho e posicao do overlay do iRacing; as 6 ultimas sao NOVAS e
+existem so no LMU (v1.2):
+ 1. TELEMETRIA     : marcha, velocidade, RPM, pedais, volante, TC, ABS e balanco de freio + grafico de acelerador/freio
+ 2. VOLTAS (DELTA) : delta, tempo de volta (atual / ultima / melhor) e calculo de combustivel
+ 3. CLASSIFICACAO  : DETALHADA, agrupada por Hypercar / LMP2 / LMGT3, com as colunas:
+      P (posicao na classe) | seta verde/vermelha (posicoes ganhas/perdidas desde o grid) | # | marca | piloto |
+      selos PIT / PEN / FIM / DNF / DSQ | PAR (paradas feitas) | COMB (% de combustivel de cada carro) |
+      GAP (para o lider da classe; "V 29" no lider; "+1 V" = uma volta ou mais atras) | INT (para o carro a frente na
+      classe) | MELHOR (roxo = melhor da classe) | ULTIMA (verde = igual a propria melhor) | MED 5 (media das ultimas
+      5 voltas) + cabecalho com tempo de sessao, volta, temperaturas e numero de carros.
+      Como ler GAP e INT: branco = medido pelo jogo; CINZA com "~" = ESTIMADO pela posicao na pista (acontece quando
+      ha carro de outra classe entre os dois). MED 5 ignora volta de largada, volta com box e volta muito lenta
+      (> 130 % da melhor do carro) e so aparece com 2 ou mais voltas.
+ 4. CLIMA          : temperatura da pista e do ar, chuva (com tendencia), umidade da pista e vento
+ 5. COMBUSTIVEL    : medidor + calculadora (janela de pit, litros a colocar, autonomia, consumo das ultimas voltas)
+ 6. FORCA G        : circulo de G lateral e longitudinal com rastro, G atual e pico
+ 7. ENERGIA        : ENERGIA VIRTUAL + COMBUSTIVEL lado a lado, com barra e alcance (voltas) de cada um, destaque do
+                     recurso que LIMITA, situacao ("CHEGA AO FIM" / "1 PARADA NECESSARIA, parar entre as voltas A e B" /
+                     "~N PARADAS"), alvo de consumo por volta para chegar ao fim e voltas ate o fim.
+ 8. PNEUS E FREIOS : 4 cartoes (dianteiro esq./dir., traseiro esq./dir.): temperatura da banda (verde = dentro da faixa
+                     ideal do jogo +-10 C; azul = fria; vermelha = quente), pressao (kPa), VIDA do pneu (%), composto
+                     (S macio, M medio, H duro, W chuva), temperatura do FREIO + oleo e agua do motor.
+ 9. DANOS          : carro visto de cima com as 8 zonas de impacto (cinza = nenhum, amarelo = leve, vermelho = forte),
+                     rodas furadas/soltas, peca solta, motor superaquecendo e quanto tempo faz o ultimo impacto.
+10. ALERTAS        : ate 6 avisos por gravidade (vermelho = perigo, amarelo = atencao, azul = informacao): corrida parada,
+                     AMARELA GERAL (FCY), amarela local, bandeira azul, CLASSE MAIS RAPIDA ATRAS (com distancia e tempo
+                     ate alcancar), CARRO LENTO/PARADO A FRENTE, SAINDO DOS BOXES com carro chegando, limitador/limite
+                     dos boxes, parada solicitada (distancia ate os boxes), penalidade, motor superaquecendo, pneu
+                     furado, peca solta e energia/combustivel na reserva.
+11. STINTS         : historico (do mais recente ao mais antigo): voltas, tempo, energia e combustivel gastos, pneu,
+                     desgaste, ritmo (media das voltas limpas) e diferenca para a melhor volta. "*" = stint parcial.
+12. TENDENCIA      : grafico das voltas limpas (stint atual em amarelo, reta de tendencia, melhor volta em roxo), ritmo
+                     das ultimas 5, tendencia em s/volta (melhorando / estavel / piorando) e temperatura da pista.
+ Pneus e Danos usam o mesmo nome de posicao das janelas de pneus e danos do iRacing (se voce as posicionou la, o LMU
+ herda a posicao). Todas as janelas ligam/desligam pelo icone da bandeja.
+
+PASTAS SEPARADAS (zero risco para o iRacing): o overlay do LMU vive na sua propria pasta, "overlay_lmu", ao lado da
+pasta do iRacing (Documents\overlay_iracing\overlay_lmu  x  Documents\overlay_iracing\overlay_iracing). Nada do LMU e
+gravado na pasta do iRacing: configuracao (config_lmu.json), log (overlay_log_lmu.txt), recordes e diagnostico ficam so
+na pasta do LMU. O iRacing continua abrindo pelo iniciar_overlay.bat da pasta dele, como sempre.
+
+INSTALACAO (uma vez)
+ - Se o overlay do iRacing ja funciona neste computador, NAO precisa instalar nada: o LMU usa o mesmo Python 3.12 e o
+   mesmo PySide6. (O pyirsdk nao e usado pelo LMU.)
+ - A pasta overlay_lmu traz uma COPIA de overlay_iracing.py, ov_nucleo.py e config.json (o LMU reutiliza o desenho das
+   janelas do iRacing). Sao copias identicas feitas uma vez: o LMU nunca le nem grava nada na pasta do iRacing.
+   NAO abra o overlay do iRacing a partir da pasta overlay_lmu: use sempre a pasta overlay_iracing.
+   Se um dia o overlay do iRacing for atualizado e voce quiser as melhorias nas janelas do LMU, as 3 copias precisam ser
+   atualizadas na pasta overlay_lmu (peca ao mantenedor (Issues do GitHub)).
+ - Os arquivos do LMU ficam todos na pasta overlay_lmu: overlay_lmu.py, ov_lmu.py, ov_classif_lmu.py,
+   ov_janela_lmu.py, ov_estrategia_lmu.py, ov_alertas_lmu.py, ov_janelas_extra_lmu.py, ov_demo_lmu.py, a pasta pyLMUSharedMemory,
+   os .bat "..._lmu.bat" e os documentos, mais as copias de overlay_iracing.py, ov_nucleo.py e config.json (o LMU as reutiliza).
+
+CONFIGURACAO DO JOGO (obrigatoria)
+ 1. No LMU: Settings > Gameplay > "Enable Plugins" LIGADO (o overlay le a memoria compartilhada do jogo; nao precisa
+    instalar nenhum plugin/DLL no Windows). Reinicie o jogo depois de ligar.
+ 2. Video em "Window" ou "Borderless" (janela sem tela cheia exclusiva). Em "Fullscreen" o Windows esconde QUALQUER overlay
+    (confirmado no teste real: nao e defeito do programa). Reinicie o jogo depois de trocar.
+
+USO
+ - iniciar_overlay_lmu.bat : abre o overlay (icone azul "LM" perto do relogio, seta ^). Pode abrir antes ou depois do jogo.
+ - Janelas destravadas: arraste para posicionar; arraste as bordas/cantos ou use Ctrl + roda do mouse para o tamanho (igual ao iRacing). Depois,
+   clique direito no icone > "Travar posicao". Travadas, elas aparecem sozinhas ao sentar no carro e somem nos menus.
+ - testar_demo_lmu.bat : demonstracao com dados simulados (sem o jogo).
+ - diagnostico_lmu.bat : grava diagnostico_lmu.txt com o que o overlay enxerga do jogo (use com o jogo aberto e no carro).
+ - fechar_overlay_lmu.bat : fecha a forca. executar_testes_lmu.bat : testes automaticos.
+ - A primeira execucao copia o layout (posicao/tamanho) do config.json que esta DENTRO da pasta overlay_lmu (copia do
+   layout do iRacing) para config_lmu.json. Depois disso, o layout do LMU e independente do do iRacing.
+
+LIMITES CONHECIDOS DA VERSAO 1.3 (leia)
+ - NAO homologado no jogo real. Tudo que depende de como o LMU preenche os dados esta marcado no roteiro.
+ - ENERGIA VIRTUAL: a janela ENERGIA (7) considera a energia virtual e o combustivel e destaca o que acaba primeiro.
+   As janelas VOLTAS (2) e COMBUSTIVEL (5), herdadas do iRacing, continuam calculando so pelos LITROS: em prova limitada
+   pela energia, olhe a janela ENERGIA (7), nao o calculo de litros.
+ - O que e MEDIDO pelo jogo: niveis (energia, combustivel, desgaste, temperaturas, pressao), composto, zonas de dano,
+   bandeiras, boxes, penalidades. O que e CALCULADO (marcado com "~"): consumo por volta, alcance, janela de pit, alvo,
+   ritmo, tendencia, distancias/tempos de alcance entre carros, limite dos boxes (o jogo nao informa o limite: o overlay
+   anota a velocidade com o limitador ligado nos boxes; so aparece depois da 1a passagem pelos boxes).
+ - O LMU NAO informa: % de dano, tempo de reparo, tempo de parada planejado, previsao do tempo, pneus/dano dos outros
+   carros. Por isso essas informacoes NAO existem no overlay (nada e inventado).
+ - A VIDA do pneu usa a leitura "mWear" do jogo supondo 100 % = pneu novo. Se estiver invertido (novo = 0 %), o teste 11
+   do roteiro identifica e a correcao e uma linha. A ORDEM das 8 zonas de dano foi corrigida a partir de uma batida real
+   (frente-esquerda = indice 1); as demais zonas ainda precisam do teste 12.
+ - Limiares dos alertas (distancia para avisar classe rapida/carro lento, velocidade considerada lenta, distancia na
+   saida dos boxes) sao definicoes do overlay, nao regras do jogo. Padroes: 600 m, 350 m, 70 km/h, 900 m. Para mudar:
+   feche o overlay e edite config_lmu.json (alerta_traseiro_m, alerta_frente_m, alerta_lento_kmh, alerta_saida_box_m).
+ - As janelas novas somam espaco na tela: ao abrir pela primeira vez, destrave, posicione e ajuste o tamanho de cada uma
+   (posicoes iniciais sao apenas sugestao) e desligue pelo icone as que nao quiser. As amarelas "locais" nao dizem em
+   qual setor estao (a numeracao dos setores do jogo precisa ser confirmada: teste 13).
+ - Neblina: o LMU nao informa nesta estrutura ("--"). Vento: depende de o jogo preencher o vetor de vento; sem ele o painel
+   mostra "--" (nada e inventado). A direcao e relativa ao carro, nao ao norte.
+ - "Pista molhada" (1 a 7) e o "ceu" sao ESCALAS DO OVERLAY a partir de numeros do jogo (umidade da pista 0 a 1 e cobertura
+   de nuvens): servem de apoio visual, nao sao uma medida oficial do jogo.
+ - Delta: calculado pelo overlay (melhor volta limpa, como no iRacing). O delta do proprio jogo so e comparado no log.
+ - Classificacao: o LMU nao informa pais, iRating/SOF, pneus dos outros carros nem dano dos outros carros: essas
+   colunas NAO existem (nada e inventado). A seta de posicoes ganhas usa a posicao de qualificacao do jogo e so aparece
+   na corrida. O combustivel % dos outros carros e o valor informado pelo jogo (0 a 255, convertido para %).
+ - A janela de classificacao e MAIS LARGA que a do iRacing (846 x 240 aprox. no tamanho 100 %): ao abrir pela primeira vez,
+   destrave, reposicione e ajuste o tamanho (borda/canto ou Ctrl + roda do mouse) para nao cobrir outras janelas.
+ - Numero do carro e marca saem do NOME do veiculo ("... #31"): se o seu carro/mod nao seguir esse padrao, o numero
+   pode ficar em branco.
+ - Atalhos de teclado / Stream Deck, projecao de iRating e outras janelas do iRacing: nao fazem parte desta versao
+   (o layout do Stream Deck XL para o LMU esta previsto para a proxima etapa).
+ - Se o jogo for atualizado e mudar o formato da memoria, o overlay detecta (estado "incompativel" no log) e nao mostra
+   dados errados; envie o diagnostico ao mantenedor (Issues do GitHub).
+
+SE ALGO NAO FUNCIONAR
+ 1. Janelas nao aparecem: o jogo esta em Window/Borderless (e NAO em Fullscreen)? Veja a linha "janela do jogo LMU" no log. "Enable Plugins" esta ligado? Rode diagnostico_lmu.bat.
+ 2. Aparece "Aguardando o Le Mans Ultimate...": o overlay nao achou a memoria do jogo (jogo fechado/sem sessao/plugins desligados).
+ 3. Envie ao mantenedor (Issues do GitHub): diagnostico_lmu.txt e overlay_log_lmu.txt.

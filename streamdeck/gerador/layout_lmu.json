@@ -1,0 +1,39 @@
+{
+ "principal": {
+  "0,0": "janela_telemetria",
+  "1,0": "janela_voltas",
+  "2,0": "janela_classificacao",
+  "3,0": "janela_clima",
+  "4,0": "janela_combustivel",
+  "5,0": "janela_forca_g",
+  "6,0": "janela_energia",
+  "7,0": "janela_pneus",
+  "0,1": "janela_danos",
+  "1,1": "janela_alertas",
+  "2,1": "janela_stints",
+  "3,1": "janela_tendencia",
+  "4,1": "ctrl_classif_todas",
+  "5,1": "ctrl_manter_topo",
+  "6,1": "ctrl_restaurar_tamanhos",
+  "7,1": "ctrl_zerar_pico_g",
+  "0,2": "ctrl_economia_cpu",
+  "1,2": "ctrl_aparecer_sozinho",
+  "2,2": "ctrl_travar_posicao",
+  "5,2": "sup_demo",
+  "6,2": "sup_log",
+  "7,2": "sup_pasta_overlay",
+  "0,3": "ctrl_iniciar",
+  "1,3": "ctrl_fechar",
+  "2,3": "ctrl_forcar_fechamento",
+  "7,3": "sup_pasta_suporte"
+ },
+ "suporte": {
+  "0,0": "sup_voltar",
+  "1,0": "sup_atalhos",
+  "2,0": "sup_guia",
+  "3,0": "sup_roteiro",
+  "4,0": "sup_testes",
+  "5,0": "sup_diagnostico",
+  "6,0": "sup_ver_diagnostico"
+ }
+}

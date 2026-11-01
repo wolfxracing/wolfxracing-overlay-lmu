@@ -1,0 +1,54 @@
+﻿WOLFXRACING OVERLAY - LE MANS ULTIMATE
+COMECE AQUI (leia em 2 minutos)
+==========================================================
+
+O QUE E
+Overlay gratuito com 12 janelas sobre o jogo, mais um dash para o
+Simagic MagicDash 4 (SimHub) e um perfil para Stream Deck XL.
+Funciona so no Windows 10/11. Nao altera nem injeta nada no jogo.
+
+PASSO A PASSO
+1) Extraia este .zip dentro da pasta C:\WolfxRacing (crie-a antes).
+   O zip ja cria a subpasta, ficando assim:
+   C:\WolfxRacing\wolfxracing-overlay-lmu\overlay ...
+2) Instale o Python. Requisito: Python 3.12 (o instalar_lmu.bat prepara tudo sozinho; precisa antes do instalador do Python em python.org/downloads).
+3) Abra a pasta "overlay" e de duplo clique em:  instalar_lmu.bat
+   (so uma vez; aguarde aparecer "Instalacao concluida").
+4) TESTE SEM O JOGO: duplo clique em  testar_demo_lmu.bat
+   As janelas aparecem com dados simulados. Procure o icone do
+   overlay perto do relogio do Windows (seta ^). Clique com o botao
+   direito nele para ver o menu. Para fechar: "Sair" no menu.
+5) CONFIGURE O JOGO. No LMU: Settings > Gameplay > "Enable Plugins" LIGADO, e video em Window ou Borderless (nao Fullscreen). Reinicie o jogo.
+   Em tela cheia exclusiva (Fullscreen) NENHUM overlay aparece:
+   isso e do Windows, nao e defeito do programa.
+6) USO DIARIO: abra  overlay\iniciar_overlay_lmu.bat  (antes ou depois do jogo).
+   - Para MOVER as janelas: menu da bandeja > desmarque
+     "Travar posicao", arraste, e marque "Travar posicao" de novo.
+   - Para REDIMENSIONAR: arraste as bordas ou use Ctrl + roda do mouse.
+   - Para FECHAR: menu da bandeja > Sair  (ou overlay\fechar_overlay_lmu.bat).
+
+DASH (opcional, Simagic MagicDash 4)
+- De duplo clique em  dash\MagicDash4 LMU Sport.simhubdash  (o SimHub importa).
+- No SimHub > Dash Studio, escolha o dash como "Main dashboard".
+- Troque de tela tocando na metade esquerda/direita do cabecalho.
+
+STREAM DECK (opcional, modelo XL)
+- No app do Stream Deck: Importar perfil > streamdeck\Overlay LMU.streamDeckProfile
+- Se voce extraiu em OUTRA pasta que nao C:\WolfxRacing\wolfxracing-overlay-lmu,
+  rode antes:  python streamdeck\ajustar_perfil.py "CAMINHO\overlay"
+  e importe o arquivo "_ajustado" que ele criar.
+- As teclas usam atalhos F13 a F24; o overlay precisa estar aberto.
+
+SE ALGO NAO FUNCIONAR / MANUAL COMPLETO
+- Abra no navegador (duplo clique): docs\MANUAL.html  (com imagens,
+  instalacao, as 12 janelas e solucao de problemas).
+  Tambem: docs\DASH.html e docs\STREAMDECK.html.
+- OS ARQUIVOS .md (README.md, CHANGELOG.md, etc.) sao textos para
+  desenvolvedores: no Bloco de Notas aparecem com simbolos (#, **) e
+  sem imagens. Voce NAO precisa deles para usar; use os .html acima.
+- Anexe o arquivo overlay\overlay_log_lmu.txt ao relatar um problema.
+
+LICENCA
+MIT (uso livre, sem garantia). Veja LICENSE e NOTICE.md.
+Projeto da comunidade, sem vinculo com iRacing, Le Mans Ultimate,
+Simagic, SimHub ou Elgato. Marcas pertencem aos seus donos.

@@ -1,0 +1,179 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>MANUAL - WolfxRacing</title><style>body{font-family:Segoe UI,Arial,sans-serif;max-width:980px;margin:32px auto;padding:0 20px;line-height:1.55;color:#1b1d22;background:#fafafa}h1,h2,h3{font-family:Bahnschrift,Segoe UI,sans-serif;text-transform:uppercase;letter-spacing:.5px}h1{border-bottom:4px solid #c8102e;padding-bottom:8px}h2{border-bottom:1px solid #ddd;padding-bottom:4px;margin-top:36px}img{max-width:100%;height:auto;background:#14161a;border-radius:8px;padding:6px}table{border-collapse:collapse;width:100%;margin:12px 0}th,td{border:1px solid #d5d5d5;padding:6px 10px;text-align:left;vertical-align:top}th{background:#eee}code,pre{background:#eceef1;border-radius:4px;padding:1px 5px;font-family:Consolas,monospace}pre{padding:10px;overflow:auto}blockquote{border-left:4px solid #c8102e;margin:12px 0;padding:4px 14px;background:#fff}a{color:#b3122b}</style></head><body><h1 id="manual-do-usuario-wolfxracing-overlay-para-le-mans-ultimate">Manual do usuário: WolfxRacing Overlay para Le Mans Ultimate</h1>
+<blockquote>
+<p>Versão do overlay neste pacote: <strong>LMU 1.6.0 Sport</strong>. Os prints foram gerados no <strong>modo demonstração</strong> (dados simulados); as fontes e as medidas podem variar um pouco no seu Windows.</p>
+</blockquote>
+<h2 id="sumario">Sumário</h2>
+<ol>
+<li><a href="#1-o-que-é">O que é</a> · 2. <a href="#2-instalação-uma-única-vez">Instalação</a> · 3. <a href="#3-configurar-o-le-mans-ultimate-obrigatório">Configurar o jogo</a> · 4. <a href="#4-uso-diário">Uso diário</a> · 5. <a href="#5-as-janelas">As 12 janelas</a> · 6. <a href="#6-como-ler-os-números">Como ler os números</a> · 7. <a href="#7-dash-e-stream-deck">Dash e Stream Deck</a> · 8. <a href="#8-solução-de-problemas">Solução de problemas</a> · 9. <a href="#9-atualizar-para-uma-versão-nova">Atualizar</a> · 10. <a href="#10-limites-conhecidos">Limites</a></li>
+</ol>
+<h2 id="1-o-que-e">1. O que é</h2>
+<p>12 janelas independentes e transparentes, sempre por cima do jogo, que podem ser movidas, redimensionadas e ligadas/desligadas pelo menu do ícone azul "LM" perto do relógio do Windows. Tudo roda localmente; nenhum dado seu é enviado para a internet.</p>
+<p><img alt="Visão geral" src="imagens/overlay_visao_geral.png" /></p>
+<h2 id="2-instalacao-uma-unica-vez">2. Instalação (uma única vez)</h2>
+<ol>
+<li><strong>Python 3.12.</strong> Instale o <em>Python Install Manager</em> em <a href="https://www.python.org/downloads/">python.org/downloads</a>.</li>
+<li><strong>Extraia</strong> o <code>.zip</code> dentro de <code>C:\WolfxRacing</code> (o zip já cria a pasta <code>wolfxracing-overlay-lmu</code>; o resultado é <code>C:\WolfxRacing\wolfxracing-overlay-lmu</code>). Outra pasta também funciona, mas veja o aviso do Stream Deck em <a href="STREAMDECK.html">STREAMDECK.md</a>.</li>
+<li>Dê duplo clique em <strong><code>overlay\instalar_lmu.bat</code></strong>. Ele prepara o Python 3.12 e instala <code>PySide6-Essentials</code>. O LMU <strong>não</strong> usa <code>pyirsdk</code>.</li>
+<li>Teste sem o jogo: <strong><code>overlay\testar_demo_lmu.bat</code></strong> (dados simulados). Procure o ícone azul "LM" perto do relógio (seta <code>^</code>).</li>
+</ol>
+<p>Instalação manual (alternativa): <code>py -3.12 -m pip install PySide6-Essentials</code>.</p>
+<h2 id="3-configurar-o-le-mans-ultimate-obrigatorio">3. Configurar o Le Mans Ultimate (obrigatório)</h2>
+<ol>
+<li>No LMU: <strong>Settings &gt; Gameplay &gt; Enable Plugins = LIGADO</strong> (o overlay lê a memória compartilhada do jogo; não precisa instalar plugin nem DLL no Windows). Reinicie o jogo depois.</li>
+<li>Vídeo em <strong>Window</strong> ou <strong>Borderless</strong>. Em <strong>Fullscreen</strong> (tela cheia exclusiva) o Windows esconde qualquer overlay: não é defeito do programa. Reinicie o jogo depois de trocar.</li>
+<li>O overlay pode ser aberto antes ou depois do jogo. Sem sessão ele mostra "Aguardando o Le Mans Ultimate..." (jogo fechado, sem sessão ou <em>Enable Plugins</em> desligado).</li>
+</ol>
+<h2 id="4-uso-diario">4. Uso diário</h2>
+<ol>
+<li>Abra <strong><code>overlay\iniciar_overlay_lmu.bat</code></strong>.</li>
+<li><strong>Posicionar:</strong> clique com o botão direito no ícone azul "LM" e <strong>desmarque "Travar posição"</strong>. Arraste cada janela (contorno amarelo = modo mover). Ao terminar, marque "Travar posição": as janelas aparecem sozinhas ao sentar no carro e somem nos menus.</li>
+<li><strong>Redimensionar:</strong> arraste as bordas/cantos ou use <strong>Ctrl + roda do mouse</strong>. A classificação é mais larga que as demais (~846x240 em 100%): ajuste na primeira vez.</li>
+<li><strong>Primeira execução:</strong> o layout inicial vem do layout padrão e depois é gravado em <code>config_lmu.json</code> (independente do iRacing, se você também usa o overlay dele).</li>
+<li><strong>Visual:</strong> <em>Visual moderno</em>, <strong>Estilo Sport</strong> (itálico, cantos cortados, detalhes vermelhos) e <em>Transparência do fundo</em>. Desmarcar <em>Visual moderno</em> volta ao clássico.</li>
+<li><strong>Manter o overlay por cima do jogo:</strong> reafirma "sempre no topo" 10 vezes por segundo e na hora em que o foco muda.</li>
+<li><strong>Diagnóstico:</strong> <code>overlay\diagnostico_lmu.bat</code> (com o jogo aberto e no carro) grava <code>diagnostico_lmu.txt</code> com o que o overlay enxerga do jogo; anexe-o em Issues.</li>
+<li><strong>Fechar:</strong> <em>Sair</em> no menu da bandeja, <code>Alt+Shift+F20</code> (Stream Deck) ou, se travar, <code>overlay\fechar_overlay_lmu.bat</code>.</li>
+</ol>
+<h2 id="5-as-janelas">5. As janelas</h2>
+<h3 id="1-telemetria">1. Telemetria</h3>
+<p><img alt="Telemetria" src="imagens/overlay_telemetria.png" /></p>
+<p>Marcha, velocidade, RPM, pedais, volante, TC, ABS, balanço de freio e gráfico de acelerador/freio.</p>
+<ul>
+<li>Mesmo visual e posição das janelas do overlay de iRacing.</li>
+</ul>
+<h3 id="2-voltas-delta">2. Voltas (delta)</h3>
+<p><img alt="Voltas (delta)" src="imagens/overlay_voltas.png" /></p>
+<p>Delta, tempos atual / última / melhor e cálculo de combustível.</p>
+<ul>
+<li>Em prova limitada pela <strong>energia virtual</strong>, olhe a janela Energia: esta janela calcula só pelos litros.</li>
+</ul>
+<h3 id="3-classificacao-detalhada">3. Classificação detalhada</h3>
+<p><img alt="Classificação detalhada" src="imagens/overlay_classificacao.png" /></p>
+<p>Agrupada por Hypercar / LMP2 / LMGT3, com posição na classe, setas de posições ganhas/perdidas, número, marca, piloto, selos PIT/PEN/FIM/DNF/DSQ, paradas, combustível %, GAP, INT, melhor, última e média das últimas 5.</p>
+<ul>
+<li>GAP/INT em branco = medido pelo jogo; <strong>cinza com "~"</strong> = estimado pela posição na pista (há carro de outra classe entre os dois).</li>
+<li>Melhor volta em roxo = a melhor da classe. MED 5 ignora volta de largada, volta com box e volta muito lenta.</li>
+</ul>
+<h3 id="4-clima">4. Clima</h3>
+<p><img alt="Clima" src="imagens/overlay_clima.png" /></p>
+<p>Temperatura da pista e do ar, chuva (com tendência), umidade da pista e vento.</p>
+<ul>
+<li>O LMU não informa o vento nem a neblina na memória compartilhada: mostram "--" (nada é inventado).</li>
+</ul>
+<h3 id="5-combustivel-e-pit">5. Combustível e pit</h3>
+<p><img alt="Combustível e pit" src="imagens/overlay_combustivel.png" /></p>
+<p>Medidor e calculadora: janela de pit, litros a colocar, autonomia e consumo.</p>
+<ul>
+<li>Calcula só pelos litros; para energia virtual, use a janela Energia.</li>
+</ul>
+<h3 id="6-forca-g">6. Força G</h3>
+<p><img alt="Força G" src="imagens/overlay_forca_g.png" /></p>
+<p>Círculo de G lateral e longitudinal com rastro, G atual e pico.</p>
+<h3 id="7-energia-virtual-e-combustivel">7. Energia virtual e combustível</h3>
+<p><img alt="Energia virtual e combustível" src="imagens/overlay_energia.png" /></p>
+<p>Energia virtual e combustível lado a lado, com barra, alcance (voltas) e destaque do recurso que <strong>limita</strong>; situação ("CHEGA AO FIM", "1 PARADA NECESSÁRIA..."), alvo de consumo por volta e voltas até o fim.</p>
+<ul>
+<li>Níveis são medidos pelo jogo; consumo, alcance, alvo e janela são calculados (marcados com "~").</li>
+</ul>
+<h3 id="8-pneus-e-freios">8. Pneus e freios</h3>
+<p><img alt="Pneus e freios" src="imagens/overlay_pneus.png" /></p>
+<p>Quatro cartões com temperatura, pressão, vida (%) e composto (S macio, M médio, H duro, W chuva), temperatura do freio, óleo e água.</p>
+<ul>
+<li>Verde = dentro da faixa ideal do jogo (±10 °C); azul = frio; vermelho = quente.</li>
+<li>A temperatura do pneu é a camada interna (mais próxima do MFD do jogo). Vida "--" = o jogo não entregou leitura para aquela roda.</li>
+</ul>
+<h3 id="9-danos-do-carro">9. Danos do carro</h3>
+<p><img alt="Danos do carro" src="imagens/overlay_danos.png" /></p>
+<p>Carro visto de cima com 8 zonas (cinza = nenhum, amarelo = leve, vermelho = forte), rodas furadas/soltas, peça solta, motor (ok / superaquecendo / <strong>parado</strong>), <strong>farol</strong>, lado e força do último impacto.</p>
+<ul>
+<li>O LMU não informa % de dano nem tempo de reparo.</li>
+</ul>
+<h3 id="10-alertas-na-pista">10. Alertas na pista</h3>
+<p><img alt="Alertas na pista" src="imagens/overlay_alertas.png" /></p>
+<p>Até 6 avisos por gravidade (vermelho = perigo, amarelo = atenção, azul = informação): corrida parada, amarela geral (FCY), amarela local, bandeira azul, classe mais rápida atrás, carro lento/parado à frente, saída dos boxes, limitador, penalidade, motor superaquecendo, <strong>motor parado</strong>, pneu furado, peça solta e energia/combustível na reserva.</p>
+<ul>
+<li>Limiares (distâncias de aviso etc.) são definições do overlay, editáveis em <code>config_lmu.json</code>.</li>
+</ul>
+<h3 id="11-historico-de-stints">11. Histórico de stints</h3>
+<p><img alt="Histórico de stints" src="imagens/overlay_stints.png" /></p>
+<p>Por stint: voltas, tempo, energia e combustível gastos, pneu, desgaste, ritmo e diferença para a melhor volta.</p>
+<ul>
+<li>"*" = stint parcial (overlay aberto no meio do stint).</li>
+</ul>
+<h3 id="12-tendencia-de-ritmo">12. Tendência de ritmo</h3>
+<p><img alt="Tendência de ritmo" src="imagens/overlay_tendencia.png" /></p>
+<p>Gráfico das voltas limpas (stint atual em amarelo, reta de tendência, melhor volta em roxo), ritmo das últimas 5, tendência em s/volta e temperatura da pista.</p>
+<ul>
+<li>Volta limpa = sem box e dentro de 130% da melhor.</li>
+</ul>
+<h2 id="6-como-ler-os-numeros-medido-calculado-estimado">6. Como ler os números: medido, calculado, estimado</h2>
+<ul>
+<li><strong>Medido pelo jogo</strong> (sem marca): níveis (energia virtual, combustível, desgaste, temperaturas, pressão), composto, zonas de dano, bandeiras, boxes, penalidades.</li>
+<li><strong>"~"</strong> = <strong>calculado</strong> pelo overlay: consumo por volta, alcance, janela de pit, alvo de consumo, ritmo, tendência, distâncias e tempos entre carros, limite dos boxes (o jogo não informa; o overlay anota a velocidade com o limitador ligado nos boxes e só mostra depois da 1ª passagem).</li>
+<li>O LMU <strong>não informa</strong>: % de dano, tempo de reparo, tempo de parada planejado, previsão do tempo, país/iRating dos pilotos nem pneus/dano dos outros carros. Essas informações <strong>não existem</strong> no overlay (nada é inventado). Vento e neblina dependem de o jogo preencher o dado; sem ele aparece "--".</li>
+<li>A <strong>vida do pneu</strong> vem de <code>mWear</code> (100% = novo). Quando o jogo entrega exatamente <strong>0,0</strong> numa roda, o overlay trata como <em>sem leitura</em> e mostra "--" em vez de "0%".</li>
+<li>"Pista molhada" (1 a 7) e "céu" são <strong>escalas do overlay</strong> a partir de números do jogo: apoio visual, não medida oficial.</li>
+</ul>
+<h2 id="7-dash-e-stream-deck">7. Dash e Stream Deck</h2>
+<ul>
+<li><strong>Dash MagicDash 4 Sport</strong> (3 telas): veja <a href="DASH.html">DASH.md</a>.</li>
+<li><strong>Perfil de Stream Deck XL</strong> (janelas, controles, iniciar/fechar, pasta Suporte): veja <a href="STREAMDECK.html">STREAMDECK.md</a>.</li>
+</ul>
+<p><img alt="Dash" src="imagens/dash_visao_geral.png" /></p>
+<h2 id="8-solucao-de-problemas">8. Solução de problemas</h2>
+<table>
+<thead>
+<tr>
+<th>Sintoma</th>
+<th>O que fazer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Janelas não aparecem</td>
+<td>O jogo está em <strong>Window/Borderless</strong> (e não Fullscreen)? <em>Enable Plugins</em> está ligado? Rode <code>diagnostico_lmu.bat</code>.</td>
+</tr>
+<tr>
+<td>"Aguardando o Le Mans Ultimate..."</td>
+<td>O overlay não achou a memória do jogo: jogo fechado, sem sessão ou <em>Enable Plugins</em> desligado.</td>
+</tr>
+<tr>
+<td>Estado "incompatível" no log</td>
+<td>O jogo foi atualizado e mudou o formato da memória. O overlay não mostra dados errados: abra uma Issue com o diagnóstico.</td>
+</tr>
+<tr>
+<td>Amarela local acesa o tempo todo</td>
+<td>Versões antigas tratavam o valor 11 como amarela; a versão atual só aceita 1 (confirmado em jogo real).</td>
+</tr>
+<tr>
+<td>Vento/neblina "--"</td>
+<td>O LMU não informa esses dados nesta estrutura.</td>
+</tr>
+<tr>
+<td>Numero do carro em branco</td>
+<td>O número sai do nome do veículo ("... #31"); mods fora do padrão podem ficar em branco.</td>
+</tr>
+<tr>
+<td>Um atalho do Stream Deck não funciona</td>
+<td>Outro programa pode estar usando a combinação; veja <code>overlay_log_lmu.txt</code>.</td>
+</tr>
+<tr>
+<td>Valor estranho</td>
+<td>Anote a janela e a situação e abra uma Issue com <code>diagnostico_lmu.txt</code> e <code>overlay_log_lmu.txt</code>.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="9-atualizar-para-uma-versao-nova">9. Atualizar para uma versão nova</h2>
+<ol>
+<li>Feche o overlay (<em>Sair</em> na bandeja).</li>
+<li>Baixe o novo <code>.zip</code> e <strong>copie por cima</strong> da pasta atual (o <code>config*.json</code>, recordes, mapas e logs ficam e continuam valendo, pois não vêm no pacote).</li>
+<li>Leia o <a href="../CHANGELOG.html">CHANGELOG</a> para ver o que mudou. Reabra o overlay.</li>
+</ol>
+<h2 id="10-limites-conhecidos">10. Limites conhecidos</h2>
+<ul>
+<li>O pacote foi validado parcialmente no jogo real: leitura de dados, energia, pneus, delta, gaps, danos e alertas funcionaram; vento e neblina <strong>não</strong> são fornecidos pelo jogo. Veja <code>overlay/ROTEIRO_VALIDACAO_LMU.txt</code> para validar com o jogo.</li>
+<li>Tela cheia exclusiva (Fullscreen) esconde qualquer overlay (limitação do Windows).</li>
+<li>Se o LMU for atualizado e mudar o formato da memória compartilhada, o overlay detecta e se recusa a mostrar dados errados até ser atualizado.</li>
+<li>O numero e a marca do carro saem do nome do veículo; mods fora do padrão podem ficar sem número.</li>
+</ul>
+<p>Mais detalhes técnicos de cada recurso: <a href="referencia/GUIA_ORIGINAL.txt"><code>referencia/GUIA_ORIGINAL.txt</code></a> (guia completo escrito durante o desenvolvimento).</p></body></html>

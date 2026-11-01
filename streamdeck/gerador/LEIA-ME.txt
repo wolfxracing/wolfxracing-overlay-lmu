@@ -1,0 +1,14 @@
+BIBLIOTECA DE ICONES E PERFIL - OVERLAY LMU (STREAM DECK XL)
+============================================================
+Conteudo
+  Overlay LMU.streamDeckProfile      perfil pronto para importar (pagina principal + pasta Suporte, 35 botoes)
+  icones/png/                        35 icones 144x144 (prontos para o Stream Deck)
+  icones/variantes_desligado/        versoes "desligada" (esmaecidas, olho riscado) - uso opcional
+  previa_pagina_principal_lmu.png / previa_pasta_suporte_lmu.png    previa dos botoes
+  layout_lmu.json                    posicao (coluna,linha) de cada botao
+  mapa_comandos_lmu.md               janela -> atalho -> icone
+  gerar_icones_lmu.py / layout_previa_lmu.py / gerar_perfil_lmu.py   geradores (Python + cairosvg + fontTools + Pillow; gerar_icones_lmu.py tambem grava os icones em SVG)
+  base/gerar_icones_iracing.py       copia SOMENTE-LEITURA do gerador do iRacing (fornece o desenho-base dos icones)
+
+Como importar: ver ATALHOS_STREAM_DECK_LMU.txt (pasta acima), secao "COMO IMPORTAR O PERFIL".
+O perfil e o overlay do iRacing NAO foram alterados.

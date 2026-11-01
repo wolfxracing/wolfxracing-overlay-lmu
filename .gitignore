@@ -1,0 +1,25 @@
+# dados pessoais / gerados em uso (nao versionar)
+overlay/config.json
+overlay/config_lmu.json
+overlay/overlay_log*.txt
+overlay/overlay_log*.txt.1
+overlay/diagnostico_lmu.txt
+overlay/historico_projecoes.csv
+overlay/recordes_pessoais.json
+overlay/calibracao_pneus.json
+overlay/mapas_pistas.json
+overlay/emblemas_faltando*.txt
+overlay/*.lock
+# emblemas de marcas sao do usuario (marcas registradas): nao versionar
+overlay/emblemas/*
+!overlay/emblemas/LEIA-ME.txt
+# Python
+__pycache__/
+*.pyc
+.venv/
+# perfis ajustados localmente e saidas
+streamdeck/*_ajustado.streamDeckProfile
+dash/tools/out_sport/
+dash/tools/thumbs/
+dist/
+*.zip
