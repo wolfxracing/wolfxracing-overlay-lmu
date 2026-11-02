@@ -17,11 +17,13 @@ Overlay gratuito e de código aberto para **Le Mans Ultimate (LMU)** no Windows,
 | [`streamdeck/`](streamdeck) | Perfil para **Stream Deck XL**, biblioteca de ícones e gerador |
 | [`docs/`](docs) | Manual, guia do dash, guia do Stream Deck, arquitetura e histórico |
 
-## Novidades da 1.2.0
+## Novidades da 1.6.0
 
-A janela **Telemetria** ganhou o gráfico de pedais por tempo (5 a 30 s, com degraus da marcha e marcas de ABS/TC) e há quatro janelas novas: **Luz do ABS**, **Luz do TC** (as duas com dado do próprio jogo), **Retorno à pista** (PARE / CEDA / LIVRE com os segundos até o carro de trás chegar) e **Estratégia de pneus** (chuva x seco). Veja o [manual](docs/MANUAL.md#13-luz-do-abs) e o [CHANGELOG](CHANGELOG.md).
+**Central de configurações** (janela única para ligar/desligar painéis, ajustar aparência e atalhos), **Último contato**, **Entrada do pit**, minimapa rotativo mais fluido e janelas automáticas de bandeiras, tráfego e auxiliar.
 
-![Novos overlays](docs/imagens/overlay_novos_1_2.png)
+![Central de configurações](docs/imagens/central_inicio.png)
+
+![Janelas novas](docs/imagens/overlay_novos_1_6.png)
 
 ## Estilos visuais: Glass Fumê e Sport
 
