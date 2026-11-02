@@ -279,7 +279,7 @@ class Central(QWidget):
             marca.setText("WolfxRacing")
             marca.setObjectName("marca")
         v.addWidget(marca)
-        sub = QLabel("OVERLAY" if not logo_jogo.isNull() else f"OVERLAY {nome_jogo.upper()}")
+        sub = QLabel("OVERLAY" if not logo_jogo.isNull() else "OVERLAY " + ("LMU" if chave == "lmu" else "IRACING"))
         sub.setObjectName("h2")
         sub.setAlignment(Qt.AlignCenter)
         v.addWidget(sub)
