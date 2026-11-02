@@ -52,10 +52,17 @@ jobs:
           TAG: ${{ inputs.tag || github.ref_name }}
           ALVO: ${{ github.sha }}
         run: |
+          $env:PYTHONIOENCODING = 'utf-8'
           python tools/notas_release.py $env:TAG | Out-File -Encoding utf8 notas.md
           $arqs = @(Get-ChildItem dist/*.zip) + @(Get-ChildItem overlay/exe/*.zip) + @(Get-ChildItem dash/*.simhubdash) + @(Get-ChildItem streamdeck/*.streamDeckProfile | Where-Object { $_.Name -notlike '*_ajustado*' })
           $titulo = "WolfxRacing Overlay LMU " + $env:TAG.TrimStart('v')
-          gh release create $env:TAG --target $env:ALVO --title $titulo --notes-file notas.md $arqs.FullName
+          gh release view $env:TAG *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release edit $env:TAG --title $titulo --notes-file notas.md
+            gh release upload $env:TAG $arqs.FullName --clobber
+          } else {
+            gh release create $env:TAG --target $env:ALVO --title $titulo --notes-file notas.md $arqs.FullName
+          }
       - uses: actions/upload-artifact@v4
         if: ${{ !startsWith(github.ref, 'refs/tags/') && inputs.tag == '' }}
         with:
