@@ -2,6 +2,13 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.6.1] - 2026-11-02
+
+- **Novo:** **Classificação no layout de transmissão** (arquivo novo `ov_classif_foto.py`; mesma linguagem visual do iRacing). Barra superior (sessão, tempo, volta, AIR, TRACK, número de carros); colunas POS, +/-, #, marca, DRIVER, selos PIT/PEN/FIM/DNF/DSQ, GAP, INT, BEST, LAST, AVG 5, PIT (paradas) e FUEL (%). Seu carro em roxo. Sem licença/iRating, pneu e bandeira, porque o LMU não informa. GAP/INT cinza com "~" continuam sendo estimativa.
+- **Configuração (opcional):** `classificacao_layout` = `"classico"` volta à janela antiga (1.6.0).
+- **Novo:** **versão EXE, sem precisar de Python.** Cada release traz `WolfxRacing_LMU_vX.Y.Z_EXE.zip` (pasta única; config, logs e emblemas ficam ao lado do `.exe`). Também dá para gerar no seu PC com `overlay\gerar_exe_lmu.bat`. O EXE não tem assinatura digital paga: o Windows SmartScreen pode avisar ("Mais informações" > "Executar assim mesmo").
+- Novos arquivos: `ov_classif_foto.py`, `wolfx_lmu.spec`, `gerar_exe_lmu.bat`, `exe_modelo_lmu/`, `wolfxracing.ico`, `tools/notas_release.py` e o fluxo `.github/workflows/release.yml`.
+
 ## [1.6.0] - 2026-11-02
 
 - **Novo:** **Central de configurações**: janela interativa (duplo clique no ícone da bandeja, ou "Abrir configurações…"). Cartões com prévia, liga/desliga, busca e filtros; "Personalizar" abre o tamanho, as opções do painel e a prévia ao vivo; páginas de Aparência e sistema. Usa os mesmos itens do menu: atalhos do Stream Deck e perfis continuam valendo. O menu da bandeja ficou curto (Abrir configurações, Travar posição, Todas as opções, Sair); o menu completo é o submenu "Todas as opções (avançado)".

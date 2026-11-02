@@ -1,0 +1,56 @@
+name: Release e EXE (Windows)
+
+# Ao publicar uma tag vX.Y.Z, compila o EXE (sem precisar de Python), monta o zip do codigo e cria a release.
+# Tambem pode ser rodado a mao (Actions > Run workflow): nesse caso so gera o EXE como arquivo da execucao.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalar componentes
+        run: python -m pip install --only-binary=:all: PySide6-Essentials pyinstaller
+      - name: Conferir o programa
+        working-directory: overlay
+        continue-on-error: true
+        run: python -c "import overlay_lmu, ov_janela_lmu; print(overlay_lmu.VERSAO)"
+      - name: Zip do codigo
+        run: python tools/empacotar.py
+      - name: Gerar o EXE
+        working-directory: overlay
+        run: |
+          python -m PyInstaller --noconfirm --clean --distpath exe --workpath exe/_build wolfx_lmu.spec
+          $d = "exe/WolfxRacing_LMU"
+          Copy-Item -Recurse -Path marca, emblemas -Destination $d
+          Copy-Item -Path exe_modelo*/* -Destination $d
+          Copy-Item -Path ../LICENSE, ../NOTICE.md -Destination $d
+          Remove-Item exe/_build -Recurse -Force
+          $v = (Select-String -Path ../CHANGELOG.md -Pattern '^## \[(\d+\.\d+\.\d+)\]' | Select-Object -First 1).Matches[0].Groups[1].Value
+          Compress-Archive -Path $d -DestinationPath "exe/WolfxRacing_LMU_v${v}_EXE.zip" -Force
+      - name: Criar a release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python tools/notas_release.py $env:GITHUB_REF_NAME | Out-File -Encoding utf8 notas.md
+          $arqs = @(Get-ChildItem dist/*.zip) + @(Get-ChildItem overlay/exe/*.zip) + @(Get-ChildItem dash/*.simhubdash) + @(Get-ChildItem streamdeck/*.streamDeckProfile | Where-Object { $_.Name -notlike '*_ajustado*' })
+          $titulo = "WolfxRacing Overlay LMU " + $env:GITHUB_REF_NAME.TrimStart('v')
+          gh release create $env:GITHUB_REF_NAME --title $titulo --notes-file notas.md $arqs.FullName
+      - uses: actions/upload-artifact@v4
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        with:
+          name: WolfxRacing_LMU_EXE
+          path: overlay/exe/*.zip

@@ -205,3 +205,11 @@ TESTE 17 - CURVAS (VERSAO 1.4.0)                                     (20 min, em
  Anote: curvas faltando ou duplicadas, pista, carro e a linha do log.
 
 ANEXE NA ISSUE DO GITHUB: diagnostico_lmu.txt, overlay_log_lmu.txt e as anotacoes de cada teste (PASSOU / FALHOU / DUVIDA).
+
+TESTE 18 - CLASSIFICACAO NO LAYOUT DA FOTO E VERSAO EXE (VERSAO 1.6.1)      (20 min, corrida ou treino com varios carros)
+ (a) Abra a Classificacao. Compare o visual com a foto: barra superior (sessao, tempo, volta, AIR/TRACK), colunas e linha ROXA do seu carro.
+ (b) Os valores sao os mesmos da janela anterior: POS, +/-, GAP/INT (cinza "~" = estimado), BEST, LAST, AVG 5, PIT (paradas) e FUEL (%).
+ (c) Selos PIT (nos boxes) e PEN (penalidade) aparecem ao lado do nome. Fim de corrida: FIM/DNF/DSQ.
+ (d) EXE: de dois cliques em "gerar_exe_lmu.bat" e abra "exe\WolfxRacing_LMU\WolfxRacing_LMU.exe" sem o Python: o overlay le o jogo como a versao normal.
+ Esperado: nada inventado. Anote: qualquer coluna que ficou cortada, o carro, a pista e a linha do log.
+

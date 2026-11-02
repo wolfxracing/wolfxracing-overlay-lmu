@@ -6,6 +6,7 @@ entao perfis, atalhos do Stream Deck e config.json continuam coerentes. Se este 
 completo de antes.
 """
 import math
+import sys
 from pathlib import Path
 
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt, QTimer
@@ -13,7 +14,7 @@ from PySide6.QtGui import QColor, QFont, QIcon, QImage, QLinearGradient, QPainte
 from PySide6.QtWidgets import (QAbstractButton, QButtonGroup, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit,
                                QPushButton, QRadioButton, QScrollArea, QSlider, QStackedWidget, QVBoxLayout, QWidget)
 
-MARCA_DIR = Path(__file__).resolve().parent / "marca"      # logo e fundo da WolfxRacing (opcionais)
+MARCA_DIR = (Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent) / "marca"      # logo e fundo da WolfxRacing (opcionais)
 ACENTO = "#ec1c24"                                         # vermelho da logo
 MARCA = "#ec1c24"
 
@@ -279,7 +280,7 @@ class Central(QWidget):
             marca.setText("WolfxRacing")
             marca.setObjectName("marca")
         v.addWidget(marca)
-        sub = QLabel("OVERLAY" if not logo_jogo.isNull() else "OVERLAY " + ("LMU" if chave == "lmu" else "IRACING"))
+        sub = QLabel("OVERLAY" if not logo_jogo.isNull() else f"OVERLAY {nome_jogo.upper()}")
         sub.setObjectName("h2")
         sub.setAlignment(Qt.AlignCenter)
         v.addWidget(sub)

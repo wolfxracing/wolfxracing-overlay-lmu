@@ -45,13 +45,16 @@ import unicodedata
 from collections import deque
 from pathlib import Path
 
+# v1.6.1: versao EXE (PyInstaller): config, logs, emblemas e bandeiras ficam AO LADO do .exe (nunca dentro do pacote interno)
+_PASTA_BASE = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
+
 try:
     import ov_nucleo as nucleo            # regras novas e testaveis (sem Qt e sem SDK): precisa estar na mesma pasta
 except ImportError:                       # pacote incompleto: avisa em vez de falhar em silencio
     _msg = ("Falta o arquivo 'ov_nucleo.py' na pasta do overlay.\n"
             "Copie TODOS os arquivos do pacote (overlay_iracing.py e ov_nucleo.py) para a mesma pasta.")
     try:
-        with (Path(__file__).resolve().parent / "overlay_log.txt").open("a", encoding="utf-8") as _arq:
+        with (_PASTA_BASE / "overlay_log.txt").open("a", encoding="utf-8") as _arq:
             _arq.write(_msg + "\n")
     except Exception:
         pass
@@ -101,6 +104,11 @@ except ImportError:
     ov_central = None
 
 try:
+    import ov_classif_foto as classif_foto   # v1.6.1: classificacao no layout da foto (opcional: sem ela, vale a janela antiga)
+except ImportError:
+    classif_foto = None
+
+try:
     import ov_v12 as v12                  # v1.2.0: logica dos novos overlays (sem Qt e sem SDK)
 except ImportError:
     _msg12 = "Falta o arquivo 'ov_v12.py' na pasta do overlay. Copie TODOS os arquivos do pacote para a mesma pasta."
@@ -116,7 +124,7 @@ from PySide6.QtGui import (QAction, QBrush, QColor, QFont, QFontMetrics, QIcon, 
                            QActionGroup, QImage, QPainter, QPainterPath, QPen, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon, QWidget
 
-PASTA = Path(__file__).resolve().parent
+PASTA = _PASTA_BASE
 ARQ_CONFIG = PASTA / "config.json"
 ARQ_LOG = PASTA / "overlay_log.txt"
 ARQ_MAPAS = PASTA / "mapas_pistas.json"
@@ -206,6 +214,8 @@ def carregar_config():
         "x_relativo": 640, "y_relativo": 60, "mostrar_relativo": True,
         "x_classificacao": 1060, "y_classificacao": 60, "mostrar_classificacao": True,
         "classificacao_todas": True,
+        "classificacao_layout": "foto",                # v1.6.1: "foto" (tabela estilo transmissao) ou "classico" (a janela antiga)
+        "classificacao_idioma": "en",                  # v1.6.1: rotulos da janela "foto": "en" (como na foto) ou "pt"
         "x_mapa": 270, "y_mapa": 420, "mostrar_mapa": True,
         "x_radar": 60, "y_radar": 420, "mostrar_radar": True,
         "escala": 1.0, "escala_voltas": 1.0, "escala_relativo": 1.0, "escala_classificacao": 1.0,
@@ -834,6 +844,7 @@ def montar_classificacao(pilotos, meu, posc, ultimas, melhores, box, base=None):
             melhor = tempo_valido(item(melhores, idx))
             linhas.append({
                 "pos": pos,
+                "idx": idx,
                 "numero": p.get("numero", ""),
                 "marca": p.get("marca", "--"),
                 "nome": p.get("nome", "?"),
@@ -2605,6 +2616,7 @@ class Telemetria:
         self._ultima_ausencia = None
         self._relatorio_na_pista = False
         self.idade_pneus = IdadePneus()
+        self.contador_paradas = classif_foto.ContadorParadas() if classif_foto else None   # v1.6.1
         self._tipos_pneu = {}           # indice do composto -> nome (DriverInfo.DriverTires)
         self._sessao_danos = None
         self.margem_combustivel = 1.0
@@ -2814,6 +2826,12 @@ class Telemetria:
         classif = montar_classificacao(pilotos, meu, posc, ultimas, melhores, box, base=base)
         classif["tipo_sessao"] = "CORRIDA"
         classif["volta"] = 1 + volta
+        if classif_foto is not None:
+            try:
+                prog, par, comp, pneus, cab = classif_foto.entradas_demo(classif, volta, t)
+                classif_foto.enriquecer(classif, "CORRIDA", prog, 80.0, variacao_irating, par, comp, pneus, cab)
+            except Exception:
+                registrar_erro("classificacao demo: campos extras")
         return classif
 
     def _demo_pneus(self, t):
@@ -4071,7 +4089,60 @@ class Telemetria:
         if classif is not None:
             classif["tipo_sessao"] = self._tipo_sessao
             classif["volta"] = max(0, int(self._var("Lap", 0)))
+            if classif_foto is not None:
+                try:
+                    self._enriquecer_classificacao(classif)
+                except Exception:
+                    registrar_erro("classificacao: campos extras (gap, pit, stint)")
         return classif
+
+    def _enriquecer_classificacao(self, classif):
+        """v1.6.1: gap, intervalo, paradas, stint, pneu e variacao de iRating por carro + barra superior."""
+        completadas = self._var("CarIdxLapCompleted", None)
+        if completadas is None:
+            lap = self._var("CarIdxLap", None)
+            completadas = [max(0, (v or 0) - 1) for v in lap] if lap is not None else None
+        pct = self._var("CarIdxLapDistPct", None)
+        chave = (self._var("SessionNum", 0), self._var("SessionUniqueID", 0))
+        self.contador_paradas.atualizar(chave, completadas, self._var("CarIdxOnPitRoad", None),
+                                        self._var("CarIdxTrackSurface", None))
+        progresso = {}
+        for linha in (l for c in classif["classes"] for l in c["linhas"]):
+            idx = linha["idx"]
+            lap_c, fr = _item(completadas, idx, None), _item(pct, idx, None)
+            if lap_c is not None and fr is not None and 0.0 <= float(fr) <= 1.0:
+                progresso[idx] = float(lap_c) + float(fr)
+        compostos = self._var("CarIdxTireCompound", None)
+        pneus = {}
+        for idx in progresso:
+            comp = _item(compostos, idx, None)
+            nome = self._tipos_pneu.get(int(comp)) if comp is not None and int(comp) >= 0 else None
+            est = estilo_pneu(nome)
+            if est:
+                pneus[idx] = est
+        restante = self._var("SessionTimeRemain", None)
+        total = self._var("SessionTimeTotal", None)
+        voltas_total = self._var("SessionLapsTotal", None)
+        pista = self._var_primeiro(("TrackTempCrew", "TrackTemp"))
+        ar = self._var("AirTemp", None)
+        umid = self._var("RelativeHumidity", None)
+        molhada = self._var("TrackWetness", None)
+        chuva = self._var("Precipitation", None)
+        if chuva is not None:
+            chuva = float(chuva) * 100.0 if float(chuva) <= 1.0 else float(chuva)
+        validar = lambda v: float(v) if v is not None and 0 <= float(v) < 1e7 else None
+        meu_pct = _item(pct, int(self._var("PlayerCarIdx", -1)), None)
+        cab = classif_foto.montar_cabecalho(
+            self._tipo_sessao, classif.get("volta"), int(voltas_total) if voltas_total is not None else None,
+            validar(restante), validar(total),
+            float(ar) if ar is not None else None, float(pista) if pista is not None else None,
+            float(umid) if umid is not None else None,
+            int(self._var("PlayerCarMyIncidentCount", 0)), self._limite_inc,
+            int(molhada) if molhada is not None else None, chuva,
+            ref_volta=self._ref_volta, fracao_volta=float(meu_pct) if meu_pct is not None and meu_pct >= 0 else 0.0,
+            idioma=(getattr(self, "config_v16", None) or {}).get("classificacao_idioma", "en"))
+        classif_foto.enriquecer(classif, self._tipo_sessao, progresso, self._ref_volta, variacao_irating,
+                                self.contador_paradas, completadas, pneus, cab)
 
     def _anexar_pneus(self, rel):
         """Acrescenta a cada linha do relativo o tipo de pneu e as voltas desde a ultima parada."""
@@ -8408,7 +8479,9 @@ CHAVE_RUN = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
 
 def comando_inicio():
-    """Comando gravado no Windows para abrir o overlay no login (pythonw = sem janela preta)."""
+    """Comando gravado no Windows para abrir o overlay no login (pythonw = sem janela preta; no EXE, o proprio .exe)."""
+    if getattr(sys, "frozen", False):
+        return f'"{Path(sys.executable).resolve()}"'
     exe = Path(sys.executable)
     if exe.name.lower() == "python.exe" and exe.with_name("pythonw.exe").exists():
         exe = exe.with_name("pythonw.exe")
@@ -8500,7 +8573,7 @@ def montar_central(app, bandeja, menu, janelas, acao_por_chave, config, acao_sai
             return type(j)(cfg)
 
         central = ov_central.Central(janelas, acao_por_chave, config, ganchos, telemetria_demo.ler, criar_previa, nome_jogo,
-                                     "1.6.0")
+                                     "1.6.1")
         curto = QMenu()
         a_cfg = curto.addAction("Abrir configurações…")
         a_cfg.triggered.connect(central.mostrar)
@@ -8600,7 +8673,7 @@ def definir_prioridade_baixa(ativa):
 
 def registrar_cabecalho():
     """Primeira linha da sessao no log: versoes (ajuda a diagnosticar problemas)."""
-    versoes = {"overlay": "1.6.0 (base Fase 20.2.2)", "nucleo": nucleo.VERSAO_NUCLEO, "python": sys.version.split()[0],
+    versoes = {"overlay": "1.6.1 (base Fase 20.2.2)", "nucleo": nucleo.VERSAO_NUCLEO, "python": sys.version.split()[0],
                "SO": sys.platform}
     try:
         import PySide6
@@ -8647,7 +8720,13 @@ def principal():
     janela_telemetria = JanelaTelemetria(config)
     janela_voltas = JanelaVoltas(config)
     janela_relativo = JanelaRelativo(config)
-    janela_classificacao = JanelaClassificacao(config)
+    classe_classif = JanelaClassificacao
+    if classif_foto is not None and str(config.get("classificacao_layout", "foto")).lower() != "classico":
+        try:
+            classe_classif = classif_foto.construir(sys.modules[__name__])
+        except Exception:
+            registrar_erro("classificacao no layout da foto (voltando para a janela antiga)")
+    janela_classificacao = classe_classif(config)
     janela_mapa = JanelaMapa(config)
     janela_radar = JanelaRadar(config)
     janela_pneus = JanelaPneus(config)

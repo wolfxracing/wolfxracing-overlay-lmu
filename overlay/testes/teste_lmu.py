@@ -1836,8 +1836,61 @@ def teste_diagnostico_novo():
     confere("energia virtual: 0.620" in texto_diag, "diagnostico traz a energia virtual")
 
 
+def teste_classificacao_foto_lmu():
+    grupo("v1.6.1 - classificacao no layout da foto (LMU)")
+    m = preparar_modulo()
+    import overlay_iracing as base
+    import ov_janela_lmu as jl
+    from PySide6.QtWidgets import QApplication
+    app = QApplication.instance() or QApplication(sys.argv)
+    m.semear_config()
+    cfg = base.carregar_config()
+    cfg["travado"] = True
+    cls = jl.classe_classificacao(cfg)
+    confere(cls.__name__ == "JanelaClassificacaoLMUFoto" and issubclass(cls, base.JanelaClassificacao), "layout 'foto' e o padrao")
+    cfg2 = dict(cfg, classificacao_layout="classico")
+    confere(jl.classe_classificacao(cfg2) is jl.JanelaClassificacaoLMU, "layout 'classico' devolve a janela antiga")
+    original = jl._foto
+    jl._foto = None
+    confere(jl.classe_classificacao(cfg) is jl.JanelaClassificacaoLMU, "sem ov_classif_foto.py: volta para a janela antiga")
+    jl._foto = original
+    jg = Jogo()
+    for i in range(40):
+        jg.carros.append(Carro(i + 1, f"Carro {i} #{i + 1}", ("Hyper", "LMP2", "LMGT3")[i % 3], f"Piloto {i}", i + 1,
+                               voltas=5, dist=100.0 * i, ultima=210 + i * 0.1, melhor=209 + i * 0.1, jogador=(i == 38)))
+    dg = telemetria(jg)[0].ler()
+    w = cls(cfg)
+    confere(w.tamanho()[0] == jl.LARGURA_FOTO_LMU, "largura da janela")
+    w.atualizar(dg)
+    confere(any(l["eu"] for c, v in w._blocos_atual for l, _ in v), "o seu carro sempre aparece")
+    por_classe = {c["nome"]: len(v) for c, v in w._blocos_atual}
+    confere(por_classe["LMGT3"] == w.LINHAS_MINHA_CLASSE and por_classe["HYPERCAR"] == w.LINHAS_OUTRAS_CLASSES, f"limites por classe ({por_classe})")
+    w.show()
+    app.processEvents()
+    img = w.grab().toImage()
+    confere(img.width() == jl.LARGURA_FOTO_LMU and img.height() == w._altura_necessaria(), "tamanho do desenho")
+    cores = {img.pixel(x, y) for x in range(0, img.width(), 7) for y in range(0, img.height(), 5)}
+    confere(len(cores) > 60, f"desenho nao esta em branco ({len(cores)} cores)")
+    w.hide()
+    w3 = cls(cfg)
+    w3.atualizar(base.Telemetria._vazio())
+    w3.show()
+    app.processEvents()
+    confere(not w3.grab().isNull(), "desenha sem conexao")
+    w3.hide()
+    # demonstracao completa
+    import ov_demo_lmu
+    w4 = cls(cfg)
+    dd = base.Telemetria._vazio(); dd["conectado"] = True; dd["classificacao"] = ov_demo_lmu.classificacao_demo(3.0)
+    w4.atualizar(dd)
+    w4.show()
+    app.processEvents()
+    confere(not w4.grab().isNull(), "desenha a demonstracao (3 classes)")
+    w4.hide()
+
+
 TESTES = [teste_estrutura, teste_auxiliares, teste_motivos_volta_suja, teste_leitor, teste_104_carros,
-          teste_telemetria_dados, teste_classificacao, teste_classificacao_detalhada, teste_janela_classificacao, teste_voltas_delta_combustivel, teste_estados_do_jogador,
+          teste_telemetria_dados, teste_classificacao, teste_classificacao_detalhada, teste_janela_classificacao, teste_classificacao_foto_lmu, teste_voltas_delta_combustivel, teste_estados_do_jogador,
           teste_sessoes, teste_textos, renderizar_janelas, teste_v13_correcoes_do_jogo_real, teste_config_isolada, teste_diagnostico, teste_demo,
           teste_leitores_novos, teste_painel_energia, teste_stints, teste_alertas, teste_extras_pipeline, teste_config_lmu,
           renderizar_janelas_novas, teste_diagnostico_novo,

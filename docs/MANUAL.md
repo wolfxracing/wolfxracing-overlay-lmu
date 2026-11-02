@@ -283,3 +283,13 @@ O menu da bandeja ficou curto; todas as opções antigas estão em "Todas as op�
 - O numero e a marca do carro saem do nome do veículo; mods fora do padrão podem ficar sem número.
 
 Mais detalhes técnicos de cada recurso: [`referencia/GUIA_ORIGINAL.txt`](referencia/GUIA_ORIGINAL.txt) (guia completo escrito durante o desenvolvimento).
+
+
+### Classificação no layout de transmissão e versão EXE (1.6.1)
+
+A janela Classificação ganhou o layout de tabela de transmissão: barra superior (sessão, volta, tempo, AIR/TRACK e número de carros) e as colunas POS, +/-, #, marca, DRIVER, selos PIT/PEN, GAP, INT, BEST, LAST, AVG 5, PIT e FUEL. Seu carro fica em roxo.
+
+- **GAP e INT na corrida são estimativas** (posição na pista × tempo de volta típico da classe); em treino e qualificação são a diferença das melhores voltas.
+- **GAP/INT** cinza com "~" são estimados (carro de outra classe no meio); **PIT** são as paradas informadas pelo jogo e **FUEL** o combustível de cada carro em %.
+- Para voltar ao visual antigo, use `"classificacao_layout": "classico"` no `config.json`.
+- **Versão EXE:** baixe `WolfxRacing_LMU_vX.Y.Z_EXE.zip` na release, extraia e abra `WolfxRacing_LMU.exe` (não precisa de Python). `testar_demo_exe.bat` abre em modo demonstração e `fechar_overlay_exe.bat` fecha à força. Para gerar no seu PC: `overlay\gerar_exe_lmu.bat`.

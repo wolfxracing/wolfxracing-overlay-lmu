@@ -38,8 +38,9 @@ import traceback
 from collections import deque
 from pathlib import Path
 
-PASTA = Path(__file__).resolve().parent
-sys.path.insert(0, str(PASTA))
+PASTA = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent   # v1.6.1: no EXE, ao lado do .exe
+if not getattr(sys, "frozen", False):
+    sys.path.insert(0, str(PASTA))
 
 import ov_lmu as lmu                                  # camada de dados do LMU (sem Qt)
 import ov_classif_lmu as classif_lmu                  # classificacao detalhada (logica pura)
@@ -58,10 +59,10 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QActionGroup, QColor, QFont, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 
-from ov_janela_lmu import JanelaClassificacaoLMU, JanelaClimaLMU      # classificacao com mais colunas (so no LMU)
+from ov_janela_lmu import JanelaClassificacaoLMU, JanelaClimaLMU, classe_classificacao      # classificacao com mais colunas (so no LMU)
 import ov_janelas_extra_lmu as extra_lmu              # janelas novas (energia, pneus, danos, alertas, stints, tendencia)
 
-VERSAO = "LMU 1.6.0 Glass/Sport (base iRacing 1.6.0)"
+VERSAO = "LMU 1.6.1 Glass/Sport (base iRacing 1.6.1)"
 NOME_JOGO = "Le Mans Ultimate"
 DEMO = "--demo" in sys.argv
 DIAGNOSTICO = "--diagnostico" in sys.argv
@@ -982,7 +983,7 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
     telemetria.config = config
     janela_telemetria = base.JanelaTelemetria(config)
     janela_voltas = base.JanelaVoltas(config)
-    janela_classificacao = JanelaClassificacaoLMU(config)
+    janela_classificacao = classe_classificacao(config)(config)
     janela_clima = JanelaClimaLMU(config)
     janela_combustivel = base.JanelaCombustivel(config)
     janela_forca_g = base.JanelaForcaG(config)

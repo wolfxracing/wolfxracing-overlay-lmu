@@ -1,8 +1,12 @@
-OVERLAY LE MANS ULTIMATE (LMU) - GUIA RAPIDO - VERSAO 1.4.2 (numeracao do pacote publico)
+OVERLAY LE MANS ULTIMATE (LMU) - GUIA RAPIDO - VERSAO 1.6.1 (numeracao do pacote publico)
 =========================================================
 STATUS: PARCIALMENTE VALIDADO no jogo real (1o teste da v1.2: leitura de dados, energia, pneus, delta e gaps funcionaram;
 danos, vento e a janela por cima do jogo precisaram de ajuste). 368 verificacoes automaticas. Antes de confiar nos
 numeros em corrida, execute o "ROTEIRO_VALIDACAO_LMU.txt" com o Le Mans Ultimate de verdade.
+
+NOVO NA 1.6.1: (1) CLASSIFICACAO NO LAYOUT DA FOTO (mesma linguagem visual do iRacing: barra superior, posicao em quadro, numero na cor da classe,
+seu carro em ROXO) com as colunas POS, +/-, #, marca, DRIVER, selos PIT/PEN, GAP, INT, BEST, LAST, AVG 5, PIT (paradas) e FUEL (%). (2) VERSAO EXE: roda sem Python
+(veja "VERSAO EXE" no fim). Config: "classificacao_layout": "classico" volta a janela antiga.
 
 NOVO NA 1.4.2: barra de telemetria mais compacta (radar automatico e coluna +/- da Classificacao: so no overlay do iRacing).
 
@@ -53,7 +57,7 @@ DEZESSEIS janelas (12 base + 4 da 1.2.0: Luz ABS, Luz TC, Retorno e Estrategia):
 existem so no LMU (v1.2):
  1. TELEMETRIA     : marcha, velocidade, RPM, pedais, volante, TC, ABS e balanco de freio + grafico de acelerador/freio
  2. VOLTAS (DELTA) : delta, tempo de volta (atual / ultima / melhor) e calculo de combustivel
- 3. CLASSIFICACAO  : DETALHADA, agrupada por Hypercar / LMP2 / LMGT3, com as colunas:
+ 3. CLASSIFICACAO  : DETALHADA, agrupada por Hypercar / LMP2 / LMGT3 (layout da foto, 1.6.1; rotulos em ingles: POS, DRIVER, GAP, INT, BEST, LAST, AVG 5, PIT = paradas, FUEL = %), com as colunas:
       P (posicao na classe) | seta verde/vermelha (posicoes ganhas/perdidas desde o grid) | # | marca | piloto |
       selos PIT / PEN / FIM / DNF / DSQ | PAR (paradas feitas) | COMB (% de combustivel de cada carro) |
       GAP (para o lider da classe; "V 29" no lider; "+1 V" = uma volta ou mais atras) | INT (para o carro a frente na
@@ -159,3 +163,12 @@ SE ALGO NAO FUNCIONAR
  1. Janelas nao aparecem: o jogo esta em Window/Borderless (e NAO em Fullscreen)? Veja a linha "janela do jogo LMU" no log. "Enable Plugins" esta ligado? Rode diagnostico_lmu.bat.
  2. Aparece "Aguardando o Le Mans Ultimate...": o overlay nao achou a memoria do jogo (jogo fechado/sem sessao/plugins desligados).
  3. Envie ao mantenedor (Issues do GitHub): diagnostico_lmu.txt e overlay_log_lmu.txt.
+
+
+VERSAO EXE (1.6.1) - SEM PRECISAR DE PYTHON
+ - Gere uma vez, neste computador (que ja tem o Python 3.12): de dois cliques em "gerar_exe_lmu.bat" (3 a 6 minutos). O resultado fica em
+   "exe\WolfxRacing_LMU" (e em "exe\WolfxRacing_LMU.zip", para levar para outro PC). Abra "WolfxRacing_LMU.exe". Teste sem o jogo: "testar_demo_exe.bat".
+   Fechar a forca: "fechar_overlay_exe.bat". Leia o "LEIA-ME_EXE.txt" dentro da pasta.
+ - config_lmu.json, logs, emblemas e marca ficam AO LADO do .exe. O gerar_exe_lmu.bat copia o seu config_lmu.json atual (se ainda nao houver um).
+ - O EXE le a memoria compartilhada do LMU exatamente como a versao com Python. SmartScreen: "Mais informacoes" > "Executar assim mesmo".
+ - Nao deixe a versao EXE e a versao com Python abertas ao mesmo tempo.

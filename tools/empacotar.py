@@ -5,7 +5,7 @@ import os, re, sys, zipfile
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 NOME = os.path.basename(RAIZ)
 versao = (re.search(r"## \[(\d+\.\d+\.\d+)\]", open(os.path.join(RAIZ, "CHANGELOG.md"), encoding="utf-8").read()) or [0, "0.0.0"])[1]
-EXC_DIRS = {".git", "__pycache__", "dist", ".venv", "out_sport", "thumbs"}
+EXC_DIRS = {".git", "__pycache__", "dist", ".venv", "out_sport", "thumbs", "exe"}
 EXC_ARQ = {"config.json", "config_lmu.json", "historico_projecoes.csv", "recordes_pessoais.json", "calibracao_pneus.json", "mapas_pistas.json", "pit_entradas.json", "jogo_iracing.png", "jogo_lmu.png",
            "diagnostico_lmu.txt", "emblemas_faltando.txt", "emblemas_faltando_lmu.txt"}
 os.makedirs(os.path.join(RAIZ, "dist"), exist_ok=True)

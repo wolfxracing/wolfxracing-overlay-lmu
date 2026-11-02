@@ -25,3 +25,5 @@ dash/tools/out_sport/
 dash/tools/thumbs/
 dist/
 *.zip
+# saida da compilacao do EXE
+overlay/exe/

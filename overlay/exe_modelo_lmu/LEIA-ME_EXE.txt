@@ -1,0 +1,24 @@
+OVERLAY LE MANS ULTIMATE (LMU) - VERSAO EXE (sem precisar de Python)
+============================================================
+Versao 1.6.1
+
+COMO USAR
+  1. Abra a pasta WolfxRacing_LMU e de dois cliques em  WolfxRacing_LMU.exe
+  2. Procure o icone do overlay perto do relogio do Windows (pode estar na setinha ^). O menu e o mesmo de sempre.
+  3. Para testar sem o jogo: de dois cliques em  testar_demo_exe.bat
+  4. Para fechar a forca (se travar): de dois cliques em  fechar_overlay_exe.bat
+
+ONDE FICAM OS ARQUIVOS (tudo AO LADO do .exe, nesta mesma pasta)
+  config_lmu.json        suas posicoes e opcoes (o mesmo formato da versao com Python)
+  overlay_log_lmu.txt   registro de erros e avisos (envie ao Claude se algo falhar)
+  emblemas\       logos das montadoras (png). Pode trocar/acrescentar
+  marca\          logo e fundo da WolfxRacing
+
+OBSERVACOES
+  - O primeiro inicio pode levar alguns segundos a mais (o Windows verifica o arquivo).
+  - Aviso azul "O Windows protegeu seu computador" (SmartScreen): o programa ainda nao tem assinatura digital paga.
+    Clique em "Mais informacoes" e depois em "Executar assim mesmo". Se o antivirus bloquear, adicione a pasta como excecao.
+  - Para levar para outro PC: copie a pasta inteira (ou o .zip gerado). Nao copie so o .exe: a pasta "_internal" e necessaria.
+  - Nao abra a versao EXE e a versao com Python ao mesmo tempo (ambas usam o mesmo atalho global e a mesma trava de instancia).
+  - Para atualizar: gere o EXE de novo (gerar_exe*.bat) e substitua a pasta. Suas configuracoes ficam no config*.json.
+  - Os arquivos de emblemas sao marcas registradas das montadoras: uso pessoal; nao publique em repositorio nem em release.
