@@ -188,7 +188,20 @@ TESTE 16 - LUZ ABS, LUZ TC, RETORNO A PISTA E ESTRATEGIA DE PNEUS (v1.2.0)      
      de voltar a andar; NAO aparece nos boxes, no grid nem na volta de apresentacao. Confira se os segundos batem com o que voce ve.
   d) ESTRATEGIA: com pneu de seco e pista molhando, vai a PREPARE-SE e TROCAR; com pneu de chuva e pista secando, idem para seco;
      antes da largada, mostra o pneu indicado. Anote o "nivel" da pista que o overlay mostra x a sua percepcao.
-  e) DESEMPENHO: com as 16 janelas abertas, veja "desempenho" no overlay_log_lmu.txt e se o FPS do jogo caiu.
+  e) DESEMPENHO: com as janelas abertas, veja "desempenho" no overlay_log_lmu.txt e se o FPS do jogo caiu.
  Anote: alguma luz atrasada ou acendendo sem motivo? Retorno aparecendo onde nao devia? Estrategia recomendando errado?
+
+TESTE 17 - CURVAS (VERSAO 1.4.0)                                     (20 min, em pista, pelo menos 5 voltas limpas)
+ Preparacao: copie TODOS os arquivos da pasta overlay (inclui o novo ov_curvas.py). "testar_demo.bat" mostra a janela com dados simulados.
+ Faca e anote PASSOU/FALHOU/DUVIDA:
+ (a) Ligue "Curvas" na bandeja. Na 1a volta valida aparece "aprendendo"; ao cruzar a linha de chegada surgem as curvas C1, C2...
+     Confira se a numeracao segue a ordem da pista e se as curvas importantes aparecem (anote as que faltam ou as que foram juntadas).
+ (b) MIN: compare a velocidade minima mostrada com a do grafico/telemetria do jogo na mesma curva (tolerancia de poucos km/h).
+ (c) BEST e DELTA: faca uma curva claramente mais rapida e outra mais lenta: DELTA fica verde / laranja ou vermelho e o BEST so sobe.
+ (d) VOLANTE: o angulo no ponto minimo bate com o volante da Telemetria; E = esquerda e D = direita.
+ (e) Volta invalida: entre nos boxes, saia da pista, rode ou pare: essa volta NAO muda o BEST. "Reiniciar o aprendizado desta pista" zera tudo.
+ (f) Troque de sessao ou de pista: tudo recomeca do zero (esperado nesta versao).
+ Esperado: nada inventado; o mapa de curvas e inferido (curvas muito suaves podem nao aparecer).
+ Anote: curvas faltando ou duplicadas, pista, carro e a linha do log.
 
 ANEXE NA ISSUE DO GITHUB: diagnostico_lmu.txt, overlay_log_lmu.txt e as anotacoes de cada teste (PASSOU / FALHOU / DUVIDA).

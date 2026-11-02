@@ -48,6 +48,9 @@ import ov_alertas_lmu as alertas_lmu                  # alertas na pista (logica
 import ov_atalhos_lmu as atalhos_lmu                  # teclas globais para o Stream Deck (mapa proprio do LMU)
 import ov_demo_lmu                                    # dados simulados das janelas novas (--demo)
 import overlay_iracing as base                        # janelas e calculos ja homologados do overlay do iRacing
+import ov_curvas as curvas_mod                      # v1.4.0: velocidade minima por curva (logica pura)
+import ov_v16 as v16                                  # v1.6.0: ultimo contato e entrada do pit (logica pura)
+import ov_v15 as v15                                  # v1.5.0: bandeiras, trafego, minimapa e auxiliar (logica pura)
 import ov_v12 as v12                                  # v1.2.0: logica das Luzes, Retorno a pista e Estrategia de pneus (sem Qt)
 nucleo = base.nucleo
 
@@ -58,7 +61,7 @@ from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 from ov_janela_lmu import JanelaClassificacaoLMU, JanelaClimaLMU      # classificacao com mais colunas (so no LMU)
 import ov_janelas_extra_lmu as extra_lmu              # janelas novas (energia, pneus, danos, alertas, stints, tendencia)
 
-VERSAO = "LMU 1.3.0 Glass/Sport (base iRacing 1.3.0)"
+VERSAO = "LMU 1.6.0 Glass/Sport (base iRacing 1.6.0)"
 NOME_JOGO = "Le Mans Ultimate"
 DEMO = "--demo" in sys.argv
 DIAGNOSTICO = "--diagnostico" in sys.argv
@@ -227,7 +230,14 @@ class TelemetriaLMU:
         self._avisos = set()
         self.ultimo_estado = lmu.SEM_JOGO
         self.v12_retorno = v12.CalculadorRetorno()        # v1.2.0
+        self.v14_curvas = curvas_mod.AnalisadorCurvas()   # v1.4.0
         self.v12_pneus = v12.EstrategiaPneus()
+        self.v15_bandeiras = v15.GestorBandeiras()        # v1.5.0
+        self.v15_mapa = v15.MapaPlano()
+        self.v16_contato = v16.UltimoContato()            # v1.6.0
+        self.v16_pit = v16.PitEntrada(base.Telemetria._carregar_pit())
+        self._v16_impacto_et = None
+        self._memoria_trafego = {}
         self._v12_sessao = None
 
     # -- eventos / diagnostico ----------------------------------------------------
@@ -353,6 +363,10 @@ class TelemetriaLMU:
                 base.registrar_info("v1.2.0: nova sessao, historicos do Retorno e da Estrategia reiniciados")
             self._v12_sessao = chave
             self.v12_retorno.resetar()
+            self.v14_curvas.resetar()
+            self.v15_bandeiras.resetar()
+            self.v16_contato.resetar()
+            self._memoria_trafego.clear()
             self.v12_pneus.resetar()
         # Luz do TC: o LMU informa mTCActive (dado do jogo, nao estimativa, ao contrario do iRacing)
         dados["luz_tc"] = {"ativa": bool(tele.mTCActive), "patinagem": 0.0, "estado": "jogo"}
@@ -362,6 +376,100 @@ class TelemetriaLMU:
                                                                                          agora, antes_da_largada))
         dados["estrategia"] = self._cacheado("estrategia", 0.5, lambda: self._montar_estrategia(dados, info, scor, tele,
                                                                                                  agora, antes_da_largada))
+        # v1.4.0: velocidade minima por curva
+        try:
+            pct = self._pct_volta(info, scor)
+            sup_rodas = [int(tele.mWheels[i].mSurfaceType) for i in range(4)]
+            valido = (bool(dados.get("no_carro")) and not bool(scor.mInPits) and not bool(scor.mInGarageStall)
+                      and not all(s in (2, 3, 4) for s in sup_rodas) and not antes_da_largada)
+            dados["curvas"] = self.v14_curvas.atualizar(pct, dados["velocidade"], dados["volante"], valido, float(info.mLapDist))
+        except Exception:
+            base.registrar_erro("curvas")
+        try:
+            self._montar_v15(dados, snap, info, scor, tele, i_scor, agora, fase)
+        except Exception:
+            base.registrar_erro("v1.5.0 (bandeiras/trafego/minimapa/auxiliar)")
+
+    def _montar_v15(self, dados, snap, info, scor, tele, i_scor, agora, fase):
+        """v1.5.0: bandeiras, trafego de outras classes, minimapa rotativo e auxiliar de sessao."""
+        # bandeiras (mGamePhase, bandeiras de setor e a bandeira azul do proprio carro: tudo dado do jogo)
+        b = lmu.bandeiras(info)
+        cand, verde = v15.candidata_lmu(b["fase"], b["fcy_estado"], b["amarelas_setor"], int(scor.mFlag),
+                                        int(scor.mFinishStatus), False)
+        dados["bandeira"] = self.v15_bandeiras.atualizar(cand, verde, agora)
+        comprimento = float(info.mLapDist)
+        no_carro = bool(dados.get("no_carro"))
+        carros = self._cacheado("carros_v15", 0.1, lambda: extrair_carros(snap, i_scor))
+        meu = next((c for c in carros if c["eu"]), None)
+        # trafego (so com voce na pista e fora do box)
+        if meu is not None and comprimento > 300.0 and no_carro and not bool(scor.mInPits) and fase >= 5:
+            lista = []
+            for c in carros:
+                if not math.isfinite(c["dist"]):
+                    continue
+                lista.append({"id": c["id"], "classe_id": c["classe"]["rotulo"], "classe_nome": c["classe"]["rotulo"],
+                              "cor": c["classe"]["cor"], "ordem": c["classe"]["ordem"], "numero": c["numero"],
+                              "nome": c["nome"], "pct": (c["dist"] / comprimento) % 1.0, "vel": c["vel"],
+                              "box": c["box"], "ativo": True})
+            dados["trafego"] = v15.montar_trafego(lista, meu["id"], comprimento, dados["velocidade"] / 3.6,
+                                                  self._memoria_trafego, agora)
+        # minimapa: o LMU informa a posicao no mundo; o tracado e aprendido numa volta limpa
+        chave = lmu.texto(info.mTrackName)
+        if self.v15_mapa.chave != chave:
+            self.v15_mapa.resetar(chave)
+        pct = self._pct_volta(info, scor)
+        valido = (no_carro and not bool(scor.mInPits) and not bool(scor.mInGarageStall) and fase >= 5)
+        self.v15_mapa.atualizar(pct, float(scor.mPos.x), float(scor.mPos.z), valido)
+        mapa = self.v15_mapa.exibicao()
+        mapa["carros"] = [{"pct": (c["dist"] / comprimento) % 1.0, "numero": c["numero"], "cor": c["classe"]["cor"],
+                           "eu": bool(c["eu"])} for c in carros if comprimento > 300.0 and math.isfinite(c["dist"])]
+        dados["mapa"] = mapa
+        self._montar_v16(dados, scor, tele, info, carros, meu, comprimento, fase, agora, no_carro)
+        # auxiliar de sessao
+        luzes = (int(info.mStartLight), int(info.mNumRedLights)) if fase == 4 else None
+        dados["auxiliar"] = v15.montar_auxiliar_lmu(dados.get("tipo_sessao"), fase, lmu.tempo_restante(info),
+                                                    lmu.voltas_da_sessao(info.mMaxLaps), None, luzes)
+
+    def _montar_v16(self, dados, scor, tele, info, carros, meu, comprimento, fase, agora, no_carro):
+        """v1.6.0: ultimo contato (impacto do jogo + carro encostado) e entrada do pit."""
+        et = float(tele.mLastImpactET)
+        if self._v16_impacto_et is None:
+            self._v16_impacto_et = et                       # impacto anterior a abertura do overlay: ignora
+        elif et != self._v16_impacto_et and et > 0:
+            self._v16_impacto_et = et
+            if meu is not None and no_carro:
+                px, pz = float(scor.mPos.x), float(scor.mPos.z)
+                cands = [(c["id"], math.hypot(c["pos_x"] - px, c["pos_z"] - pz), c) for c in carros
+                         if not c["eu"] and not c["box"] and math.isfinite(c["pos_x"]) and math.isfinite(c["pos_z"])]
+                alvo = v16.escolher_alvo(cands)
+                if alvo:
+                    idx, c = alvo
+                    self.v16_contato.registrar(agora, idx, {"numero": c["numero"], "nome": c["nome"],
+                                                            "classe": c["classe"]["rotulo"], "cor": c["classe"]["cor"]},
+                                               int(scor.mTotalLaps) + 1, None)      # o LMU nao informa pontos por carro
+        c = self.v16_contato.atual
+        if c and comprimento > 300.0 and meu is not None:
+            outro = next((x for x in carros if x["id"] == c["id"]), None)
+            dist = None
+            if outro is not None and math.isfinite(outro["dist"]):
+                dist = v16._delta_pct(meu["dist"] / comprimento, outro["dist"] / comprimento) * comprimento
+            dados["contato"] = self.v16_contato.exibicao(agora, dist, bool(outro and outro["box"]), dados["velocidade"] / 3.6)
+        # entrada do pit: o limite vem do limitador medido pelos alertas; o box, de mPitLapDist
+        if meu is not None and comprimento > 300.0 and no_carro:
+            pct = self._pct_volta(info, scor)
+            pit_box = float(scor.mPitLapDist) / comprimento if float(scor.mPitLapDist) > 0 else None
+            quer = int(scor.mPitState) in (1, 2)
+            pit = self.v16_pit.atualizar(lmu.texto(info.mTrackName), bool(scor.mInPits), pct, comprimento,
+                                         dados["velocidade"] / 3.6, self.alertas.limite_pit, pit_box, quer,
+                                         bool(self.config.get("pit_sempre", False)))
+            if self.v16_pit.mudou:
+                self.v16_pit.mudou = False
+                try:
+                    base.ARQ_PIT.write_text(json.dumps(self.v16_pit.entradas, indent=1), encoding="utf-8")
+                except Exception:
+                    base.registrar_erro("salvar entradas do pit")
+            if pit:
+                dados["pit"] = pit
 
     def _montar_retorno(self, dados, snap, info, scor, tele, i_scor, agora, antes_da_largada):
         carros = extrair_carros(snap, i_scor)
@@ -672,7 +780,7 @@ def extrair_carros(snap, i_scor):
         carros.append({
             "id": int(v.mID), "piloto": piloto, "veiculo": veiculo, "eu": i == i_scor, "lugar": int(v.mPlace),
             "classe": lmu.classe_do_carro(v.mVehicleClass), "numero": lmu.numero_do_carro(veiculo),
-            "marca": base.marca_do_carro(veiculo), "nome": base.nome_curto(piloto),
+            "marca": base.marca_do_carro(veiculo, fallback=False), "nome": base.nome_curto(piloto),
             "voltas": int(v.mTotalLaps), "dist": float(v.mLapDist), "ultima": float(v.mLastLapTime),
             "melhor": float(v.mBestLapTime), "box": bool(v.mInPits) or int(v.mPitState) in (2, 3, 4),
             "paradas": int(v.mNumPitstops), "penalidades": int(v.mNumPenalties),
@@ -680,7 +788,8 @@ def extrair_carros(snap, i_scor):
             "tbl": float(v.mTimeBehindLeader), "lbl": int(v.mLapsBehindLeader), "quali": int(v.mQualification),
             "final": int(v.mFinishStatus),
             "vel": math.sqrt(float(v.mLocalVel.x) ** 2 + float(v.mLocalVel.y) ** 2 + float(v.mLocalVel.z) ** 2),
-            "pit_estado": int(v.mPitState), "pit_dist": float(v.mPitLapDist), "bandeira": int(v.mFlag)})
+            "pit_estado": int(v.mPitState), "pit_dist": float(v.mPitLapDist), "bandeira": int(v.mFlag),
+            "pos_x": float(v.mPos.x), "pos_z": float(v.mPos.z)})
     return carros
 
 
@@ -785,7 +894,7 @@ def gerar_diagnostico(leitor=None):
         v = snap.scoring.vehScoringInfo[i]
         nome = lmu.texto(v.mVehicleName)
         linhas.append(f"{int(v.mPlace):3d} | {lmu.texto(v.mVehicleClass):10s} | #{lmu.numero_do_carro(nome):3s} | "
-                      f"{base.marca_do_carro(nome):14s} | {lmu.texto(v.mDriverName):22s} | {nome}")
+                      f"{base.marca_do_carro(nome, fallback=False):14s} | {lmu.texto(v.mDriverName):22s} | {nome}")
         linhas.append(f"      voltas {v.mTotalLaps} | dist {v.mLapDist:.0f} m | paradas {v.mNumPitstops} | pen {v.mNumPenalties} | "
                       f"comb {v.mFuelFraction}/255 | prox {v.mTimeBehindNext:.2f} s +{v.mLapsBehindNext}v | "
                       f"lider {v.mTimeBehindLeader:.2f} s +{v.mLapsBehindLeader}v | quali {v.mQualification} | "
@@ -797,6 +906,14 @@ def gerar_diagnostico(leitor=None):
 # Janelas e bandeja
 # --------------------------------------------------------------------------
 def criar_icone():
+    try:                                           # v1.6.0: logo WXR original (arquivo marca/logo_wxr.png), se existir
+        logo = base.PASTA / "marca" / "logo_wxr.png"
+        if logo.is_file():
+            pm = QPixmap(str(logo))
+            if not pm.isNull():
+                return QIcon(pm)
+    except Exception:
+        pass
     pix = QPixmap(64, 64)
     pix.fill(Qt.transparent)
     p = QPainter(pix)
@@ -879,10 +996,18 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
     janela_luz_tc = base.JanelaLuzTc(config)
     janela_retorno = base.JanelaRetorno(config)
     janela_estrategia = base.JanelaEstrategia(config)
+    janela_curvas = base.JanelaCurvas(config)
+    janela_bandeiras = base.JanelaBandeiras(config)
+    janela_trafego = base.JanelaTrafego(config)
+    janela_minimapa = base.JanelaMinimapa(config)
+    janela_auxiliar = base.JanelaAuxiliar(config)
+    janela_contato = base.JanelaUltimoContato(config)
+    janela_pit = base.JanelaPitEntrada(config)
     telemetria.v12_retorno.definir_limites(config.get("retorno_pare", 1.5), config.get("retorno_ceda", 3.5))
     janelas = [janela_telemetria, janela_voltas, janela_classificacao, janela_clima, janela_combustivel, janela_forca_g,
                janela_energia, janela_pneus, janela_danos, janela_alertas, janela_stints, janela_tendencia,
-               janela_luz_abs, janela_luz_tc, janela_retorno, janela_estrategia]
+               janela_luz_abs, janela_luz_tc, janela_retorno, janela_estrategia, janela_curvas,
+               janela_bandeiras, janela_trafego, janela_minimapa, janela_auxiliar, janela_contato, janela_pit]
     for j in janelas:
         j.setWindowTitle("Overlay " + NOME_JOGO)
     visib = base.VisibilidadeAuto(bool(config.get("auto_modo", True)) and not DEMO)
@@ -997,10 +1122,12 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
     menu.addSeparator()
     adicionar("Mostrar telemetria (marcha, velocidade e pedais)", config["mostrar_telemetria"], alternar_janela(janela_telemetria), chave="mostrar_telemetria")
     adicionar("   Grafico de acelerador e freio (na telemetria)", config["mostrar_grafico"],
-              lambda m: (janela_telemetria.definir_grafico(m), base.salvar_config(config)))
+              lambda m: (janela_telemetria.definir_grafico(m), base.salvar_config(config)), chave="mostrar_grafico")
+    adicionar("   Layout em barra horizontal (na telemetria)", config["telemetria_barra"],
+              lambda m: (janela_telemetria.definir_barra(m), base.salvar_config(config)), chave="telemetria_barra")
     adicionar("Mostrar delta e voltas", config["mostrar_voltas"], alternar_janela(janela_voltas), chave="mostrar_voltas")
     adicionar("   Calculo de combustivel (na janela Voltas)", config["mostrar_calc_combustivel"],
-              lambda m: (janela_voltas.definir_calc(m), base.salvar_config(config)))
+              lambda m: (janela_voltas.definir_calc(m), base.salvar_config(config)), chave="mostrar_calc_combustivel")
     adicionar("Mostrar classificacao", config["mostrar_classificacao"], alternar_janela(janela_classificacao), chave="mostrar_classificacao")
     adicionar("   Classificacao: mostrar todas as classes", config["classificacao_todas"],
               lambda m: (config.__setitem__("classificacao_todas", bool(m)), janela_classificacao.recalcular(),
@@ -1131,6 +1258,28 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
     adicionar("Mostrar Estrategia de pneus (chuva x seco)", config["mostrar_estrategia"], alternar_janela(janela_estrategia), chave="mostrar_estrategia")
     adicionar("   Estrategia: pulsar quando for hora de trocar", config["estrategia_pulsar"], ao_flag("estrategia_pulsar"),
               chave="estrategia_pulsar")
+    adicionar("Mostrar Curvas (velocidade minima x melhor passagem)", config["mostrar_curvas"], alternar_janela(janela_curvas), chave="mostrar_curvas")
+    adicionar("Mostrar Bandeiras (so aparece com bandeira)", config["mostrar_bandeiras"], alternar_janela(janela_bandeiras), chave="mostrar_bandeiras")
+    adicionar("Mostrar Trafego de outras classes (so com carro por perto)", config["mostrar_trafego"], alternar_janela(janela_trafego), chave="mostrar_trafego")
+    adicionar("Mostrar Minimapa rotativo", config["mostrar_minimapa"], alternar_janela(janela_minimapa), chave="mostrar_minimapa")
+    acao_raio = QAction(f"   Minimapa: alcance {int(config.get('minimapa_raio', 260))} m (clique para trocar)", menu)
+
+    def trocar_raio():
+        raios = base.JanelaMinimapa.RAIOS
+        atual = float(config.get("minimapa_raio", 260.0))
+        config["minimapa_raio"] = raios[(raios.index(atual) + 1) % len(raios)] if atual in raios else raios[1]
+        acao_raio.setText(f"   Minimapa: alcance {int(config['minimapa_raio'])} m (clique para trocar)")
+        base.salvar_config(config)
+    acao_raio.triggered.connect(trocar_raio)
+    menu.addAction(acao_raio)
+    adicionar("Mostrar Auxiliar de sessao (grid, contagem e proxima sessao)", config["mostrar_auxiliar"], alternar_janela(janela_auxiliar), chave="mostrar_auxiliar")
+    adicionar("   Auxiliar: tambem durante a sessao (tempo restante)", config["auxiliar_sempre"], ao_flag("auxiliar_sempre"), chave="auxiliar_sempre")
+    adicionar("Mostrar Ultimo contato (so depois de tocar em um carro)", config["mostrar_contato"], alternar_janela(janela_contato), chave="mostrar_contato")
+    adicionar("Mostrar Entrada do pit (distancia, freio e limite)", config["mostrar_pit"], alternar_janela(janela_pit), chave="mostrar_pit")
+    adicionar("   Pit: mostrar sempre perto da entrada (nao so com parada pedida)", config["pit_sempre"], ao_flag("pit_sempre"), chave="pit_sempre")
+    acao_zerar_curvas = QAction("   Curvas: reiniciar o aprendizado desta pista", menu)
+    acao_zerar_curvas.triggered.connect(lambda: telemetria.v14_curvas.resetar())
+    menu.addAction(acao_zerar_curvas)
     menu.addSeparator()
     adicionar("Visual moderno (desmarque para voltar ao visual classico)", config["tema_moderno"],
               guardar("tema_moderno", ao_tema))
@@ -1230,6 +1379,10 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
     app.aboutToQuit.connect(parar_teclas)
 
     bandeja.setContextMenu(menu)
+    central = base.montar_central(app, bandeja, menu, janelas, acao_por_chave, config, acao_sair, NOME_JOGO,
+                                  lambda: TelemetriaLMU(demo=True), {
+                                      "opacidade": ao_opacidade, "restaurar": ao_restaurar_tamanhos,
+                                      "salvar": lambda: base.salvar_config(config), "alcance_minimapa": trocar_raio})
     bandeja.show()
     if config.get("teclas_globais", True):
         iniciar_teclas()

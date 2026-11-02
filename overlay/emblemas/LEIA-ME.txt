@@ -1,0 +1,73 @@
+EMBLEMAS DAS MARCAS DOS CARROS
+==============================
+
+A janela de Classificacao mostra, na coluna CARRO, o emblema de cada marca.
+Por enquanto aparecem apenas as INICIAIS da marca (ex.: POR, FER, AM) porque este pacote
+nao inclui logotipos de fabricantes (sao marcas registradas). Voce mesmo coloca as imagens
+nesta pasta e o overlay passa a usa-las automaticamente.
+
+COMO COLOCAR UM EMBLEMA
+ 1. Obtenha a imagem da marca (de preferencia PNG com fundo transparente, pelo menos 64 x 64 pixels;
+    JPG, WEBP e SVG tambem funcionam). A escolha da fonte das imagens e sua.
+ 2. Salve nesta pasta com o nome da marca em minusculas, sem acentos e com hifen no lugar de espacos:
+        porsche.png        ferrari.png        aston-martin.png        mercedes-amg.png
+ 3. Atalho (1.3.1): salve as imagens soltas, com qualquer tamanho/formato, na subpasta "novos" e de duplo clique
+    em "preparar_emblemas.bat" (na pasta principal). Ele corta as bordas, centraliza num PNG quadrado
+    transparente de 256 px, troca logos pretos por brancos (o fundo do overlay e escuro) e grava aqui
+    com o nome certo. O nome do arquivo de origem deve conter a marca (ex.: toyota.svg, Logo_Aston Martin.png).
+ 4. Nao precisa reiniciar: o overlay procura de novo a cada poucos segundos.
+ Tambem vale o nome sem hifen (astonmartin.png) ou so a primeira palavra (mercedes.png).
+
+COMO SABER QUAIS MARCAS FALTAM
+ Enquanto joga, o overlay cria na pasta principal o arquivo "emblemas_faltando_lmu.txt" com a lista exata
+ de nomes de arquivo das marcas que apareceram na sua sessao e ainda nao tem emblema.
+
+NOMES DE ARQUIVO DAS MARCAS CONHECIDAS
+   acura.png
+   alfa-romeo.png
+   alpine.png
+   aston-martin.png
+   audi.png
+   bmw.png
+   buick.png
+   cadillac.png
+   chevrolet.png
+   corvette.png
+   dallara.png
+   dodge.png
+   ferrari.png
+   ford.png
+   genesis.png
+   glickenhaus.png
+   honda.png
+   hyundai.png
+   isotta-fraschini.png
+   kia.png
+   lamborghini.png
+   lexus.png
+   ligier.png
+   lotus.png
+   mazda.png
+   mclaren.png
+   mercedes.png
+   mercedes-amg.png
+   mercedes-benz.png
+   nissan.png
+   oreca.png
+   peugeot.png
+   pontiac.png
+   porsche.png
+   radical.png
+   ray.png
+   renault.png
+   skip-barber.png
+   subaru.png
+   super-formula.png
+   toyota.png
+   vanwall.png
+   volkswagen.png
+   williams.png
+
+Se o LMU trouxer uma marca fora desta lista, a marca e reconhecida pelo
+modelo do carro; se mesmo assim faltar, ela aparece em "emblemas_faltando_lmu.txt".
+Aviso: logotipos sao marcas registradas; use so no seu computador e nao os publique.

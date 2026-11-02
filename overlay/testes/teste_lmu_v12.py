@@ -227,22 +227,49 @@ def teste_principal_v12():
             estado["menu"] = [a.text() for a in menu if hasattr(a, "text")] if hasattr(menu, "__iter__") else []
             estado["acoes"] = sorted(app._refs[-1].keys())
             estado["retorno"] = telemetria_.v12_retorno.lim_pare
+            cen = getattr(app, "_central", None)
+            estado["central"] = cen is not None
+            if cen:
+                cen[0].mostrar()
+                estado["central_cartoes"] = len(cen[0]._cartoes)
+                estado["menu_curto"] = [x.text() for x in cen[1].actions()]
         QTimer.singleShot(1500, conferir)
         QTimer.singleShot(1900, app.quit)
     codigo = m.principal(leitor=leitor, config_extra={"auto_modo": False, "travado": True, "retorno_sempre": True}, ao_iniciar=ao_iniciar)
     confere(codigo == 0, "principal terminou sem erro")
-    confere(estado.get("n") == 16, f"16 janelas ({estado.get('n')})")
+    confere(estado.get("n") == 23, f"23 janelas ({estado.get('n')})")
     for nome in ("JanelaLuzAbs", "JanelaLuzTc", "JanelaRetorno", "JanelaEstrategia"):
         confere(nome in estado.get("nomes", []), f"{nome} criada")
+    confere(estado.get("central") and estado.get("central_cartoes", 0) >= 20, f"central de configuracoes criada ({estado.get('central_cartoes')} paineis)")
+    confere(any("Abrir configura" in t for t in estado.get("menu_curto", [])) and any("avan" in t for t in estado.get("menu_curto", [])),
+            f"menu da bandeja enxuto ({estado.get('menu_curto')})")
     for chave in ("mostrar_luz_abs", "mostrar_luz_tc", "mostrar_retorno", "mostrar_estrategia", "inputs_marca_abs"):
         confere(chave in estado.get("acoes", []), f"menu da bandeja tem {chave}")
     log = T.TMP / "log_principal_v12.txt"
     texto = log.read_text(encoding="utf-8") if log.exists() else ""
-    confere("LMU 1.3.0" in texto, "cabecalho do log com a versao 1.3.0")
+    confere("LMU 1.6.0" in texto, "cabecalho do log com a versao 1.6.0")
     confere("Traceback" not in texto and "ERRO" not in texto.upper().replace("ERROS", ""), "nenhum erro no log")
 
 
-TESTES = [teste_luzes, teste_retorno, teste_estrategia, teste_janelas_e_menu, teste_principal_v12]
+def teste_marcas():
+    grupo("v1.3.1 - montadora pelo modelo do carro (sem usar o nome da equipe)")
+    m = T.preparar_modulo()
+    base = m.base
+    casos = [("Manthey EMA #92 911 GT3 R LMGT3", "Porsche"), ("Heart of Racing Team #27 Aston Martin Vantage AMR LMGT3 Evo", "Aston Martin"),
+             ("TF Sport #81 Corvette Z06 LMGT3.R", "Corvette"), ("Kessel Racing #57 296 LMGT3", "Ferrari"),
+             ("Cadillac Hertz Team Jota #12 V-Series.R", "Cadillac"), ("Alpine Endurance Team #35 A424", "Alpine"),
+             ("United Autosports #22 Oreca 07", "Oreca"), ("Genesis Magma Racing #17 GMR-001", "Genesis"),
+             ("Toyota Gazoo Racing #7 GR010", "Toyota"), ("Peugeot TotalEnergies #93 9X8", "Peugeot"),
+             ("Akkodis ASP Lexus RC F", "Lexus"), ("BMW M Team WRT #31 M4 LMGT3", "BMW"),
+             ("Inter Europol Competition #34", "--"), ("Heart of Racing", "--")]
+    for texto, esperado in casos:
+        confere(base.marca_do_carro(texto, fallback=False) == esperado, f"LMU: '{texto}' -> {esperado}")
+    confere(base.marca_do_carro("Zzz Team 5") == "Zzz", "iRacing: sem marca conhecida ainda usa a primeira palavra")
+    confere(base.marca_do_carro("Chevrolet Corvette C8.R") == "Chevrolet", "iRacing: Chevrolet Corvette continua Chevrolet")
+    confere(base.marca_do_carro("") == "--" and base.marca_do_carro(None, fallback=False) == "--", "vazio -> --")
+
+
+TESTES = [teste_marcas, teste_luzes, teste_retorno, teste_estrategia, teste_janelas_e_menu, teste_principal_v12]
 
 if __name__ == "__main__":
     for t in TESTES:

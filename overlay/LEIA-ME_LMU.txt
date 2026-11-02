@@ -1,8 +1,14 @@
-OVERLAY LE MANS ULTIMATE (LMU) - GUIA RAPIDO - VERSAO 1.3.0 (numeracao do pacote publico)
+OVERLAY LE MANS ULTIMATE (LMU) - GUIA RAPIDO - VERSAO 1.4.2 (numeracao do pacote publico)
 =========================================================
 STATUS: PARCIALMENTE VALIDADO no jogo real (1o teste da v1.2: leitura de dados, energia, pneus, delta e gaps funcionaram;
 danos, vento e a janela por cima do jogo precisaram de ajuste). 368 verificacoes automaticas. Antes de confiar nos
 numeros em corrida, execute o "ROTEIRO_VALIDACAO_LMU.txt" com o Le Mans Ultimate de verdade.
+
+NOVO NA 1.4.2: barra de telemetria mais compacta (radar automatico e coluna +/- da Classificacao: so no overlay do iRacing).
+
+NOVO NA 1.4.1: Telemetria em BARRA horizontal (bandeja: "Layout em barra horizontal"); embreagem azul, freio laranja, acelerador verde.
+
+NOVO NA 1.4.0: janela CURVAS (velocidade minima por curva x sua melhor passagem, delta e volante). Veja o ROTEIRO, TESTE 17.
 
 NOVO NA 1.3.0: Stream Deck com botoes para Luz ABS, Luz TC, Retorno e Estrategia (Alt+Shift+F21..F24; perfil e lista de
 atalhos atualizados; importe de novo o perfil "Overlay LMU.streamDeckProfile").

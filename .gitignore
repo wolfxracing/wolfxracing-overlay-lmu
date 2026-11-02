@@ -13,6 +13,8 @@ overlay/*.lock
 # emblemas de marcas sao do usuario (marcas registradas): nao versionar
 overlay/emblemas/*
 !overlay/emblemas/LEIA-ME.txt
+# logos de jogos (marcas de terceiros): uso local do usuario, nao versionar
+overlay/marca/jogo_*.png
 # Python
 __pycache__/
 *.pyc

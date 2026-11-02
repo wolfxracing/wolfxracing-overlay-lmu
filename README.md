@@ -2,7 +2,7 @@
 
 # WolfxRacing Overlay para Le Mans Ultimate
 
-Overlay gratuito e de código aberto para **Le Mans Ultimate (LMU)** no Windows, com **16 janelas** independentes, **dash para o Simagic MagicDash 4** (SimHub) e **perfil de Stream Deck XL**.
+Overlay gratuito e de código aberto para **Le Mans Ultimate (LMU)** no Windows, com **23 janelas** independentes, **dash para o Simagic MagicDash 4** (SimHub) e **perfil de Stream Deck XL**.
 
 ![Visão geral do overlay](docs/imagens/overlay_visao_geral.png)
 
@@ -12,7 +12,7 @@ Overlay gratuito e de código aberto para **Le Mans Ultimate (LMU)** no Windows,
 
 | Pasta | Conteúdo |
 |---|---|
-| [`overlay/`](overlay) | O overlay (Python + PySide6): 16 janelas, perfis, atalhos globais, testes automáticos |
+| [`overlay/`](overlay) | O overlay (Python + PySide6): 23 janelas, perfis, atalhos globais, testes automáticos |
 | [`dash/`](dash) | Dash **MagicDash 4** nos estilos **Glass Fumê** e **Sport** (`.simhubdash`, 3 telas, 800x480) + ferramentas para gerar/alterar |
 | [`streamdeck/`](streamdeck) | Perfil para **Stream Deck XL**, biblioteca de ícones e gerador |
 | [`docs/`](docs) | Manual, guia do dash, guia do Stream Deck, arquitetura e histórico |

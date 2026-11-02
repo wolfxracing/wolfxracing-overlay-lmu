@@ -4,11 +4,11 @@
 
 ## Sumário
 
-1. [O que é](#1-o-que-é) · 2. [Instalação](#2-instalação-uma-única-vez) · 3. [Configurar o jogo](#3-configurar-o-le-mans-ultimate-obrigatório) · 4. [Uso diário](#4-uso-diário) · 5. [As 16 janelas](#5-as-janelas) · 6. [Como ler os números](#6-como-ler-os-números) · 7. [Dash e Stream Deck](#7-dash-e-stream-deck) · 8. [Solução de problemas](#8-solução-de-problemas) · 9. [Atualizar](#9-atualizar-para-uma-versão-nova) · 10. [Limites](#10-limites-conhecidos)
+1. [O que é](#1-o-que-é) · 2. [Instalação](#2-instalação-uma-única-vez) · 3. [Configurar o jogo](#3-configurar-o-le-mans-ultimate-obrigatório) · 4. [Uso diário](#4-uso-diário) · 5. [As 23 janelas](#5-as-janelas) · 6. [Como ler os números](#6-como-ler-os-números) · 7. [Dash e Stream Deck](#7-dash-e-stream-deck) · 8. [Solução de problemas](#8-solução-de-problemas) · 9. [Atualizar](#9-atualizar-para-uma-versão-nova) · 10. [Limites](#10-limites-conhecidos)
 
 ## 1. O que é
 
-16 janelas independentes e transparentes, sempre por cima do jogo, que podem ser movidas, redimensionadas e ligadas/desligadas pelo menu do ícone azul "LM" perto do relógio do Windows. Tudo roda localmente; nenhum dado seu é enviado para a internet.
+23 janelas independentes e transparentes, sempre por cima do jogo, que podem ser movidas, redimensionadas e ligadas/desligadas pelo menu do ícone azul "LM" perto do relógio do Windows. Tudo roda localmente; nenhum dado seu é enviado para a internet.
 
 ![Visão geral](imagens/overlay_visao_geral.png)
 
@@ -56,6 +56,10 @@ Marcha, velocidade, RPM, pedais, volante, TC, ABS, balanço de freio e **gráfic
 
 - Ajustes em *bandeja > Telemetria: tempo do gráfico de pedais*, *degraus das marchas*, *marca do ABS* e *marca do TC*. As marcas de ABS e TC vêm do jogo, não são estimativa.
 - Mesmo visual e posição das janelas do overlay de iRacing.
+
+**Layout em barra (novo na 1.4.1):** no menu da bandeja, marque "Layout em barra horizontal (na telemetria)" para trocar o painel por uma barra de uma linha só (620 × 88 px, bem compacta): volante, marcha, velocidade, pedais e gráfico lado a lado. Embreagem em **azul**, freio em **laranja** e acelerador em **verde**, com o valor de 0 a 100 embaixo de cada pedal (colunas finas). Desmarque o gráfico e a barra encolhe para 292 px. Desmarcando o layout, volta o painel de sempre.
+
+![Telemetria em barra](imagens/overlay_telemetria_barra.png)
 
 ### 2. Voltas (delta)
 
@@ -184,6 +188,58 @@ Cartão que compara a **umidade da pista** e a **chuva** com o pneu montado e di
 - **Limites no LMU:** o jogo não informa o pneu dos outros carros nem o pedido feito nos boxes, então **não há** "vantagem em s/volta" nem contagem de rivais (isso existe só no iRacing). A recomendação é pela pista e pelo seu pneu.
 - Não mexe no carro nem pede pneu: só informa.
 
+
+### 17. Curvas (velocidade mínima por curva) — novo na 1.4.0
+
+![Curvas](imagens/overlay_curvas.png)
+
+Mostra, para cada curva da pista, a **menor velocidade** que você fez e compara com a sua **melhor passagem** por ela. É a janela para descobrir **onde** a volta está sendo perdida: em qual curva, e quanto.
+
+- **Cartão grande (última curva concluída):** **MIN** (menor velocidade nessa curva, em km/h), **BEST** (a maior velocidade mínima que você já fez nessa curva em voltas válidas), **DELTA** (MIN − BEST das voltas anteriores) e **VOLANTE** (graus do volante no ponto da velocidade mínima; **E** = esquerda, **D** = direita).
+- **DELTA:** verde = mais rápido que a sua melhor passagem; branco = praticamente igual (menos de 0,5 km/h); laranja = perdeu um pouco; vermelho = perdeu 3 km/h ou mais.
+- **Linhas:** as últimas 5 curvas desta volta, a mais recente em cima. **Rodapé:** o que a volta anterior perdeu e ganhou no total e a pior curva.
+- **Como as curvas são achadas:** o overlay não conhece o traçado. Ele guarda a menor velocidade em cada trecho da pista nas suas voltas e marca como curva cada queda de velocidade seguida de recuperação (numeradas C1, C2... a partir da linha de chegada). A **primeira volta válida** cria o mapa; as três primeiras o refinam e depois ele **congela**. Tudo vem do carro (velocidade, volante, posição na volta); nada é estimado, mas o **mapa de curvas é uma inferência**: curvas muito suaves (que quase não reduzem a velocidade) não aparecem, e uma chicane rápida pode virar uma curva só.
+- **Volta válida:** sem passar pelos boxes, sem sair da pista ou com as quatro rodas na grama, sem parar, com a volta quase inteira medida e sem ser muito mais lenta que a melhor. Voltas inválidas não entram no BEST.
+- **Valores só da sessão:** o aprendizado e o BEST valem para a sessão atual; ao mudar de sessão ou pista tudo recomeça. Use "Curvas: reiniciar o aprendizado desta pista" na bandeja para zerar na mão.
+- Fonte: o menu da bandeja liga/desliga a janela; não há atalho de Stream Deck para ela nesta versão.
+
+
+### Janelas automáticas da 1.5.0: Bandeiras, Tráfego, Minimapa e Auxiliar
+
+![Janelas novas da 1.5.0](imagens/overlay_novos_1_5.png)
+
+| Janela | Quando aparece | O que mostra |
+|---|---|---|
+| **Bandeiras** | só com bandeira | verde (6 s), amarela, amarela de pista inteira, azul, branca, quadriculada, preta/desclassificado, vermelha |
+| **Tráfego** | só com carro de outra classe a até ~6 s | classe, #número, piloto e diferença em s (▼ atrás, ▲ à frente) |
+| **Minimapa** | sempre | pista girando ao seu redor; carros na cor da classe; "N" = norte; alcance 150/260/400 m no menu |
+| **Auxiliar** | antes da largada e no fim | etapa da sessão, contagem, duração; "também durante a sessão" mostra o tempo restante |
+
+Destravadas (modo mover), as janelas automáticas mostram um exemplo para você posicionar. Os segundos do Tráfego são calculados (velocidade e distância na pista); o traçado do Minimapa é aprendido na primeira volta.
+
+### Central de configurações (1.6.0)
+
+Duplo clique no ícone da bandeja (ou "Abrir configurações…"):
+
+![Central de configurações: painéis](imagens/central_paineis.png)
+
+- **Painéis:** um cartão por janela com prévia, liga/desliga e "Personalizar"; busca e filtros por categoria.
+- **Personalizar:** tamanho, opções do painel e prévia ao vivo.
+
+![Personalizar](imagens/central_detalhe.png)
+
+- **Aparência e sistema:** opacidade, vidro, travar posição, economia de CPU, prioridade, atalhos.
+
+O menu da bandeja ficou curto; todas as opções antigas estão em "Todas as opções (avançado)".
+
+### Último contato e Entrada do pit (1.6.0)
+
+![Último contato](imagens/overlay_contato.png)
+
+![Entrada do pit](imagens/overlay_pit.png)
+
+- **Último contato:** aparece depois que você toca em um carro; mostra o piloto, a volta, há quanto tempo e a diferença atual (− atrás, + à frente).
+- **Entrada do pit:** verde → amarelo → vermelho (**FREIE**) conforme a distância de frenagem até o limite; na pit lane mostra a velocidade contra o limite e a distância até o box. A frenagem usa 1,2 g: é uma estimativa. A entrada da pista é aprendida na primeira vez que você entra nos boxes.
 
 ## 6. Como ler os números: medido, calculado, estimado
 

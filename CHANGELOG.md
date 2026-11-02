@@ -2,6 +2,48 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.6.0] - 2026-11-02
+
+- **Novo:** **Central de configurações**: janela interativa (duplo clique no ícone da bandeja, ou "Abrir configurações…"). Cartões com prévia, liga/desliga, busca e filtros; "Personalizar" abre o tamanho, as opções do painel e a prévia ao vivo; páginas de Aparência e sistema. Usa os mesmos itens do menu: atalhos do Stream Deck e perfis continuam valendo. O menu da bandeja ficou curto (Abrir configurações, Travar posição, Todas as opções, Sair); o menu completo é o submenu "Todas as opções (avançado)".
+- **Novo:** janela **Último contato**: quem você tocou por último (o LMU não informa pontos por carro; volta, há quanto tempo e onde o piloto está agora em segundos). Detectado pelo impacto do jogo com um carro encostado (até 7 m).
+- **Novo:** janela **Entrada do pit**: distância até a entrada dos boxes, aviso FREIE (distância de frenagem estimada até o limite) e, na pit lane, velocidade contra o limite e distância até o seu box. A entrada é aprendida na primeira vez que você entra por pista (arquivo `pit_entradas.json`); aparece com parada pedida ou com a opção "mostrar sempre".
+- Visual da Central e ícone da bandeja com a marca WolfxRacing (pasta `overlay/marca/`: logos originais, sem alteração, e imagens de cenário). A marca é identidade do projeto; veja o NOTICE.
+- **Corrigido:** **Minimapa rotativo** travando. Desenho a 60 quadros por segundo no relógio próprio, posição estimada entre as leituras do jogo, rotação feita pelo Qt sobre um caminho montado uma única vez e rumo contínuo (antes girava em degraus). No modo economia de CPU desenha a metade dos quadros.
+- 23 janelas no total. Novos arquivos: `ov_v16.py`, `ov_central.py`, pasta `marca/`.
+
+## [1.5.0] - 2026-11-02
+
+- **Novo:** **Bandeiras**: faixa com a bandeira da pista (verde por 6 s, amarela, amarela de pista inteira, azul, branca, quadriculada, preta/desclassificado, vermelha). Só aparece quando há bandeira.
+- **Novo:** **Tráfego de outras classes**: só aparece com carro de outra classe a até ~6 s, com a diferença em segundos (▼ atrás / ▲ à frente; vermelho quando uma classe mais rápida chega por trás). Os segundos são calculados pelo overlay.
+- **Novo:** **Minimapa rotativo**: trecho da pista ao redor do seu carro, girando para ele apontar sempre para cima, com os carros na cor da classe e o "N". Alcance 150/260/400 m no menu. O traçado é aprendido na primeira volta (o jogo informa a posição no mundo no LMU); é uma inferência.
+- **Novo:** **Auxiliar de sessão**: etapa (grid, volta de apresentação, luzes), contagem/duração e tempo restante ao fim. Durante a sessão só aparece com "Auxiliar: também durante a sessão".
+- **Corrigido:** o radar da 1.4.2 podia piscar no modo automático (conflito com o laço principal). Todas as janelas automáticas (radar, bandeiras, tráfego, auxiliar) usam agora a mesma lógica sem piscar.
+- 21 janelas no total; sem atalhos de Stream Deck para as novas nesta versão.
+
+## [1.4.2] - 2026-11-02
+
+- Radar e classificação do iRacing receberam melhorias (radar automático, aviso de carro ao lado, coluna +/− de posições ganhas e perdidas); a janela de classificação do LMU não mudou.
+- **Melhorado:** Telemetria em barra mais compacta (620 × 88 px; 292 px sem o gráfico) com colunas de pedal finas.
+
+## [1.4.1] - 2026-11-02
+
+- **Novo:** layout opcional **em barra horizontal** para a janela Telemetria (menu da bandeja: "Layout em barra horizontal"). Uma linha só, 620 × 88 px (compacta, colunas de pedal finas): volante, marcha, velocidade, pedais com o valor numérico e gráfico. Cores: embreagem azul, freio laranja, acelerador verde. Sem o gráfico a barra tem 292 px. O painel de antes continua sendo o padrão.
+
+## [1.4.0] - 2026-11-02
+
+- **Novo:** janela **Curvas** (a 17ª): velocidade mínima em cada curva, comparada com a sua melhor passagem por ela. Mostra MIN, BEST, DELTA (verde = mais rápido que a melhor passagem, vermelho = perdeu 3 km/h ou mais) e o ângulo do volante no ponto da velocidade mínima, mais as últimas curvas da volta e o que a volta anterior ganhou e perdeu.
+- As curvas são achadas sozinhas a partir da velocidade em cada trecho da pista (a primeira volta válida cria o mapa; três voltas o refinam e ele congela). Volta válida = sem boxes, fora da pista, parada ou muito lenta. Tudo vem do carro; o mapa de curvas é uma inferência (curvas muito suaves não aparecem).
+- Valores só da sessão (sem gravar por pista); sem atalho de Stream Deck nesta versão. Menu da bandeja: ligar/desligar, escala e "reiniciar o aprendizado desta pista".
+- Inclui tudo da 1.3.1 (montadoras pelo modelo, `preparar_emblemas`, recortes).
+- Montadoras reconhecidas também: Holden, Caterham e Ginetta (somente o nome; os emblemas continuam fora do repositório).
+
+## [1.3.1] - 2026-11-02
+
+- **Corrigido:** a **montadora** do carro agora é reconhecida também pelo **modelo** (Vantage, 911, 296, Z06, M4, 9X8, A424, V-Series.R, GMR-001...) e **não cai mais na primeira palavra** do nome, que no LMU costuma ser a equipe. Antes a lista `emblemas_faltando_lmu.txt` enchia de nomes como `heart`, `team`, `inter`, `13`; agora só aparecem montadoras. Carro sem montadora reconhecida mostra `--`.
+- **Novo:** montadoras do LMU na lista de marcas: Alpine, Corvette, Glickenhaus, Vanwall e Isotta Fraschini.
+- **Novo:** `preparar_emblemas.bat` / `preparar_emblemas.py`: pega imagens soltas (PNG, JPG, WEBP, SVG) da pasta `emblemas\novos`, corta as bordas, centraliza num PNG quadrado transparente de 256 px e salva em `emblemas` com o nome certo; logos pretos viram brancos (fundo do overlay é escuro; `--nao-clarear` desliga). Para logos que vêm com o nome escrito junto, um `recortes.json` na pasta `novos` diz que parte da imagem guardar (só o símbolo) e quais marcas clarear.
+- Os emblemas continuam **fora do repositório** (são marcas registradas).
+
 ## [1.3.0] - 2026-11-01
 
 - **Novo:** botões de **Stream Deck** para as quatro janelas da 1.2.0: **Luz ABS**, **Luz TC**, **Retorno** e **Estratégia** (linha de baixo da página principal, posições 3,3 a 6,3). O perfil `Overlay LMU.streamDeckProfile` foi regenerado (30 botões na página principal) e os quatro ícones ficam na biblioteca.

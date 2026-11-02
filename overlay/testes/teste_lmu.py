@@ -128,6 +128,7 @@ class Jogo:
             v.mTimeBehindNext, v.mLapsBehindNext, v.mQualification = c.tbn, c.lbn, c.quali
             v.mFinishStatus, v.mPitState = c.final, c.estado_box
             v.mPitLapDist, v.mFlag = c.pit_dist, c.bandeira
+            v.mPos.x, v.mPos.z = getattr(c, "pos_x", 0.0), getattr(c, "pos_z", c.dist)   # v1.6.0: posicao no mundo (z = distancia na volta)
             if c.vel is not None:
                 v.mLocalVel.x, v.mLocalVel.y, v.mLocalVel.z = 0.0, 0.0, -c.vel
             _txt(v, "mDriverName", c.piloto)
@@ -748,7 +749,7 @@ def teste_principal():
         QTimer.singleShot(1600, app.quit)
     codigo = m.principal(leitor=leitor, config_extra={"auto_modo": False, "travado": True}, ao_iniciar=ao_iniciar)
     confere(codigo == 0, "principal terminou sem erro")
-    confere(estado.get("janelas") == 16, f"16 janelas criadas (obtido {estado.get('janelas')})")
+    confere(estado.get("janelas") == 23, f"23 janelas criadas (obtido {estado.get('janelas')})")
     confere(estado.get("conectado") == lmu.OK, f"leitor em estado ok (obtido {estado.get('conectado')})")
     confere(estado.get("visiveis", 0) >= 10, f"janelas visiveis ({estado.get('visiveis')})")
     log = TMP / "log_principal.txt"
@@ -1611,6 +1612,27 @@ def teste_extras_pipeline():
     tr = d["lmu_tendencia"]
     confere(tr is not None and len(tr["voltas"]) >= 3 and tr["ritmo5"] is not None and quase(tr["ritmo5"], 232.0, 0.01), "tendencia com as voltas limpas")
     confere(tr["temp_pista"] == 31.0, "temperatura da pista vem do jogo")
+
+    # v1.5.0: auxiliar, minimapa e tráfego chegam pelo caminho completo
+    confere(d.get("auxiliar") is not None and d["auxiliar"]["modo"] == "corrida", f"v1.5.0: auxiliar de sessao ({d.get('auxiliar')})")
+    confere(d.get("mapa") is not None and "carros" in d["mapa"] and len(d["mapa"]["carros"]) > 3, "v1.5.0: mapa com os carros")
+    confere(d.get("bandeira") is None or d["bandeira"]["id"] in ("verde", "azul"), "v1.5.0: sem bandeira de perigo na pista tranquila")
+
+    # v1.6.0: ultimo contato (impacto do jogo + carro encostado) e entrada do pit
+    confere(d.get("contato") is None, "v1.6.0: sem impacto, sem contato")
+    eu_c = next(c for c in j.carros if c.jogador)
+    vizinho = next(c for c in j.carros if not c.jogador and not c.box)
+    eu_c = j.carros[3]
+    vizinho.dist = eu_c.dist + 3.0
+    j.impacto_et, j.impacto_forca = j.tempo_decorrido + 1.0, 1500.0
+    rel.avancar(0.5); tel.ler(); rel.avancar(0.5); d = tel.ler()
+    confere(d.get("contato") is not None and d["contato"]["nome"], f"v1.6.0: contato com o carro encostado ({d.get('contato')})")
+    confere(d["contato"]["pontos"] is None, "v1.6.0: LMU nao informa pontos por carro")
+    vizinho.dist = eu_c.dist + 200.0
+    j.impacto_et += 1.0
+    rel.avancar(0.5); tel.ler(); rel.avancar(0.5); d = tel.ler()
+    confere(d["contato"]["nome"] == d["contato"]["nome"] and d["contato"]["gap_s"] is not None, "v1.6.0: impacto sem carro por perto mantem o ultimo contato")
+    eu_c.estado_box = 0
 
     # bandeiras, penalidade, classe rapida: tudo junto
     j.fase, j.estado_amarela, j.amarelas = 6, 3, (0, 0, 1)
