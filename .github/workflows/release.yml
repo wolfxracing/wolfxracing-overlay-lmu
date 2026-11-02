@@ -6,6 +6,11 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag da release a criar (ex.: v1.6.1). Vazio = so gera o EXE como arquivo da execucao."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -41,16 +46,18 @@ jobs:
           $v = (Select-String -Path ../CHANGELOG.md -Pattern '^## \[(\d+\.\d+\.\d+)\]' | Select-Object -First 1).Matches[0].Groups[1].Value
           Compress-Archive -Path $d -DestinationPath "exe/WolfxRacing_LMU_v${v}_EXE.zip" -Force
       - name: Criar a release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: ${{ startsWith(github.ref, 'refs/tags/') || inputs.tag != '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+          ALVO: ${{ github.sha }}
         run: |
-          python tools/notas_release.py $env:GITHUB_REF_NAME | Out-File -Encoding utf8 notas.md
+          python tools/notas_release.py $env:TAG | Out-File -Encoding utf8 notas.md
           $arqs = @(Get-ChildItem dist/*.zip) + @(Get-ChildItem overlay/exe/*.zip) + @(Get-ChildItem dash/*.simhubdash) + @(Get-ChildItem streamdeck/*.streamDeckProfile | Where-Object { $_.Name -notlike '*_ajustado*' })
-          $titulo = "WolfxRacing Overlay LMU " + $env:GITHUB_REF_NAME.TrimStart('v')
-          gh release create $env:GITHUB_REF_NAME --title $titulo --notes-file notas.md $arqs.FullName
+          $titulo = "WolfxRacing Overlay LMU " + $env:TAG.TrimStart('v')
+          gh release create $env:TAG --target $env:ALVO --title $titulo --notes-file notas.md $arqs.FullName
       - uses: actions/upload-artifact@v4
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/') && inputs.tag == '' }}
         with:
           name: WolfxRacing_LMU_EXE
           path: overlay/exe/*.zip
