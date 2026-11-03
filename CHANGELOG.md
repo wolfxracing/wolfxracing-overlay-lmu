@@ -2,6 +2,17 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.6.3] - 2026-11-03
+
+Revisão de código externa (ChatGPT) triada e validada antes de aplicar. Nenhuma mudança visual.
+
+- **Corrigido:** um painel com erro na atualização não impede mais os painéis seguintes de receberem dados (isolamento por janela; o erro vai para `overlay_log.txt`).
+- **Corrigido:** `config.json` agora é gravado em arquivo temporário e trocado de forma atômica; uma falha de gravação preserva a configuração anterior e passa a ser registrada no log (antes era silenciosa).
+- **Corrigido:** ao desligar os atalhos globais, se a escuta não encerrar a tempo ela é mantida e registrada, em vez de esquecer uma thread ainda viva.
+- **Melhorado:** a Classificação só refaz o layout quando a classificação muda (os dados chegam a 2 Hz, a janela atualiza a 30 Hz).
+- **Melhorado:** o aviso de desempenho não ordena mais as amostras quando o ciclo está dentro do orçamento.
+- Novo teste automático `testes/teste_v163.py`.
+
 ## [1.6.2] - 2026-11-03
 
 - **Corrigido:** **Corvette** passa a usar o emblema próprio (`corvette.png`) em vez do da Chevrolet quando o carro é um Corvette ("Chevrolet Corvette Z06 GT3.R" no LMU, "Chevrolet Corvette C8.R" no iRacing). A Camaro e outros Chevrolet continuam com `chevrolet.png`.

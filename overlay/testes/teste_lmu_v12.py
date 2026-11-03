@@ -247,7 +247,7 @@ def teste_principal_v12():
         confere(chave in estado.get("acoes", []), f"menu da bandeja tem {chave}")
     log = T.TMP / "log_principal_v12.txt"
     texto = log.read_text(encoding="utf-8") if log.exists() else ""
-    confere("LMU 1.6.2" in texto, "cabecalho do log com a versao 1.6.2")
+    confere("LMU 1.6.3" in texto, "cabecalho do log com a versao 1.6.3")
     confere("Traceback" not in texto and "ERRO" not in texto.upper().replace("ERROS", ""), "nenhum erro no log")
 
 

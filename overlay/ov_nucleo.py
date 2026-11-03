@@ -253,6 +253,9 @@ class Desempenho:
 
     def alerta(self, agora, intervalo_aviso=300.0):
         """Texto de aviso se o ciclo medio passou do orcamento (no maximo 1 aviso a cada 5 min)."""
+        fila = self._series.get("ciclo")
+        if not fila or len(fila) < 60 or sum(fila) / len(fila) <= self.orcamento_ms:
+            return None                     # caminho comum: sem ordenar as amostras
         est = self.estatistica("ciclo")
         if est and est["n"] >= 60 and est["media"] > self.orcamento_ms:
             if self._limite_aviso.deve("ciclo", intervalo_aviso, agora):
@@ -917,7 +920,10 @@ class EscutaTeclas:
             except Exception:
                 pass
             self._thread.join(timeout)
+        if self._thread is not None and self._thread.is_alive():
+            return False                    # nao encerrou: mantem a referencia (nao esquece uma thread viva)
         self._thread = None
+        return True
 
 
 class ApiTeclasWindows:
@@ -965,7 +971,8 @@ class ApiTeclasWindows:
                 return int(msg.wParam)
 
     def encerrar(self, id_thread):
-        self._u.PostThreadMessageW(int(id_thread), self.WM_QUIT, 0, 0)
+        if not self._u.PostThreadMessageW(int(id_thread), self.WM_QUIT, 0, 0):
+            raise OSError(self._ct.get_last_error(), "PostThreadMessageW falhou")
 
 
 def texto_atalhos(atalhos=ATALHOS):

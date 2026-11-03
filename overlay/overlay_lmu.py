@@ -62,7 +62,7 @@ from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 from ov_janela_lmu import JanelaClassificacaoLMU, JanelaClimaLMU, classe_classificacao      # classificacao com mais colunas (so no LMU)
 import ov_janelas_extra_lmu as extra_lmu              # janelas novas (energia, pneus, danos, alertas, stints, tendencia)
 
-VERSAO = "LMU 1.6.2 Glass/Sport (base iRacing 1.6.2)"
+VERSAO = "LMU 1.6.3 Glass/Sport (base iRacing 1.6.3)"
 NOME_JOGO = "Le Mans Ultimate"
 DEMO = "--demo" in sys.argv
 DIAGNOSTICO = "--diagnostico" in sys.argv
@@ -1355,10 +1355,12 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
 
     def parar_teclas():
         escuta = estado_teclas["escuta"]
-        estado_teclas["escuta"] = None
         if escuta is not None:
-            escuta.parar()
+            if escuta.parar() is False:
+                base.registrar_aviso("Escuta de atalhos ainda nao encerrou; mantida para nao perder a referencia.")
+                return
             base.registrar_info("atalhos globais desligados")
+        estado_teclas["escuta"] = None
 
     def ao_teclas(marcado):
         config["teclas_globais"] = bool(marcado)
@@ -1397,8 +1399,11 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
             dados = telemetria.ler()
             mostrar = visib.atualizar(dados, time.monotonic(), edicao=not config["travado"])
             for j in janelas:
-                j.definir_auto_visivel(mostrar)
-                j.atualizar(dados)
+                try:                        # um painel com erro nao impede a atualizacao dos demais
+                    j.definir_auto_visivel(mostrar)
+                    j.atualizar(dados)
+                except Exception:
+                    base.registrar_erro("janela:" + str(getattr(j, "CHAVE", "?")))
         except Exception:
             base.registrar_erro("atualizacao")
 

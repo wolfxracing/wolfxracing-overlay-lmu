@@ -1,6 +1,6 @@
 OVERLAY LE MANS ULTIMATE (LMU) - VERSAO EXE (sem precisar de Python)
 ============================================================
-Versao 1.6.2
+Versao 1.6.3
 
 COMO USAR
   1. Abra a pasta WolfxRacing_LMU e de dois cliques em  WolfxRacing_LMU.exe

@@ -284,9 +284,11 @@ def carregar_config():
 def salvar_config(cfg):
     try:
         _PERFIS.capturar(cfg)           # o layout em uso vai para o perfil ativo
-        ARQ_CONFIG.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+        tmp = ARQ_CONFIG.with_name(ARQ_CONFIG.name + ".tmp")
+        tmp.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+        os.replace(tmp, ARQ_CONFIG)         # troca atomica: uma falha nao deixa o JSON pela metade
     except Exception:
-        pass
+        registrar_erro("salvar configuracao")
 
 
 _REGISTRO = nucleo.Registro(lambda: ARQ_LOG)      # o caminho e lido a cada escrita (ARQ_LOG pode ser trocado)
@@ -5755,6 +5757,12 @@ class JanelaClassificacao(JanelaBase):
     def atualizar(self, dados):
         self.dados = dados
         classif = dados.get("classificacao") if dados["conectado"] else None
+        todas = self.config.get("classificacao_todas", True)
+        if (classif is not None and classif is getattr(self, "_classif_layout", None)
+                and todas == getattr(self, "_todas_layout", None)):
+            self._repintar()                # mesma classificacao (cache de 0,5 s): o layout nao muda
+            return
+        self._classif_layout, self._todas_layout = classif, todas
         self._blocos_atual = self._blocos(classif) if classif else []
         altura = self._altura_necessaria()
         if altura != self._altura_base:
@@ -8588,7 +8596,7 @@ def montar_central(app, bandeja, menu, janelas, acao_por_chave, config, acao_sai
             return type(j)(cfg)
 
         central = ov_central.Central(janelas, acao_por_chave, config, ganchos, telemetria_demo.ler, criar_previa, nome_jogo,
-                                     "1.6.2")
+                                     "1.6.3")
         curto = QMenu()
         a_cfg = curto.addAction("Abrir configurações…")
         a_cfg.triggered.connect(central.mostrar)
@@ -8688,7 +8696,7 @@ def definir_prioridade_baixa(ativa):
 
 def registrar_cabecalho():
     """Primeira linha da sessao no log: versoes (ajuda a diagnosticar problemas)."""
-    versoes = {"overlay": "1.6.2 (base Fase 20.2.2)", "nucleo": nucleo.VERSAO_NUCLEO, "python": sys.version.split()[0],
+    versoes = {"overlay": "1.6.3 (base Fase 20.2.2)", "nucleo": nucleo.VERSAO_NUCLEO, "python": sys.version.split()[0],
                "SO": sys.platform}
     try:
         import PySide6
@@ -9345,10 +9353,12 @@ def principal():
 
     def parar_teclas():
         escuta = estado_teclas["escuta"]
-        estado_teclas["escuta"] = None
         if escuta is not None:
-            escuta.parar()
+            if escuta.parar() is False:
+                registrar_aviso("Escuta de atalhos ainda nao encerrou; mantida para nao perder a referencia.")
+                return
             registrar_info("atalhos globais desligados")
+        estado_teclas["escuta"] = None
 
     def ao_teclas(marcado):
         config["teclas_globais"] = bool(marcado)
@@ -9392,8 +9402,11 @@ def principal():
                 aplicar_perfil(novo_perfil)
             mostrar = visib.atualizar(dados, time.monotonic(), edicao=not config["travado"])
             for j in janelas:
-                j.definir_auto_visivel(mostrar)
-                j.atualizar(dados)
+                try:                        # um painel com erro nao impede a atualizacao dos demais
+                    j.definir_auto_visivel(mostrar)
+                    j.atualizar(dados)
+                except Exception:
+                    registrar_erro("janela:" + str(getattr(j, "CHAVE", "?")))
         except Exception:
             registrar_erro("atualizacao")
 
