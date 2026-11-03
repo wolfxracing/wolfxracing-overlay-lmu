@@ -2,6 +2,14 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.6.2] - 2026-11-03
+
+- **Corrigido:** **Corvette** passa a usar o emblema próprio (`corvette.png`) em vez do da Chevrolet quando o carro é um Corvette ("Chevrolet Corvette Z06 GT3.R" no LMU, "Chevrolet Corvette C8.R" no iRacing). A Camaro e outros Chevrolet continuam com `chevrolet.png`.
+- **Novo:** a marca **Duqueine** (LMP3 do LMU) é reconhecida e procura `duqueine.png`.
+- **Corrigido:** a lista `emblemas_faltando.txt` (`emblemas_faltando_lmu.txt` no LMU) é apagada ao abrir o overlay e passa a listar só as marcas que aparecerem na sessão. Evita sobras de versões antigas, como nomes de equipe do LMU (13, CLX, Manthey...), que já não são tratados como marca desde a 1.5: no LMU a marca vem do modelo do carro, nunca da primeira palavra.
+- Novo teste automático `testes/teste_marcas.py` (marcas de iRacing e LMU, nomes de equipe e limpeza da lista).
+- Os emblemas das montadoras continuam fora do pacote público (marcas registradas): cada usuário coloca os seus em `emblemas/`.
+
 ## [1.6.1] - 2026-11-02
 
 - **Novo:** **Classificação no layout de transmissão** (arquivo novo `ov_classif_foto.py`; mesma linguagem visual do iRacing). Barra superior (sessão, tempo, volta, AIR, TRACK, número de carros); colunas POS, +/-, #, marca, DRIVER, selos PIT/PEN/FIM/DNF/DSQ, GAP, INT, BEST, LAST, AVG 5, PIT (paradas) e FUEL (%). Seu carro em roxo. Sem licença/iRating, pneu e bandeira, porque o LMU não informa. GAP/INT cinza com "~" continuam sendo estimativa.

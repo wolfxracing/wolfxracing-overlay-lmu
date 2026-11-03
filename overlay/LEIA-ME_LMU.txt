@@ -1,5 +1,9 @@
-OVERLAY LE MANS ULTIMATE (LMU) - GUIA RAPIDO - VERSAO 1.6.1 (numeracao do pacote publico)
+OVERLAY LE MANS ULTIMATE (LMU) - GUIA RAPIDO - VERSAO 1.6.2 (numeracao do pacote publico)
 =========================================================
+
+NOVO NA 1.6.2: emblema proprio da CORVETTE (corvette.png), marca DUQUEINE reconhecida e a lista emblemas_faltando_lmu.txt passa a valer so
+para a sessao atual (e apagada ao abrir o overlay). No LMU a marca vem sempre do modelo do carro, nunca do nome da equipe.
+
 STATUS: PARCIALMENTE VALIDADO no jogo real (1o teste da v1.2: leitura de dados, energia, pneus, delta e gaps funcionaram;
 danos, vento e a janela por cima do jogo precisaram de ajuste). 368 verificacoes automaticas. Antes de confiar nos
 numeros em corrida, execute o "ROTEIRO_VALIDACAO_LMU.txt" com o Le Mans Ultimate de verdade.

@@ -62,7 +62,7 @@ from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 from ov_janela_lmu import JanelaClassificacaoLMU, JanelaClimaLMU, classe_classificacao      # classificacao com mais colunas (so no LMU)
 import ov_janelas_extra_lmu as extra_lmu              # janelas novas (energia, pneus, danos, alertas, stints, tendencia)
 
-VERSAO = "LMU 1.6.1 Glass/Sport (base iRacing 1.6.1)"
+VERSAO = "LMU 1.6.2 Glass/Sport (base iRacing 1.6.2)"
 NOME_JOGO = "Le Mans Ultimate"
 DEMO = "--demo" in sys.argv
 DIAGNOSTICO = "--diagnostico" in sys.argv
@@ -971,6 +971,7 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
     except Exception:
         pass
     base._REGISTRO.cabecalho(versoes)
+    base.limpar_emblemas_faltando()                       # v1.6.2: lista de marcas sem emblema vale so para esta sessao
     if config.get("tema_vidro", True) and config.get("tema_sport", False):
         config["tema_sport"] = False                  # Glass Fume e Sport sao excludentes (config antigo: vence o Glass Fume)
     base.definir_tema(config.get("tema_moderno", True), config.get("opacidade_fundo", 0.80), config.get("tema_sport", False), config.get("tema_vidro", True))

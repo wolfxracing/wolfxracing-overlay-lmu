@@ -247,7 +247,7 @@ def teste_principal_v12():
         confere(chave in estado.get("acoes", []), f"menu da bandeja tem {chave}")
     log = T.TMP / "log_principal_v12.txt"
     texto = log.read_text(encoding="utf-8") if log.exists() else ""
-    confere("LMU 1.6.0" in texto, "cabecalho do log com a versao 1.6.0")
+    confere("LMU 1.6.2" in texto, "cabecalho do log com a versao 1.6.2")
     confere("Traceback" not in texto and "ERRO" not in texto.upper().replace("ERROS", ""), "nenhum erro no log")
 
 
@@ -265,7 +265,7 @@ def teste_marcas():
     for texto, esperado in casos:
         confere(base.marca_do_carro(texto, fallback=False) == esperado, f"LMU: '{texto}' -> {esperado}")
     confere(base.marca_do_carro("Zzz Team 5") == "Zzz", "iRacing: sem marca conhecida ainda usa a primeira palavra")
-    confere(base.marca_do_carro("Chevrolet Corvette C8.R") == "Chevrolet", "iRacing: Chevrolet Corvette continua Chevrolet")
+    confere(base.marca_do_carro("Chevrolet Corvette C8.R") == "Corvette", "iRacing: Chevrolet Corvette usa o emblema da Corvette (1.6.2)")
     confere(base.marca_do_carro("") == "--" and base.marca_do_carro(None, fallback=False) == "--", "vazio -> --")
 
 

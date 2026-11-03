@@ -484,6 +484,7 @@ _MARCAS = [
     "Subaru", "Volkswagen", "Renault", "Dodge", "Pontiac", "Buick", "Lexus", "Kia", "Genesis",
     "Peugeot", "Skip Barber", "Super Formula", "Williams", "Ray",
     "Corvette", "Alpine", "Glickenhaus", "Vanwall", "Isotta Fraschini", "Holden", "Caterham", "Ginetta",
+    "Duqueine",   # v1.6.2
 ]
 
 # Modelos que o jogo informa sem a marca no texto (ex.: equipe + modelo). So valem se nenhuma marca da lista aparecer.
@@ -520,6 +521,9 @@ def marca_do_carro(*nomes, fallback=True):
                 if melhor is None or chave < melhor[0]:
                     melhor = (chave, marca)
         if melhor:
+            # v1.6.2: "Chevrolet Corvette Z06 GT3.R" -> Corvette (a Corvette tem emblema proprio)
+            if melhor[1] == "Chevrolet" and re.search(r"(?<![A-Za-z])Corvette(?![A-Za-z])", texto, re.I):
+                return "Corvette"
             return melhor[1]
         for padrao, marca in _MODELOS_MARCA:
             if re.search(padrao, texto, re.I):
@@ -527,6 +531,17 @@ def marca_do_carro(*nomes, fallback=True):
     if primeiro and fallback:
         return primeiro.split()[0]
     return "--"
+
+
+def limpar_emblemas_faltando():
+    """v1.6.2: ao abrir o overlay, apaga a lista de marcas sem emblema da sessao anterior (ela so vale para o que
+    aparecer nesta sessao; evita sobras de versoes antigas)."""
+    try:
+        if ARQ_EMBLEMAS_FALTANDO.exists():
+            ARQ_EMBLEMAS_FALTANDO.unlink()
+    except Exception:
+        pass
+    _emblemas_faltando.clear()
 
 
 _EXTENSOES_IMAGEM = (".png", ".jpg", ".jpeg", ".webp", ".svg")
@@ -8573,7 +8588,7 @@ def montar_central(app, bandeja, menu, janelas, acao_por_chave, config, acao_sai
             return type(j)(cfg)
 
         central = ov_central.Central(janelas, acao_por_chave, config, ganchos, telemetria_demo.ler, criar_previa, nome_jogo,
-                                     "1.6.1")
+                                     "1.6.2")
         curto = QMenu()
         a_cfg = curto.addAction("Abrir configurações…")
         a_cfg.triggered.connect(central.mostrar)
@@ -8673,7 +8688,7 @@ def definir_prioridade_baixa(ativa):
 
 def registrar_cabecalho():
     """Primeira linha da sessao no log: versoes (ajuda a diagnosticar problemas)."""
-    versoes = {"overlay": "1.6.1 (base Fase 20.2.2)", "nucleo": nucleo.VERSAO_NUCLEO, "python": sys.version.split()[0],
+    versoes = {"overlay": "1.6.2 (base Fase 20.2.2)", "nucleo": nucleo.VERSAO_NUCLEO, "python": sys.version.split()[0],
                "SO": sys.platform}
     try:
         import PySide6
@@ -8709,6 +8724,7 @@ def principal():
 
     config = carregar_config()
     registrar_cabecalho()
+    limpar_emblemas_faltando()
     if config.get("tema_vidro", True) and config.get("tema_sport", False):
         config["tema_sport"] = False                  # Glass Fume e Sport sao excludentes (config antigo: vence o Glass Fume)
     definir_tema(config.get("tema_moderno", True), config.get("opacidade_fundo", 0.80), config.get("tema_sport", False), config.get("tema_vidro", True))
