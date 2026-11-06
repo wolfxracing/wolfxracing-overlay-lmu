@@ -749,7 +749,7 @@ def teste_principal():
         QTimer.singleShot(1600, app.quit)
     codigo = m.principal(leitor=leitor, config_extra={"auto_modo": False, "travado": True}, ao_iniciar=ao_iniciar)
     confere(codigo == 0, "principal terminou sem erro")
-    confere(estado.get("janelas") == 23, f"23 janelas criadas (obtido {estado.get('janelas')})")
+    confere(estado.get("janelas") == 26, f"26 janelas criadas (obtido {estado.get('janelas')})")
     confere(estado.get("conectado") == lmu.OK, f"leitor em estado ok (obtido {estado.get('conectado')})")
     confere(estado.get("visiveis", 0) >= 10, f"janelas visiveis ({estado.get('visiveis')})")
     log = TMP / "log_principal.txt"
@@ -765,8 +765,8 @@ def teste_atalhos_stream_deck():
     import ov_atalhos_lmu as at
     import ov_nucleo as nu
     confere(at.validar_atalhos_lmu() == [], f"mapa do LMU sem erro nem colisao com o iRacing ({at.validar_atalhos_lmu()})")
-    confere(len(at.ATALHOS_LMU) == 24, f"24 atalhos (16 janelas + 8 controles): {len(at.ATALHOS_LMU)}")
-    confere(sum(1 for a in at.ATALHOS_LMU if a.id.startswith("janela_")) == 16, "16 atalhos de janela")
+    confere(len(at.ATALHOS_LMU) == 27, f"27 atalhos (19 janelas + 8 controles): {len(at.ATALHOS_LMU)}")
+    confere(sum(1 for a in at.ATALHOS_LMU if a.id.startswith("janela_")) == 19, "19 atalhos de janela")
     combos_ir = {(a.mods, a.fn) for a in nu.ATALHOS}
     confere(all((a.mods, a.fn) not in combos_ir for a in at.ATALHOS_LMU), "nenhuma combinacao repete as do iRacing")
     confere(at.atalho_lmu_por_id("janela_telemetria").nome == "Ctrl+Shift+F13", "janelas = Ctrl+Shift+F13..F24")
@@ -804,11 +804,11 @@ def teste_atalhos_stream_deck():
     api = ApiFalsa(recusar={nu.ID_BASE_TECLA + 3})
     escuta = nu.EscutaTeclas(api, atalhos=at.ATALHOS_LMU)
     n, falhas = escuta.iniciar()
-    confere(n == 23 and len(falhas) == 1 and falhas[0][0].id == "janela_clima", f"23 registrados, 1 recusado ({n}, {len(falhas)})")
+    confere(n == 26 and len(falhas) == 1 and falhas[0][0].id == "janela_clima", f"26 registrados, 1 recusado ({n}, {len(falhas)})")
     confere(all(m & nu.MOD_NOREPEAT for _c, m, _v in api.ok), "registro com MOD_NOREPEAT")
     confere(api.ok[0][2] == 0x7C and api.ok[0][1] & 0x0006 == 0x0006, "Ctrl+Shift+F13 -> vk 0x7C com Ctrl e Shift")
     escuta.parar()
-    confere(len(api.liberados) == 23, "ao parar, libera as teclas registradas")
+    confere(len(api.liberados) == 26, "ao parar, libera as teclas registradas")
 
     # Programa completo: teclas chegam, ligam/desligam as janelas e fecham o overlay
     m = preparar_modulo()
@@ -857,10 +857,10 @@ def teste_atalhos_stream_deck():
     confere(not faltam, f"todo atalho de liga/desliga tem item no menu ({faltam})")
     m.base.JanelaBase.MULT_TAXA = 1.0
     log = (TMP / "log_atalhos.txt").read_text(encoding="utf-8")
-    confere("atalhos globais: 24 de 24 registrados" in log, "log: 24 de 24 atalhos registrados")
+    confere("atalhos globais: 27 de 27 registrados" in log, "log: 27 de 27 atalhos registrados")
     confere("Ctrl+Shift+F13" in log and "Alt+Shift+F20" in log, "log registra os atalhos usados")
     confere("Traceback" not in log and "ERRO" not in log.upper().replace("ERROS", ""), "nenhum erro no log")
-    confere(len(api2.liberados) == 24, "ao fechar, as 24 teclas sao liberadas")
+    confere(len(api2.liberados) == 27, "ao fechar, as 27 teclas sao liberadas")
 
 
 def teste_perfil_stream_deck():
@@ -872,7 +872,7 @@ def teste_perfil_stream_deck():
     confere(txt.exists(), "ATALHOS_STREAM_DECK_LMU.txt existe")
     if txt.exists():
         t = txt.read_text(encoding="utf-8")
-        confere(all(a.nome in t and a.rotulo in t for a in at.ATALHOS_LMU), "o txt lista os 24 atalhos exatamente como o programa")
+        confere(all(a.nome in t and a.rotulo in t for a in at.ATALHOS_LMU), "o txt lista os 27 atalhos exatamente como o programa")
     arq = PASTA / "streamdeck_lmu" / "Overlay LMU.streamDeckProfile"
     if not arq.exists():
         confere(True, "perfil do Stream Deck ausente nesta copia (pacote do amigo): nada a conferir")

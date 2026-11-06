@@ -40,7 +40,7 @@ def previa(j):
     return type(j)(c2)
 g = {"opacidade": lambda v: chamadas.append(("opac", v)), "restaurar": lambda: chamadas.append(("rest",)),
      "salvar": lambda: salvos.append(1), "modo_perfil": lambda m: chamadas.append(("perfil", m))}
-cen = c.Central(janelas, acoes, cfg, g, demo.ler, previa, "Le Mans Ultimate", "1.6.0")
+cen = c.Central(janelas, acoes, cfg, g, demo.ler, previa, "iRacing", "1.6.0")
 cen.mostrar()
 confere(cen.isVisible(), "central abre")
 confere(len(cen._cartoes) == len(janelas), f"um cartao por janela ({len(cen._cartoes)})")

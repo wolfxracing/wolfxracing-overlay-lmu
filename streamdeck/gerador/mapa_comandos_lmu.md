@@ -62,3 +62,7 @@ Lista de atalhos (`ATALHOS_STREAM_DECK_LMU.txt`), Guia rápido (`LEIA-ME_LMU.txt
 
 ## 6. Padrão visual
 Idêntico ao do iRacing: fibra de carbono grafite, âmbar (padrão), vermelho (perigo/fechar), verde (iniciar/ligado), roxo, cinza; rótulo em caixa alta itálico com sombra; olho no canto das janelas; 144×144 px. Desenhos originais.
+
+
+## 8. Telas novas (build q)
+Pagina principal: `sup_telas_novas` em (3,2) abre a pasta **Telas novas**: `sup_voltar` (0,0), `janela_consumo` (1,0, Alt+F21), `janela_delta_trace` (2,0, Alt+F22), `janela_curvas` (3,0, Alt+F23).

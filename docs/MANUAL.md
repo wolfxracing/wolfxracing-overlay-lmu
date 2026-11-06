@@ -201,8 +201,15 @@ Mostra, para cada curva da pista, a **menor velocidade** que você fez e compara
 - **Como as curvas são achadas:** o overlay não conhece o traçado. Ele guarda a menor velocidade em cada trecho da pista nas suas voltas e marca como curva cada queda de velocidade seguida de recuperação (numeradas C1, C2... a partir da linha de chegada). A **primeira volta válida** cria o mapa; as três primeiras o refinam e depois ele **congela**. Tudo vem do carro (velocidade, volante, posição na volta); nada é estimado, mas o **mapa de curvas é uma inferência**: curvas muito suaves (que quase não reduzem a velocidade) não aparecem, e uma chicane rápida pode virar uma curva só.
 - **Volta válida:** sem passar pelos boxes, sem sair da pista ou com as quatro rodas na grama, sem parar, com a volta quase inteira medida e sem ser muito mais lenta que a melhor. Voltas inválidas não entram no BEST.
 - **Valores só da sessão:** o aprendizado e o BEST valem para a sessão atual; ao mudar de sessão ou pista tudo recomeça. Use "Curvas: reiniciar o aprendizado desta pista" na bandeja para zerar na mão.
-- Fonte: o menu da bandeja liga/desliga a janela; não há atalho de Stream Deck para ela nesta versão.
+- Fonte: o menu da bandeja liga/desliga a janela; na build q ela também tem atalho global (Alt+F23) e botão na pasta *Telas novas* do Stream Deck.
 
+
+### Onda 1 da 1.7.0 (build r): Consumo e Delta Trace
+
+- **Consumo (Burn Zones + Fuel Flow):** faixa de 24 trechos da volta coloridos pelo consumo de cada um (vermelho = gasta bem mais que a média do trecho, verde = menos), faixa da volta atual logo abaixo, os 3 **trechos de maior consumo** (indicativo: gastar mais que a média do carro não quer dizer que há economia possível) e, ao lado, fluxo instantâneo (L/h), consumo médio e da última volta (L/volta) e a tendência. O fluxo é calculado pela variação do **nível** de combustível, igual nos dois jogos. Só voltas completas e limpas entram; com menos de 3 voltas limpas o painel mostra "mapeando N/3". **Leitura indicativa**: o overlay não estima litros que você economizaria.
+- **Delta Trace:** o delta contra a melhor volta limpa **da sessão** ao longo da volta, no eixo do tempo (negativo = mais rápido, mesmo sinal do delta do jogo). Verde = ganhando, vermelho = perdendo; o traço tracejado é a volta anterior (sempre recalculada contra a referência vigente). Abaixo do gráfico há um **bloco por curva**: quanto mais tempo você passa na curva, mais largo é o bloco; verde/vermelho/cinza = ganhou/perdeu/igual (curvas ainda não feitas ficam apagadas). À direita: o **número da curva** ("CURVA" = a que você está fazendo, "PRÓXIMA CURVA" = a próxima), o delta parcial dela e o desenho da pista no estilo do Minimapa; o trecho já percorrido fica **verde onde você ganhou tempo e vermelho onde perdeu**, com a curva em foco destacada. Precisa do Mapa já aprendido (uma volta completa); sem ele aparece só o número. Sem volta limpa ainda: "sem referência".
+- **Delta Trace, layout:** em *Central > Delta Trace > Layout do painel* escolha **Gráfico ao longo da volta** (padrão) ou **Estilo RaceLab**: número grande no centro e uma barra horizontal a partir do zero (verde para a esquerda = ganhando; vermelho para a direita = perdendo). Os blocos por curva e o desenho da pista aparecem nos dois. Com muitas curvas (até ~30) os blocos ficam mais estreitos e passam a mostrar só a cor. Em *Elementos do Delta Trace* você liga ou desliga, como nas colunas da Classificação, o título/referência, o delta grande, o gráfico (ou a barra), a volta anterior tracejada, os blocos por curva, o número da curva e o desenho da pista; a prévia e a janela mudam na hora e a janela encolhe junto.
+- **Atalhos:** o Consumo, o Delta Trace e a Janela de curvas têm atalho global (Alt+F21, Alt+F22 e Alt+F23; ver `overlay/ATALHOS_STREAM_DECK_LMU.txt`) e uma pasta **Telas novas** no perfil do Stream Deck.
 
 ### Janelas automáticas da 1.5.0: Bandeiras, Tráfego, Minimapa e Auxiliar
 
@@ -223,6 +230,7 @@ Duplo clique no ícone da bandeja (ou "Abrir configurações…"):
 
 ![Central de configurações: painéis](imagens/central_paineis.png)
 
+- **Elementos (build u):** os painéis *Curvas, Setores, Coach, Consumo, Tendência* e *Voltas* têm, em *Personalizar > ELEMENTOS*, um interruptor por parte da janela. Desligar uma parte encolhe a janela e sobe as partes de baixo; "Mostrar todos" restaura. A prévia ao lado mostra o resultado na hora. Em *Voltas*, as colunas desligadas ficam vazias (sem reaproveitar o espaço).
 - **Painéis:** um cartão por janela com prévia, liga/desliga e "Personalizar"; busca e filtros por categoria.
 - **Personalizar:** tamanho, opções do painel e prévia ao vivo.
 
@@ -239,7 +247,7 @@ O menu da bandeja ficou curto; todas as opções antigas estão em "Todas as op�
 ![Entrada do pit](imagens/overlay_pit.png)
 
 - **Último contato:** aparece depois que você toca em um carro; mostra o piloto, a volta, há quanto tempo e a diferença atual (− atrás, + à frente).
-- **Entrada do pit:** verde → amarelo → vermelho (**FREIE**) conforme a distância de frenagem até o limite; na pit lane mostra a velocidade contra o limite e a distância até o box. A frenagem usa 1,2 g: é uma estimativa. A entrada da pista é aprendida na primeira vez que você entra nos boxes.
+- **Entrada do pit:** verde → amarelo → vermelho (**FREIE**) conforme a distância de frenagem até o limite; na pit lane mostra a velocidade contra o limite e a distância até o box. A frenagem usa 1,2 g: é uma estimativa. A linha de entrada é aprendida quando você entra de verdade pelo pit (acima de 36 km/h, vindo da pista); nascer no box não conta. A janela aparece quando o jogo informa pedido de parada.
 
 ## 6. Como ler os números: medido, calculado, estimado
 
@@ -293,3 +301,21 @@ A janela Classificação ganhou o layout de tabela de transmissão: barra superi
 - **GAP/INT** cinza com "~" são estimados (carro de outra classe no meio); **PIT** são as paradas informadas pelo jogo e **FUEL** o combustível de cada carro em %.
 - Para voltar ao visual antigo, use `"classificacao_layout": "classico"` no `config.json`.
 - **Versão EXE:** baixe `WolfxRacing_LMU_vX.Y.Z_EXE.zip` na release, extraia e abra `WolfxRacing_LMU.exe` (não precisa de Python). `testar_demo_exe.bat` abre em modo demonstração e `fechar_overlay_exe.bat` fecha à força. Para gerar no seu PC: `overlay\gerar_exe_lmu.bat`.
+
+## Novidades da 1.7.0 (prints)
+
+Coach ao vivo, Delta Trace (com o *ritmo ideal estimado*), Consumo, Curvas e Tendência, e a Central com **Elementos** liga/desliga e prévia ao vivo (imagens geradas com dados de exemplo).
+
+![Coach](imagens/overlay_coach.png)
+
+![Coach com elementos desligados](imagens/overlay_coach_elementos.png)
+
+![Delta Trace](imagens/overlay_delta_trace.png)
+
+![Consumo](imagens/overlay_consumo.png)
+
+![Curvas](imagens/overlay_curvas.png)
+
+![Tendência](imagens/janela_tendencia.png)
+
+![Central: elementos com prévia](imagens/central_elementos.png)

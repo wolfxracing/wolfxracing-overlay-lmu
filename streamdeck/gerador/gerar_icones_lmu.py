@@ -101,6 +101,38 @@ def p_diagnostico():
             f'<path d="M36 46 H48 L54 30 L65 60 L71 46 H84" fill="none" stroke="{W}" stroke-width="5"/>')
 
 
+def p_consumo():
+    """Gota de combustivel sobre barras de consumo por trecho (a mais alta em vermelho)."""
+    barras = "".join(f'<rect x="{34 + i*18}" y="{86 - h}" width="12" height="{h}" rx="3" fill="{cor}"/>'
+                     for i, (h, cor) in enumerate(((22, GY), (34, GY), (62, RD), (30, GY), (44, A), (24, GY))))
+    return (barras + f'<path d="M72 8 q-17 22 0 30 q17 -8 0 -30" fill="{W}"/><path d="M20 90 H126" stroke="{W}" stroke-width="4"/>')
+
+
+def p_delta_trace():
+    """Grafico de area: verde acima da linha (ganhando), vermelho abaixo (perdendo) e a linha de zero."""
+    return (f'<path d="M20 38 L34 28 L50 22 L64 34 L64 38 Z" fill="{GR}"/>'
+            f'<path d="M64 38 L64 34 L80 50 L98 62 L112 56 L126 38 Z" fill="{RD}"/>'
+            f'<path d="M18 38 H128" stroke="{W}" stroke-width="3" stroke-dasharray="8 6"/>'
+            f'<path d="M20 38 L34 28 L50 22 L64 34 L80 50 L98 62 L112 56 L126 38" fill="none" stroke="{W}" stroke-width="5"/>'
+            f'<rect x="20" y="72" width="22" height="9" rx="3" fill="{RD}"/><rect x="46" y="72" width="34" height="9" rx="3" fill="{GR}"/>'
+            f'<rect x="84" y="72" width="18" height="9" rx="3" fill="{GR}"/><rect x="106" y="72" width="20" height="9" rx="3" fill="{RD}"/>')
+
+
+def p_curvas():
+    """Trecho de pista em S com a curva numerada em destaque."""
+    return (f'<path d="M22 78 C46 78 50 46 72 46 C96 46 98 16 124 16" fill="none" stroke="{W}" stroke-width="14"/>'
+            f'<path d="M22 78 C46 78 50 46 72 46 C96 46 98 16 124 16" fill="none" stroke="{DK}" stroke-width="8"/>'
+            f'<path d="M52 66 C58 52 62 48 72 46 C82 46 88 40 92 32" fill="none" stroke="{A}" stroke-width="8"/>'
+            f'<circle cx="72" cy="46" r="15" fill="{A}"/>' + letra("7", 22, 72, 46, DK, 0.9))
+
+
+def p_telas_novas():
+    """Pasta com estrela: o grupo das telas novas (consumo, delta trace e curvas)."""
+    return (f'<path d="M22 22 H56 L66 32 H122 V86 H22 Z" fill="{A}"/><rect x="22" y="40" width="100" height="46" rx="4" fill="{AM2}"/>'
+            f'<rect x="22" y="40" width="100" height="6" fill="{W}"/>'
+            f'<path d="M72 50 L77 62 L90 63 L80 71 L84 83 L72 76 L60 83 L64 71 L54 63 L67 62 Z" fill="{W}"/>')
+
+
 # ------------------------------------------------------------------ catalogo
 JANELAS = [
     ("janela_telemetria", ["TELEMETRIA"], gi.p_telemetria), ("janela_voltas", ["VOLTAS"], gi.p_voltas),
@@ -111,6 +143,8 @@ JANELAS = [
     ("janela_stints", ["STINTS"], p_stints), ("janela_tendencia", ["TENDÊNCIA"], p_tendencia),
     ("janela_luz_abs", ["LUZ ABS"], gi.p_luz_abs), ("janela_luz_tc", ["LUZ TC"], gi.p_luz_tc),          # 1.3.0 (desenho-base do iRacing)
     ("janela_retorno", ["RETORNO"], gi.p_retorno), ("janela_estrategia", ["ESTRATÉGIA"], gi.p_estrategia),
+    ("janela_consumo", ["CONSUMO"], p_consumo), ("janela_delta_trace", ["DELTA", "TRACE"], p_delta_trace),   # build q
+    ("janela_curvas", ["CURVAS"], p_curvas),
 ]
 CONTROLES = [  # (arquivo, rotulo, pictograma, tem_variante_desligada)
     ("ctrl_iniciar", ["INICIAR", "OVERLAY"], gi.p_play, False), ("ctrl_fechar", ["FECHAR", "OVERLAY"], gi.p_fechar, False),
@@ -126,6 +160,7 @@ SUPORTE = [
     ("sup_atalhos", ["LISTA DE", "ATALHOS"], gi.p_teclado), ("sup_testes", ["RODAR", "TESTES"], gi.p_escudo_ok),
     ("sup_guia", ["GUIA", "RÁPIDO"], gi.p_livro), ("sup_roteiro", ["ROTEIRO", "VALIDAÇÃO"], gi.p_prancheta),
     ("sup_diagnostico", ["RODAR", "DIAGNÓSTICO"], p_diagnostico), ("sup_ver_diagnostico", ["VER", "DIAGNÓSTICO"], gi.p_doc),
+    ("sup_telas_novas", ["TELAS", "NOVAS"], p_telas_novas),
 ]
 
 

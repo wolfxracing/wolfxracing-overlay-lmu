@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# Receita do PyInstaller (versao EXE, pasta unica). Gerada para a versao 1.6.3.
+# Receita do PyInstaller (versao EXE, pasta unica). Gerada para a versao 1.7.0.
 # Uso: gerar_exe*.bat (nao precisa editar). Config, logs, emblemas e bandeiras ficam AO LADO do .exe.
 a = Analysis(
     ['overlay_lmu.py'],

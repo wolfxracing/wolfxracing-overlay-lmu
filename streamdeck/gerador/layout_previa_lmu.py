@@ -10,12 +10,13 @@ for i, n in enumerate(["telemetria", "voltas", "classificacao", "clima", "combus
     PRINCIPAL[(i % 8, i // 8)] = f"janela_{n}"
 PRINCIPAL.update({
     (4, 1): "ctrl_classif_todas", (5, 1): "ctrl_manter_topo", (6, 1): "ctrl_restaurar_tamanhos", (7, 1): "ctrl_zerar_pico_g",
-    (0, 2): "ctrl_economia_cpu", (1, 2): "ctrl_aparecer_sozinho", (2, 2): "ctrl_travar_posicao",
+    (0, 2): "ctrl_economia_cpu", (1, 2): "ctrl_aparecer_sozinho", (2, 2): "ctrl_travar_posicao", (3, 2): "sup_telas_novas",
     (5, 2): "sup_demo", (6, 2): "sup_log", (7, 2): "sup_pasta_overlay",
     (0, 3): "ctrl_iniciar", (1, 3): "ctrl_fechar", (2, 3): "ctrl_forcar_fechamento", (7, 3): "sup_pasta_suporte",
     (3, 3): "janela_luz_abs", (4, 3): "janela_luz_tc", (5, 3): "janela_retorno", (6, 3): "janela_estrategia"})
 SUP = {(0, 0): "sup_voltar", (1, 0): "sup_atalhos", (2, 0): "sup_guia", (3, 0): "sup_roteiro", (4, 0): "sup_testes",
        (5, 0): "sup_diagnostico", (6, 0): "sup_ver_diagnostico"}
+TELAS = {(0, 0): "sup_voltar", (1, 0): "janela_consumo", (2, 0): "janela_delta_trace", (3, 0): "janela_curvas"}
 
 
 def previa(lay, titulo, destino):
@@ -38,6 +39,8 @@ def previa(lay, titulo, destino):
 
 previa(PRINCIPAL, "Overlay LMU - Pagina principal - Stream Deck XL (8 colunas x 4 linhas = 32 botoes)", f"{BASE}/previa_pagina_principal_lmu.png")
 previa(SUP, "Overlay LMU - Pasta Suporte (tecla 0,0 reservada para Voltar)", f"{BASE}/previa_pasta_suporte_lmu.png")
-json.dump({"principal": {f"{c},{r}": n for (c, r), n in PRINCIPAL.items()}, "suporte": {f"{c},{r}": n for (c, r), n in SUP.items()}},
+previa(TELAS, "Overlay LMU - Pasta Telas novas (tecla 0,0 reservada para Voltar)", f"{BASE}/previa_pasta_telas_novas_lmu.png")
+json.dump({"principal": {f"{c},{r}": n for (c, r), n in PRINCIPAL.items()}, "suporte": {f"{c},{r}": n for (c, r), n in SUP.items()},
+           "telas": {f"{c},{r}": n for (c, r), n in TELAS.items()}},
           open(f"{BASE}/layout_lmu.json", "w"), indent=1)
 print(len(PRINCIPAL), len(SUP))

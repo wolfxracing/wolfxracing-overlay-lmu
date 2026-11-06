@@ -29,7 +29,8 @@
   "3,3": "janela_luz_abs",
   "4,3": "janela_luz_tc",
   "5,3": "janela_retorno",
-  "6,3": "janela_estrategia"
+  "6,3": "janela_estrategia",
+  "3,2": "sup_telas_novas"
  },
  "suporte": {
   "0,0": "sup_voltar",
@@ -39,5 +40,11 @@
   "4,0": "sup_testes",
   "5,0": "sup_diagnostico",
   "6,0": "sup_ver_diagnostico"
+ },
+ "telas": {
+  "0,0": "sup_voltar",
+  "1,0": "janela_consumo",
+  "2,0": "janela_delta_trace",
+  "3,0": "janela_curvas"
  }
 }

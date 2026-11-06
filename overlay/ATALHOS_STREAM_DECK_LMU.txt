@@ -32,10 +32,14 @@ Deck convivem sem nenhuma colisao, mesmo com os dois overlays abertos ao mesmo t
   Alt+Shift+F22   Mostrar/ocultar luz do TC
   Alt+Shift+F23   Mostrar/ocultar retorno a pista
   Alt+Shift+F24   Mostrar/ocultar estrategia de pneus
+  Alt+F21         Mostrar/ocultar consumo por trecho (Burn Zones e Fuel Flow)
+  Alt+F22         Mostrar/ocultar Delta Trace
+  Alt+F23         Mostrar/ocultar Curvas (velocidade minima por curva)
 
 COMO USAR
  - Janelas (Ctrl+Shift+F13..F24): cada toque liga ou desliga a janela (o estado fica salvo no config_lmu.json).
  - Janelas novas da 1.2.0 (Alt+Shift+F21..F24): Luz ABS, Luz TC, Retorno a pista e Estrategia de pneus.
+ - Telas novas da 1.7.0 (build q, Alt+F21..F23): Consumo por trecho, Delta Trace e Curvas. Sao so Alt (sem Shift); o iRacing usa Alt+F13..F19, entao nao ha colisao.
  - Controles (Alt+Shift+F13..F20): economia de CPU, aparecer sozinho, travar posicao, classificacao de todas as classes e
    manter por cima do jogo ligam/desligam; zerar pico de G e restaurar tamanhos executam na hora.
  - Alt+Shift+F20 FECHA o overlay (o mesmo que "Sair" no menu da bandeja). Para abrir de novo: botao "Iniciar Overlay".

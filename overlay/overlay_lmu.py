@@ -62,7 +62,7 @@ from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 from ov_janela_lmu import JanelaClassificacaoLMU, JanelaClimaLMU, classe_classificacao      # classificacao com mais colunas (so no LMU)
 import ov_janelas_extra_lmu as extra_lmu              # janelas novas (energia, pneus, danos, alertas, stints, tendencia)
 
-VERSAO = "LMU 1.6.3 Glass/Sport (base iRacing 1.6.3)"
+VERSAO = "LMU 1.7.0 Glass/Sport (base iRacing 1.7.0)"
 NOME_JOGO = "Le Mans Ultimate"
 DEMO = "--demo" in sys.argv
 DIAGNOSTICO = "--diagnostico" in sys.argv
@@ -232,6 +232,10 @@ class TelemetriaLMU:
         self.ultimo_estado = lmu.SEM_JOGO
         self.v12_retorno = v12.CalculadorRetorno()        # v1.2.0
         self.v14_curvas = curvas_mod.AnalisadorCurvas()   # v1.4.0
+        self.vo_consumo = base.ons1.Consumo()             # build o: consumo por trecho (Burn Zones / Fuel Flow)
+        self.vo_delta = base.ons1.DeltaTrace()            # build o: Delta Trace
+        self.config_coach_modo = "auto"                   # v1.7.0: ajustado pelo menu
+        self.v17_coach = base.coach_mod.Coach(base.coach_mod.BibliotecaReferencias(PASTA / "referencias"))
         self.v12_pneus = v12.EstrategiaPneus()
         self.v15_bandeiras = v15.GestorBandeiras()        # v1.5.0
         self.v15_mapa = v15.MapaPlano()
@@ -351,9 +355,35 @@ class TelemetriaLMU:
         except Exception:
             base.registrar_erro("combustivel")
 
+        # --- v1.7.0: coach ao vivo (depois das voltas: precisa do tempo da volta) ---
+        try:
+            self._montar_coach(dados, info, scor, tele)
+        except Exception:
+            base.registrar_erro("coach")
+        base.completar_coach(self, dados)
+
         # --- janelas novas do LMU (cada bloco falha sozinho, sem derrubar o resto) ---
         self._montar_extras(dados, snap, info, scor, tele, i_scor)
         return dados
+
+    def _montar_coach(self, dados, info, scor, tele):
+        """v1.7.0: alimenta o Coach (referencia por distancia). Sem o jogador na pista, so repete o ultimo resumo."""
+        coach = self.v17_coach
+        comprimento = float(info.mLapDist)
+        antes = int(info.mGamePhase) <= 4
+        sup_rodas = [int(tele.mWheels[i].mSurfaceType) for i in range(4)]
+        valido = (bool(dados.get("no_carro")) and not bool(scor.mInPits) and not bool(scor.mInGarageStall)
+                  and not all(s in (2, 3, 4) for s in sup_rodas) and not antes)
+        coach.modo = self.config_coach_modo
+        coach.definir_contexto(lmu.texto(info.mTrackName), lmu.texto(scor.mVehicleName), comprimento)
+        if dados.get("no_carro") and comprimento > 300.0:
+            # build s: 'tempo_volta' e 'ultima_volta' so sao montados depois desta etapa; leitura direta (o Coach nunca gravava volta)
+            corrente = float(tele.mElapsedTime) - float(tele.mLapStartET)
+            coach_t = corrente if 0.0 <= corrente < 3600.0 else None
+            dados["coach"] = coach.atualizar(self._pct_volta(info, scor), dados["velocidade"], dados["freio"], dados["acelerador"],
+                                             dados["marcha"], coach_t, valido, comprimento, base.tempo_valido(scor.mLastLapTime))
+        else:
+            dados["coach"] = coach.resumo() if coach.pista else None
 
     # -- v1.2.0: Luz do TC, Retorno a pista e Estrategia de pneus ----------------------------------------------------
     def _montar_v12(self, dados, snap, info, scor, tele, i_scor):
@@ -365,6 +395,8 @@ class TelemetriaLMU:
             self._v12_sessao = chave
             self.v12_retorno.resetar()
             self.v14_curvas.resetar()
+            self.vo_consumo.resetar()
+            self.vo_delta.resetar()
             self.v15_bandeiras.resetar()
             self.v16_contato.resetar()
             self._memoria_trafego.clear()
@@ -386,6 +418,16 @@ class TelemetriaLMU:
             dados["curvas"] = self.v14_curvas.atualizar(pct, dados["velocidade"], dados["volante"], valido, float(info.mLapDist))
         except Exception:
             base.registrar_erro("curvas")
+        # build o: consumo por trecho e delta trace (litros do tanque; o mesmo criterio de volta limpa das curvas)
+        try:
+            self.vo_consumo.atualizar(agora, pct, float(tele.mFuel), valido)
+            corrente_o = float(tele.mElapsedTime) - float(tele.mLapStartET)       # leitura direta: 'tempo_volta' so e montado depois
+            self.vo_delta.atualizar(pct, corrente_o if 0.0 <= corrente_o < 3600.0 else None, valido, base.tempo_valido(scor.mLastLapTime))
+            dados["consumo"] = self.vo_consumo.resumo()
+            dados["delta_trace"] = self.vo_delta.resumo()
+            dados["delta_trace"]["curvas"] = base.ons1.zonas_de_curvas(self.v14_curvas.curvas, base.curvas_mod.BINS)      # build q: blocos por curva
+        except Exception:
+            base.registrar_erro("consumo / delta trace")
         try:
             self._montar_v15(dados, snap, info, scor, tele, i_scor, agora, fase)
         except Exception:
@@ -422,8 +464,15 @@ class TelemetriaLMU:
         valido = (no_carro and not bool(scor.mInPits) and not bool(scor.mInGarageStall) and fase >= 5)
         self.v15_mapa.atualizar(pct, float(scor.mPos.x), float(scor.mPos.z), valido)
         mapa = self.v15_mapa.exibicao()
+        # build l: posicao geral (mPlace) e na classe (colocacao entre os carros da mesma classe) para a numeracao do minimapa
+        pos_classe, vistos = {}, {}
+        for c in sorted(carros, key=lambda k: k["lugar"]):
+            r = c["classe"]["rotulo"]
+            vistos[r] = vistos.get(r, 0) + 1
+            pos_classe[c["id"]] = vistos[r]
         mapa["carros"] = [{"pct": (c["dist"] / comprimento) % 1.0, "numero": c["numero"], "cor": c["classe"]["cor"],
-                           "eu": bool(c["eu"])} for c in carros if comprimento > 300.0 and math.isfinite(c["dist"])]
+                           "eu": bool(c["eu"]), "pos": c["lugar"] or None, "pos_classe": pos_classe.get(c["id"])}
+                          for c in carros if comprimento > 300.0 and math.isfinite(c["dist"])]
         dados["mapa"] = mapa
         self._montar_v16(dados, scor, tele, info, carros, meu, comprimento, fase, agora, no_carro)
         # auxiliar de sessao
@@ -999,6 +1048,9 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
     janela_retorno = base.JanelaRetorno(config)
     janela_estrategia = base.JanelaEstrategia(config)
     janela_curvas = base.JanelaCurvas(config)
+    janela_consumo = base.JanelaConsumo(config)
+    janela_delta_trace = base.JanelaDeltaTrace(config)
+    janela_coach = base.JanelaCoach(config)
     janela_bandeiras = base.JanelaBandeiras(config)
     janela_trafego = base.JanelaTrafego(config)
     janela_minimapa = base.JanelaMinimapa(config)
@@ -1008,8 +1060,9 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
     telemetria.v12_retorno.definir_limites(config.get("retorno_pare", 1.5), config.get("retorno_ceda", 3.5))
     janelas = [janela_telemetria, janela_voltas, janela_classificacao, janela_clima, janela_combustivel, janela_forca_g,
                janela_energia, janela_pneus, janela_danos, janela_alertas, janela_stints, janela_tendencia,
-               janela_luz_abs, janela_luz_tc, janela_retorno, janela_estrategia, janela_curvas,
-               janela_bandeiras, janela_trafego, janela_minimapa, janela_auxiliar, janela_contato, janela_pit]
+               janela_luz_abs, janela_luz_tc, janela_retorno, janela_estrategia, janela_curvas, janela_coach,
+               janela_bandeiras, janela_trafego, janela_minimapa, janela_auxiliar, janela_contato, janela_pit,
+               janela_consumo, janela_delta_trace]
     for j in janelas:
         j.setWindowTitle("Overlay " + NOME_JOGO)
     visib = base.VisibilidadeAuto(bool(config.get("auto_modo", True)) and not DEMO)
@@ -1260,7 +1313,10 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
     adicionar("Mostrar Estrategia de pneus (chuva x seco)", config["mostrar_estrategia"], alternar_janela(janela_estrategia), chave="mostrar_estrategia")
     adicionar("   Estrategia: pulsar quando for hora de trocar", config["estrategia_pulsar"], ao_flag("estrategia_pulsar"),
               chave="estrategia_pulsar")
+    adicionar("Mostrar Coach (onde frear, marcha e velocidade-alvo)", config["mostrar_coach"], alternar_janela(janela_coach), chave="mostrar_coach")
     adicionar("Mostrar Curvas (velocidade minima x melhor passagem)", config["mostrar_curvas"], alternar_janela(janela_curvas), chave="mostrar_curvas")
+    adicionar("Mostrar Consumo por trecho (Burn Zones e Fuel Flow)", config["mostrar_consumo"], alternar_janela(janela_consumo), chave="mostrar_consumo")
+    adicionar("Mostrar Delta Trace (tempo ganho/perdido ao longo da volta)", config["mostrar_delta_trace"], alternar_janela(janela_delta_trace), chave="mostrar_delta_trace")
     adicionar("Mostrar Bandeiras (so aparece com bandeira)", config["mostrar_bandeiras"], alternar_janela(janela_bandeiras), chave="mostrar_bandeiras")
     adicionar("Mostrar Trafego de outras classes (so com carro por perto)", config["mostrar_trafego"], alternar_janela(janela_trafego), chave="mostrar_trafego")
     adicionar("Mostrar Minimapa rotativo", config["mostrar_minimapa"], alternar_janela(janela_minimapa), chave="mostrar_minimapa")
@@ -1282,6 +1338,14 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
     acao_zerar_curvas = QAction("   Curvas: reiniciar o aprendizado desta pista", menu)
     acao_zerar_curvas.triggered.connect(lambda: telemetria.v14_curvas.resetar())
     menu.addAction(acao_zerar_curvas)
+    base.montar_menu_coach(menu, telemetria, config)
+
+    def aplicar_backup():
+        base.definir_tema(config.get("tema_moderno", True), config.get("opacidade_fundo", 0.80), config.get("tema_sport", False), config.get("tema_vidro", True))
+        for j in janelas:
+            j.recarregar_layout()
+    base.montar_menu_backup(menu, config, "lmu", "1.7.0", aplicar_backup)
+    base.montar_menu_amigos(menu, config)
     menu.addSeparator()
     adicionar("Visual moderno (desmarque para voltar ao visual classico)", config["tema_moderno"],
               guardar("tema_moderno", ao_tema))
@@ -1386,7 +1450,10 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
     central = base.montar_central(app, bandeja, menu, janelas, acao_por_chave, config, acao_sair, NOME_JOGO,
                                   lambda: TelemetriaLMU(demo=True), {
                                       "opacidade": ao_opacidade, "restaurar": ao_restaurar_tamanhos,
-                                      "salvar": lambda: base.salvar_config(config), "alcance_minimapa": trocar_raio})
+                                      "salvar": lambda: base.salvar_config(config), "alcance_minimapa": trocar_raio,
+                                      "importar_volante": base.importar_imagem_volante,
+                                      "remover_volante": base.remover_imagem_volante,
+                                      "registrar_erro": base.registrar_erro})
     bandeja.show()
     if config.get("teclas_globais", True):
         iniciar_teclas()

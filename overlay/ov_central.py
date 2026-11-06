@@ -11,8 +11,9 @@ from pathlib import Path
 
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QIcon, QImage, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap
-from PySide6.QtWidgets import (QAbstractButton, QButtonGroup, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit,
-                               QPushButton, QRadioButton, QScrollArea, QSlider, QStackedWidget, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QAbstractButton, QButtonGroup, QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
+                               QLineEdit, QMessageBox, QPushButton, QRadioButton, QScrollArea, QSizePolicy, QSlider,
+                               QStackedWidget, QVBoxLayout, QWidget)
 
 MARCA_DIR = (Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent) / "marca"      # logo e fundo da WolfxRacing (opcionais)
 ACENTO = "#ec1c24"                                         # vermelho da logo
@@ -42,6 +43,7 @@ PAINEIS = {
     "retorno": ("Retorno à pista", "PARE / CEDA / LIVRE ao voltar para a pista.", "Automáticos", [], "Aparece sozinho quando você está fora da pista."),
     "estrategia": ("Estratégia de pneus", "Chuva x seco: quando vale trocar.", "Corrida",
                    [("estrategia_pulsar", "Pulsar na hora de trocar")], ""),
+    "coach": ("Coach ao vivo", "Onde frear, marcha e velocidade no ápice, contra a sua melhor volta (ou uma importada).", "Pilotagem", [], "Grava sozinho a sua primeira volta limpa em cada pista e carro."),
     "curvas": ("Velocidade nas curvas", "Velocidade mínima em cada curva contra a sua melhor passagem.", "Pilotagem", [], ""),
     "bandeiras": ("Bandeiras", "Bandeira da pista: amarela, azul, branca, quadriculada e outras.", "Automáticos", [],
                   "Aparece sozinha só quando há bandeira."),
@@ -56,6 +58,10 @@ PAINEIS = {
             [("pit_sempre", "Mostrar sempre perto da entrada")], "Aparece com parada pedida (ou sempre, se ligar a opção). A entrada é aprendida na 1ª vez que você entra."),
     "tendencia": ("Tendência de ritmo", "Últimas voltas limpas, ritmo médio, inclinação do stint e previsão da próxima volta.", "Corrida", [],
                   "Precisa de voltas limpas (sem boxes nem bandeira de perigo); a inclinação (~) aparece com 4 voltas no stint."),
+    "consumo": ("Consumo por trecho", "Fuel Flow e Burn Zones: consumo agora, por volta e os trechos de maior consumo da pista (indicativo; nao estima economia).", "Carro", [],
+                "Precisa de 3 voltas limpas (sem box nem reabastecer) para mapear os trechos. É indicativo: não calcula economia em litros."),
+    "delta_trace": ("Delta Trace", "Tempo ganho ou perdido ao longo da volta contra a melhor volta limpa da sessão.", "Pilotagem", [],
+                    "Precisa de uma volta limpa completa (sem box) para criar a referência. Ganhar tempo sobe (verde); perder desce (vermelho)."),
     "lmu_energia": ("Energia e combustível (LMU)", "Energia virtual, consumo por volta e voltas até o fim.", "Carro", [], ""),
     "lmu_alertas": ("Alertas na pista (LMU)", "Amarelas, limite dos boxes e classe rápida chegando.", "Automáticos", [], ""),
     "lmu_stints": ("Stints (LMU)", "Histórico de stints: voltas, energia e combustível.", "Corrida", [], ""),
@@ -130,10 +136,14 @@ class Interruptor(QAbstractButton):
 class Miniatura(QLabel):
     """Imagem da janela (prévia) sobre fundo xadrez escuro."""
 
-    def __init__(self, largura, altura, parent=None):
+    def __init__(self, largura, altura, parent=None, flexivel=False):
         super().__init__(parent)
         self._lw, self._lh = largura, altura
-        self.setFixedSize(largura, altura)
+        if flexivel:                                  # build l: a previa ocupa o espaco que a janela der (nao corta nem sobra)
+            self.setMinimumSize(360, 260)
+            self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        else:
+            self.setFixedSize(largura, altura)
         self.setAlignment(Qt.AlignCenter)
         self._pix = None
 
@@ -149,6 +159,7 @@ class Miniatura(QLabel):
         p.drawRoundedRect(self.rect(), 5, 5)
         passo = 12
         p.setBrush(QColor("#111116"))
+        self._lw, self._lh = self.width(), self.height()
         for i in range(0, self._lw, passo):
             for j in range(0, self._lh, passo):
                 if (i // passo + j // passo) % 2 == 0:
@@ -225,6 +236,7 @@ class Central(QWidget):
         self.acoes, self.config, self.g = acoes, config, ganchos
         self.fonte_demo, self.criar_previa = fonte_demo, criar_previa
         self._previas, self._dados_demo, self._t_demo = {}, None, 0.0
+        self._erros_previa = set()
         self._cartoes, self._categoria, self._filtro = {}, "Todos", ""
         self._atual = None
         self._sync = []                                   # (interruptor, getter) a atualizar com o estado real
@@ -252,6 +264,8 @@ class Central(QWidget):
             self.paginas.addWidget(pg)
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._ciclo)
+        self._timer_previa = QTimer(self)                       # build t: a previa do painel aberto atualiza ~8x por segundo
+        self._timer_previa.timeout.connect(self._ciclo_previa)
         self.ir_para("inicio")
 
     def paintEvent(self, _e):
@@ -558,6 +572,17 @@ class Central(QWidget):
         self.det_escala.valueChanged.connect(self._ao_escala)
         be.addWidget(self.det_escala)
         esq.addWidget(bloco_escala)
+        bloco_op = QFrame()
+        bloco_op.setObjectName("bloco")
+        bo = QVBoxLayout(bloco_op)
+        bo.setContentsMargins(14, 10, 14, 12)
+        self.det_lb_op = QLabel("Opacidade do fundo: geral")
+        bo.addWidget(self.det_lb_op)
+        self.det_op = QSlider(Qt.Horizontal)
+        self.det_op.setRange(0, 100)                      # 0 = usa a opacidade geral; 20..100 = propria deste painel
+        self.det_op.valueChanged.connect(self._ao_opacidade_painel)
+        bo.addWidget(self.det_op)
+        esq.addWidget(bloco_op)
         self.det_extras = QVBoxLayout()
         esq.addLayout(self.det_extras)
         rest = QPushButton("Restaurar tamanho (100%)")
@@ -567,14 +592,15 @@ class Central(QWidget):
         esq.addStretch(1)
         ce = QWidget()
         ce.setLayout(esq)
-        ce.setFixedWidth(380)
-        corpo.addWidget(ce)
+        rol = self._rolagem(ce)                                 # build l: com as opcoes do painel a coluna pode passar da altura
+        rol.setFixedWidth(404)
+        corpo.addWidget(rol)
         dir_ = QVBoxLayout()
         h = QLabel("PRÉVIA AO VIVO")
         h.setObjectName("h2")
         dir_.addWidget(h)
-        self.det_previa = Miniatura(560, 360)
-        dir_.addWidget(self.det_previa)
+        self.det_previa = Miniatura(560, 360, flexivel=True)
+        dir_.addWidget(self.det_previa, 10)
         n = QLabel("Prévia com dados de exemplo. Com o jogo aberto, o painel mostra os dados reais.")
         n.setObjectName("mudo")
         n.setWordWrap(True)
@@ -597,9 +623,15 @@ class Central(QWidget):
         self.det_escala.setValue(int(round(j.escala * 100)))
         self.det_escala.blockSignals(False)
         self.det_lb_escala.setText(f"Tamanho: {int(round(j.escala * 100))}%")
+        op = (self.config.get("opacidade_painel") or {}).get(chave)
+        self.det_op.blockSignals(True)
+        self.det_op.setValue(0 if op is None else int(round(float(op) * 100)))
+        self.det_op.blockSignals(False)
+        self.det_lb_op.setText("Opacidade do fundo: geral" if op is None else f"Opacidade do fundo: {int(round(float(op) * 100))}%")
         while self.det_extras.count():
             it = self.det_extras.takeAt(0)
             if it.widget():
+                it.widget().hide()                             # some na hora; o deleteLater so roda no proximo ciclo de eventos
                 it.widget().deleteLater()
         self._sync = [(i, g) for (i, g) in self._sync if getattr(i, "_fixo", False)]
         for chave_acao, rotulo in extras:
@@ -613,8 +645,412 @@ class Central(QWidget):
             b.clicked.connect(lambda: (self.g["alcance_minimapa"](), b.setText(
                 f"Alcance do minimapa: {int(self.config.get('minimapa_raio', 260))} m (clique para trocar)")))
             self.det_extras.addWidget(b)
+        self._opcoes_painel(chave, j)
         self._atual = chave
         self.ir_para("detalhe")
+
+    # ---------------------------------------------------------------- opcoes proprias de cada painel (build l)
+    # Toda mudanca vale NA HORA: grava no config, repinta a janela real e a previa, e a previa e redesenhada na mesma hora
+    # (sem esperar o ciclo de 500 ms), para o piloto ver o resultado enquanto mexe.
+    def _opcoes_painel(self, chave, j):
+        self._previa(chave)                                    # cria a previa agora (ela compartilha o dicionario de colunas)
+        if chave == "classificacao":
+            self._bloco_colunas(chave, j)
+        elif chave == "minimapa":
+            self._bloco_numeracao(chave)
+        elif chave == "delta_trace":
+            self._bloco_layout_delta(chave)
+            self._bloco_elementos(chave, j)
+        elif chave == "principal" and self.g.get("importar_volante"):
+            self._bloco_volante(chave)
+        if chave not in ("classificacao", "minimapa", "delta_trace") and getattr(type(j), "ELEMENTOS", ()):
+            self._bloco_elementos(chave, j)                       # build u: elementos liga/desliga em qualquer painel que os declare
+
+    def _titulo_bloco(self, texto):
+        h = QLabel(texto)
+        h.setObjectName("h2")
+        self.det_extras.addSpacing(6)
+        self.det_extras.addWidget(h)
+
+    def _cfg_painel(self, chave, nome, valor):
+        """Grava a opcao no config real e na copia usada pela previa."""
+        self.config[nome] = valor
+        p = self._previas.get(chave)
+        if p is not None:
+            p.config[nome] = valor
+
+    def _registrar_erro(self, contexto):
+        """Erro dentro de um tratamento de excecao: vai para o overlay_log.txt (gancho 'registrar_erro'); sem gancho, para o stderr.
+        Nunca levanta: a Central continua funcionando."""
+        try:
+            gancho = self.g.get("registrar_erro")
+            if gancho:
+                gancho(contexto)
+                return
+        except Exception:
+            pass
+        try:
+            import traceback
+            sys.stderr.write(contexto + "\n" + traceback.format_exc() + "\n")
+        except Exception:
+            pass
+
+    def _aplicar_opcao(self, chave):
+        for w in (self._janela(chave), self._previas.get(chave)):
+            if w is not None:
+                try:
+                    w.opcoes_mudaram()
+                except Exception:
+                    self._registrar_erro("Central: opcoes_mudaram() falhou no painel '%s' (%s)" % (chave, type(w).__name__))
+        if self.g.get("salvar"):
+            self.g["salvar"]()
+        if self._atual == chave or self._atual is None:
+            self.det_previa.definir(self._grab(chave))        # a previa muda imediatamente
+
+    def _definir_opcao(self, chave, nome, valor):
+        self._cfg_painel(chave, nome, valor)
+        self._aplicar_opcao(chave)
+
+    # -- Classificacao: colunas
+    def _bloco_colunas(self, chave, j):
+        grupos = getattr(type(j), "GRUPOS", None)
+        if not grupos:
+            n = QLabel("As colunas personalizáveis valem para o layout padrão da Classificação.")
+            n.setObjectName("mudo")
+            n.setWordWrap(True)
+            self.det_extras.addWidget(n)
+            return
+        self._titulo_bloco("COLUNAS DA CLASSIFICAÇÃO")
+        dic = self.config.get("classif_colunas")
+        if not isinstance(dic, dict):
+            dic = self.config["classif_colunas"] = {}
+            p = self._previas.get(chave)
+            if p is not None:
+                p.config["classif_colunas"] = dic
+        dica = QLabel("Ligue ou desligue cada coluna e use as setas para mudar a ordem. A prévia ao lado muda na hora.")
+        dica.setObjectName("mudo")
+        dica.setWordWrap(True)
+        self.det_extras.addWidget(dica)
+        self._lista_cols = QVBoxLayout()
+        self._lista_cols.setSpacing(6)
+        cont = QWidget()
+        cont.setLayout(self._lista_cols)
+        self.det_extras.addWidget(cont)
+        self._montar_lista_colunas(chave, j)
+        linha = QHBoxLayout()
+        b1 = QPushButton("Mostrar todas as colunas")
+        b1.setObjectName("acao")
+        b1.clicked.connect(lambda: self._todas_colunas(chave))
+        b2 = QPushButton("Ordem original")
+        b2.setObjectName("acao")
+        b2.clicked.connect(lambda: self._ordem_original(chave, j))
+        linha.addWidget(b1)
+        linha.addWidget(b2)
+        linha.addStretch(1)
+        cx = QWidget()
+        cx.setLayout(linha)
+        self.det_extras.addWidget(cx)
+        self._bloco_cabecalho(chave, j)
+
+    def _montar_lista_colunas(self, chave, j):
+        """(Re)constroi as linhas das colunas na ordem atual: nome, setas para cima/baixo e o liga/desliga."""
+        lista = self._lista_cols
+        while lista.count():
+            it = lista.takeAt(0)
+            if it.widget():
+                it.widget().hide()
+                it.widget().deleteLater()
+        dic = self.config.get("classif_colunas") if isinstance(self.config.get("classif_colunas"), dict) else {}
+        nomes = {g: r for g, r, _k in type(j).GRUPOS}
+        fixas = getattr(type(j), "FIXAS", ())
+        ordem = list(j._ordem(self.config))
+        self._interruptores_colunas = {}
+        for n, gid in enumerate(ordem):
+            i = Interruptor(dic.get(gid, True) is not False or gid in fixas)
+            i.setEnabled(gid not in fixas)
+            i.toggled.connect(lambda v, g=gid: self._ao_coluna(chave, g, v))
+            self._interruptores_colunas[gid] = i
+            f = QFrame()
+            f.setObjectName("bloco")
+            h = QHBoxLayout(f)
+            h.setContentsMargins(14, 6, 14, 6)
+            nome = QLabel(nomes[gid] + ("  (sempre visível)" if gid in fixas else ""))
+            nome.setWordWrap(True)
+            h.addWidget(nome, 1)
+            for texto, passo, ativo in (("▲", -1, n > 0), ("▼", 1, n < len(ordem) - 1)):
+                bt = QPushButton(texto)
+                bt.setObjectName("acao")
+                bt.setFixedSize(34, 30)
+                bt.setStyleSheet("padding: 0px; font-size: 11px;")
+                bt.setEnabled(ativo)
+                bt.setToolTip("Mover para a esquerda" if passo < 0 else "Mover para a direita")
+                bt.clicked.connect(lambda _=False, g=gid, p_=passo: self._mover_coluna(chave, j, g, p_))
+                h.addWidget(bt)
+            h.addWidget(i)
+            lista.addWidget(f)
+
+    def _mover_coluna(self, chave, j, gid, passo):
+        ordem = list(j._ordem(self.config))
+        k = ordem.index(gid)
+        novo = k + passo
+        if not 0 <= novo < len(ordem):
+            return
+        ordem[k], ordem[novo] = ordem[novo], ordem[k]
+        self._cfg_painel(chave, "classif_ordem", ordem)
+        self._montar_lista_colunas(chave, j)
+        self._aplicar_opcao(chave)
+
+    def _ordem_original(self, chave, j):
+        self._cfg_painel(chave, "classif_ordem", [])
+        self._montar_lista_colunas(chave, j)
+        self._aplicar_opcao(chave)
+
+    def _bloco_cabecalho(self, chave, j):
+        itens = getattr(type(j), "CABECALHO", ())
+        if not itens:
+            return
+        self._titulo_bloco("CABEÇALHO DA CLASSIFICAÇÃO")
+        cfg = self.config.get("classif_cabecalho")
+        cfg = cfg if isinstance(cfg, dict) else {}
+        self._interruptores_cab = {}
+        for iid, rotulo in itens:
+            i = Interruptor(cfg.get(iid, True) is not False)
+            i.toggled.connect(lambda v, k=iid: self._ao_cabecalho(chave, k, v))
+            self._interruptores_cab[iid] = i
+            self.det_extras.addWidget(self._linha_opcao(rotulo, i))
+        b = QPushButton("Mostrar todo o cabeçalho")
+        b.setObjectName("acao")
+        b.clicked.connect(lambda: self._todo_cabecalho(chave))
+        self.det_extras.addWidget(b, 0, Qt.AlignLeft)
+
+    def _ao_cabecalho(self, chave, iid, ligado):
+        cfg = dict(self.config.get("classif_cabecalho") if isinstance(self.config.get("classif_cabecalho"), dict) else {})
+        if ligado:
+            cfg.pop(iid, None)
+        else:
+            cfg[iid] = False
+        self._cfg_painel(chave, "classif_cabecalho", cfg)
+        self._aplicar_opcao(chave)
+
+    def _todo_cabecalho(self, chave):
+        self._cfg_painel(chave, "classif_cabecalho", {})
+        for i in getattr(self, "_interruptores_cab", {}).values():
+            i.definir(True)
+        self._aplicar_opcao(chave)
+
+    def _ao_coluna(self, chave, gid, ligada):
+        dic = self.config.get("classif_colunas")
+        if not isinstance(dic, dict):
+            dic = self.config["classif_colunas"] = {}
+        if ligada:
+            dic.pop(gid, None)
+        else:
+            dic[gid] = False
+        p = self._previas.get(chave)
+        if p is not None and p.config.get("classif_colunas") is not dic:
+            p.config["classif_colunas"] = dic
+        self._aplicar_opcao(chave)
+
+    def _todas_colunas(self, chave):
+        dic = self.config.get("classif_colunas")
+        if isinstance(dic, dict):
+            dic.clear()
+        for i in getattr(self, "_interruptores_colunas", {}).values():
+            i.definir(True)
+        self._aplicar_opcao(chave)
+
+    # -- Minimapa: numeracao dos pilotos
+    def _bloco_numeracao(self, chave):
+        self._titulo_bloco("NUMERAÇÃO DOS PILOTOS")
+        quadro = QFrame()
+        quadro.setObjectName("bloco")
+        lay = QVBoxLayout(quadro)
+        lay.setContentsMargins(14, 10, 14, 12)
+        t = QLabel("Posição escrita dentro da bolinha de cada carro")
+        lay.addWidget(t)
+        linha = QHBoxLayout()
+        atual = str(self.config.get("minimapa_numeros", "classe")).lower()
+        atual = atual if atual in ("classe", "geral") else "off"
+        grupo = QButtonGroup(quadro)
+        grupo.setExclusive(True)
+        self._chips_numeracao = {}
+        for valor, rotulo in (("off", "Desligada"), ("classe", "Posição na classe"), ("geral", "Posição geral")):
+            b = QPushButton(rotulo)
+            b.setObjectName("chip")
+            b.setCheckable(True)
+            b.setChecked(valor == atual)
+            b.setStyleSheet("padding: 6px 8px;")
+            grupo.addButton(b)
+            b.clicked.connect(lambda _=False, v=valor: self._definir_opcao(chave, "minimapa_numeros", v))
+            self._chips_numeracao[valor] = b
+            linha.addWidget(b)
+        lay.addLayout(linha)
+        dica = QLabel("Em corrida multiclasse, “na classe” mostra a sua colocação dentro de cada classe.")
+        dica.setObjectName("mudo")
+        dica.setWordWrap(True)
+        lay.addWidget(dica)
+        self.det_extras.addWidget(quadro)
+
+    # -- Delta Trace: layout do painel (build r)
+    def _bloco_layout_delta(self, chave):
+        self._titulo_bloco("LAYOUT DO PAINEL")
+        quadro = QFrame()
+        quadro.setObjectName("bloco")
+        lay = QVBoxLayout(quadro)
+        lay.setContentsMargins(14, 10, 14, 12)
+        lay.addWidget(QLabel("Como o delta é desenhado"))
+        linha = QHBoxLayout()
+        atual = str(self.config.get("delta_trace_layout", "grafico")).lower()
+        atual = atual if atual in ("grafico", "racelab") else "grafico"
+        grupo = QButtonGroup(quadro)
+        grupo.setExclusive(True)
+        self._chips_layout_delta = {}
+        for valor, rotulo in (("grafico", "Gráfico ao longo da volta"), ("racelab", "Estilo RaceLab (número grande + barra)")):
+            b = QPushButton(rotulo)
+            b.setObjectName("chip")
+            b.setCheckable(True)
+            b.setChecked(valor == atual)
+            b.setStyleSheet("padding: 6px 8px;")
+            grupo.addButton(b)
+            b.clicked.connect(lambda _=False, v=valor: self._definir_opcao(chave, "delta_trace_layout", v))
+            self._chips_layout_delta[valor] = b
+            linha.addWidget(b)
+        lay.addLayout(linha)
+        dica = QLabel("Os blocos por curva e o desenho da pista aparecem nos dois layouts.")
+        dica.setObjectName("mudo")
+        dica.setWordWrap(True)
+        lay.addWidget(dica)
+        self.det_extras.addWidget(quadro)
+
+    # -- Delta Trace: elementos do painel (build r), no mesmo esquema das colunas da Classificacao
+    def _bloco_elementos(self, chave, j):
+        """Elementos liga/desliga do painel (build u; nasceu no Delta Trace, build r). Vale para qualquer janela que declare ELEMENTOS:
+        a janela real e a previa mudam na hora e, onde houver secoes, a janela encolhe junto."""
+        elementos = getattr(type(j), "ELEMENTOS", ())
+        if not elementos:
+            return
+        titulo = PAINEIS.get(chave, (chave,))[0]
+        self._titulo_bloco("ELEMENTOS: " + titulo.upper())
+        dica = QLabel("Ligue ou desligue cada elemento. A prévia ao lado e a janela mudam na hora (a janela encolhe junto).")
+        dica.setObjectName("mudo")
+        dica.setWordWrap(True)
+        self.det_extras.addWidget(dica)
+        chave_cfg = j._chave_elementos()
+        cfg = self.config.get(chave_cfg)
+        cfg = cfg if isinstance(cfg, dict) else {}
+        self._interruptores_delta = {}
+        for eid, rotulo in elementos:
+            i = Interruptor(cfg.get(eid, True) is not False)
+            i.toggled.connect(lambda v, k=eid: self._ao_elemento(chave, k, v))
+            self._interruptores_delta[eid] = i
+            self.det_extras.addWidget(self._linha_opcao(rotulo, i))
+        b = QPushButton("Mostrar todos os elementos")
+        b.setObjectName("acao")
+        b.clicked.connect(lambda: self._todos_elementos(chave))
+        self.det_extras.addWidget(b, 0, Qt.AlignLeft)
+
+    def _chave_cfg_elementos(self, chave):
+        j = self._janela(chave)
+        return j._chave_elementos() if j is not None else "elementos_" + chave
+
+    def _ao_elemento(self, chave, eid, ligado):
+        nome = self._chave_cfg_elementos(chave)
+        cfg = dict(self.config.get(nome) if isinstance(self.config.get(nome), dict) else {})
+        if ligado:
+            cfg.pop(eid, None)
+        else:
+            cfg[eid] = False
+        self._cfg_painel(chave, nome, cfg)
+        self._aplicar_opcao(chave)
+
+    def _todos_elementos(self, chave):
+        self._cfg_painel(chave, self._chave_cfg_elementos(chave), {})
+        for i in getattr(self, "_interruptores_delta", {}).values():
+            i.definir(True)
+        self._aplicar_opcao(chave)
+
+    # nomes da build r (os testes antigos e quem os chamava continuam funcionando)
+    _bloco_elementos_delta = _bloco_elementos
+    _ao_elemento_delta = _ao_elemento
+    _todos_elementos_delta = _todos_elementos
+
+    # -- Telemetria: imagem do volante
+    def _arquivo_volante(self):
+        """Janela de escolha do arquivo (separada para poder ser substituida nos testes)."""
+        caminho, _ = QFileDialog.getOpenFileName(self, "Escolher a imagem do volante", "",
+                                                 "Imagens (*.png *.jpg *.jpeg *.webp *.bmp)")
+        return caminho or None
+
+    def _bloco_volante(self, chave):
+        self._titulo_bloco("VOLANTE")
+        quadro = QFrame()
+        quadro.setObjectName("bloco")
+        lay = QVBoxLayout(quadro)
+        lay.setContentsMargins(14, 10, 14, 12)
+        self._lb_volante = QLabel("")
+        self._lb_volante.setWordWrap(True)
+        lay.addWidget(self._lb_volante)
+        linha = QHBoxLayout()
+        b1 = QPushButton("Escolher imagem…")
+        b1.setObjectName("acao")
+        b1.clicked.connect(lambda: self._ao_escolher_volante(chave))
+        self._bt_remover_volante = QPushButton("Voltar ao desenhado")
+        self._bt_remover_volante.setObjectName("acao")
+        self._bt_remover_volante.clicked.connect(lambda: self._ao_remover_volante(chave))
+        linha.addWidget(b1)
+        linha.addWidget(self._bt_remover_volante)
+        lay.addLayout(linha)
+        self._it_giro = Interruptor(bool(self.config.get("volante_imagem_giro", True)))
+        self._it_giro.toggled.connect(lambda v: self._definir_opcao(chave, "volante_imagem_giro", bool(v)))
+        lay.addWidget(self._linha_opcao("Girar a imagem com o volante", self._it_giro))
+        self._lb_tam_volante = QLabel("")
+        lay.addWidget(self._lb_tam_volante)
+        self._sl_tam_volante = QSlider(Qt.Horizontal)
+        self._sl_tam_volante.setRange(50, 200)
+        self._sl_tam_volante.setValue(int(self.config.get("volante_imagem_tamanho", 100) or 100))
+        self._sl_tam_volante.valueChanged.connect(lambda v: self._ao_tamanho_volante(chave, v))
+        lay.addWidget(self._sl_tam_volante)
+        nota = QLabel("Use um PNG com fundo transparente, de preferência com o volante visto de frente e o topo para cima. "
+                      "A imagem é copiada para a pasta do overlay (no máximo 512 px).")
+        nota.setObjectName("mudo")
+        nota.setWordWrap(True)
+        lay.addWidget(nota)
+        self.det_extras.addWidget(quadro)
+        self._estado_volante()
+
+    def _estado_volante(self):
+        tem = bool(self.config.get("volante_imagem"))
+        self._lb_volante.setText("Imagem do volante: " + (str(self.config.get("volante_imagem")).split("/")[-1] if tem
+                                                           else "volante desenhado (padrão)"))
+        self._bt_remover_volante.setEnabled(tem)
+        self._it_giro.setEnabled(tem)
+        self._sl_tam_volante.setEnabled(tem)
+        v = self._sl_tam_volante.value()
+        self._lb_tam_volante.setText(f"Tamanho da imagem: {v}%")
+
+    def _ao_escolher_volante(self, chave):
+        caminho = self._arquivo_volante()
+        if not caminho:
+            return
+        try:
+            rel = self.g["importar_volante"](caminho)
+        except ValueError as e:
+            QMessageBox.warning(self, "Volante", str(e))
+            return
+        self._cfg_painel(chave, "volante_imagem", rel)
+        self._estado_volante()
+        self._aplicar_opcao(chave)
+
+    def _ao_remover_volante(self, chave):
+        if self.g.get("remover_volante"):
+            self.g["remover_volante"]()
+        self._cfg_painel(chave, "volante_imagem", "")
+        self._estado_volante()
+        self._aplicar_opcao(chave)
+
+    def _ao_tamanho_volante(self, chave, valor):
+        self._lb_tam_volante.setText(f"Tamanho da imagem: {valor}%")
+        self._definir_opcao(chave, "volante_imagem_tamanho", int(valor))
 
     def _ao_escala(self, valor):
         if not self._atual:
@@ -627,6 +1063,25 @@ class Central(QWidget):
         p = self._previas.get(self._atual)
         if p is not None:
             p.definir_escala(valor / 100.0, salvar=False)
+
+    def _ao_opacidade_painel(self, valor):
+        """v1.7.0: opacidade do fundo so deste painel (0 = volta a usar a geral)."""
+        if not self._atual:
+            return
+        mapa = self.config.get("opacidade_painel")
+        if not isinstance(mapa, dict):
+            mapa = self.config["opacidade_painel"] = {}
+        if valor < 20:
+            mapa.pop(self._atual, None)
+            self.det_lb_op.setText("Opacidade do fundo: geral")
+        else:
+            mapa[self._atual] = valor / 100.0
+            self.det_lb_op.setText(f"Opacidade do fundo: {valor}%")
+        for j in (self._janela(self._atual), self._previas.get(self._atual)):
+            if j is not None:
+                j._repintar()
+        if self.g.get("salvar") and not self.det_op.isSliderDown():
+            self.g["salvar"]()
 
     def _pagina_aparencia(self):
         w, lay = self._pagina("Aparência e sistema", "Estilo das janelas e comportamento do overlay.")
@@ -758,6 +1213,7 @@ class Central(QWidget):
             try:
                 p = self.criar_previa(self._janela(chave))
             except Exception:
+                self._registrar_erro("Central: nao foi possivel criar a previa do painel '%s'" % chave)
                 p = False
             self._previas[chave] = p
         return p or None
@@ -788,6 +1244,16 @@ class Central(QWidget):
             for modo, r in self._radios.items():
                 r.setChecked(self.config.get("perfil_modo", "auto") == modo)
 
+    def _ciclo_previa(self):
+        """Previa ao vivo: so na pagina de um painel e com a Central visivel (os cartoes e o inicio seguem no ciclo de 500 ms)."""
+        if not self.isVisible() or self.paginas.currentIndex() != 2 or not self._atual:
+            return
+        try:
+            self._dados_demo = self.fonte_demo() if self.fonte_demo else None
+        except Exception:
+            self._dados_demo = None
+        self.det_previa.definir(self._grab(self._atual))
+
     def _atualizar_estado_leve(self):
         for chave, c in self._cartoes.items():
             j = self._janela(chave)
@@ -810,6 +1276,9 @@ class Central(QWidget):
             p.atualizar(self._dados_demo)
             return p.grab()
         except Exception:
+            if chave not in self._erros_previa:                  # build t: antes o erro era engolido e a previa ficava em branco
+                self._erros_previa.add(chave)
+                self._registrar_erro("Central: a previa do painel '%s' falhou ao desenhar" % chave)
             return None
 
     # ---------------------------------------------------------------- ciclo de vida
@@ -818,9 +1287,11 @@ class Central(QWidget):
         self.raise_()
         self.activateWindow()
         self._timer.start(500)
+        self._timer_previa.start(125)
         self._atualizar_tudo()
         self._ciclo(forcar=True)
 
     def closeEvent(self, e):
         self._timer.stop()
+        self._timer_previa.stop()
         e.accept()

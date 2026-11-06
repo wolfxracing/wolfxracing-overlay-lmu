@@ -788,6 +788,13 @@ ATALHOS = (
     AtalhoGlobal("janela_luz_tc", "Mostrar/ocultar luz do TC (estimada)", MODS_NOVAS, 14, "alternar", "mostrar_luz_tc"),
     AtalhoGlobal("janela_retorno", "Mostrar/ocultar retorno a pista", MODS_NOVAS, 15, "alternar", "mostrar_retorno"),
     AtalhoGlobal("janela_estrategia", "Mostrar/ocultar estrategia de pneus", MODS_NOVAS, 16, "alternar", "mostrar_estrategia"),
+    # 1.7.0: acrescentado NO FIM (os codigos dos atalhos antigos nao mudam)
+    AtalhoGlobal("pedir_pit", "Pit: PEDIR a entrada (sempre liga; serve para o botao 'Pitting In' do Stream Deck)", MODS_CONTROLES, 23, "chamar", "pedir_pit"),
+    AtalhoGlobal("cancelar_pit", "Pit: CANCELAR o pedido de entrada", MODS_CONTROLES, 24, "chamar", "cancelar_pit"),
+    # 1.7.0 build q: telas novas (Alt+F17..F19; Alt+F13..F16 sao as janelas da 1.3.0)
+    AtalhoGlobal("janela_consumo", "Mostrar/ocultar consumo por trecho (Burn Zones e Fuel Flow)", MODS_NOVAS, 17, "alternar", "mostrar_consumo"),
+    AtalhoGlobal("janela_delta_trace", "Mostrar/ocultar Delta Trace", MODS_NOVAS, 18, "alternar", "mostrar_delta_trace"),
+    AtalhoGlobal("janela_curvas", "Mostrar/ocultar Curvas (velocidade minima por curva)", MODS_NOVAS, 19, "alternar", "mostrar_curvas"),
 )
 TIPOS_ATALHO = ("alternar", "perfil", "chamar")
 

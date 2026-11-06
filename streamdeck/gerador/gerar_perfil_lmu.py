@@ -21,13 +21,13 @@ ACAO = {
     "ctrl_restaurar_tamanhos": ("tecla", "restaurar_tamanhos"), "ctrl_fechar": ("tecla", "sair"),
     "ctrl_iniciar": ("abrir", "iniciar_overlay_lmu.bat"), "ctrl_forcar_fechamento": ("abrir", "fechar_overlay_lmu.bat"),
     "sup_demo": ("abrir", "testar_demo_lmu.bat"), "sup_log": ("abrir", "overlay_log_lmu.txt"), "sup_pasta_overlay": ("abrir", ""),
-    "sup_pasta_suporte": ("pasta", ""), "sup_voltar": ("voltar", ""),
+    "sup_pasta_suporte": ("pasta", ""), "sup_telas_novas": ("pasta_telas", ""), "sup_voltar": ("voltar", ""),
     "sup_atalhos": ("abrir", "ATALHOS_STREAM_DECK_LMU.txt"), "sup_guia": ("abrir", "LEIA-ME_LMU.txt"),
     "sup_roteiro": ("abrir", "ROTEIRO_VALIDACAO_LMU.txt"), "sup_testes": ("abrir", "executar_testes_lmu.bat"),
     "sup_diagnostico": ("abrir", "diagnostico_lmu.bat"), "sup_ver_diagnostico": ("abrir", "diagnostico_lmu.txt"),
 }
 for n in ("telemetria", "voltas", "classificacao", "clima", "combustivel", "forca_g", "energia", "pneus", "danos", "alertas", "stints", "tendencia",
-          "luz_abs", "luz_tc", "retorno", "estrategia"):
+          "luz_abs", "luz_tc", "retorno", "estrategia", "consumo", "delta_trace", "curvas"):
     ACAO[f"janela_{n}"] = ("tecla", f"janela_{n}")
 
 
@@ -57,7 +57,7 @@ def a_voltar(img):
             "Resources": None, "Settings": {}, "State": 0, "States": [{"Image": img}], "UUID": "com.elgato.streamdeck.profile.backtoparent"}
 
 
-def pagina(lay, raiz, pid, arq, filha=None):
+def pagina(lay, raiz, pid, arq, filhas=None):
     acoes = {}
     for pos, ic in lay.items():                      # pos = "coluna,linha"
         tipo, alvo = ACAO[ic]
@@ -68,7 +68,8 @@ def pagina(lay, raiz, pid, arq, filha=None):
             atalho = at.atalho_lmu_por_id(alvo); assert atalho is not None, alvo; a = a_tecla(atalho, img)
         elif tipo == "nada": a = a_nada(img)
         elif tipo == "abrir": a = a_abrir(alvo, img)
-        elif tipo == "pasta": a = a_pasta(filha, img)
+        elif tipo == "pasta": a = a_pasta(filhas["suporte"], img)
+        elif tipo == "pasta_telas": a = a_pasta(filhas["telas"], img)
         else: a = a_voltar(img)
         acoes[pos] = a
     return {"Controllers": [{"Actions": acoes, "Type": "Keypad"}], "Icon": "", "Name": ""}
@@ -77,10 +78,11 @@ def pagina(lay, raiz, pid, arq, filha=None):
 def main():
     assert at.validar_atalhos_lmu() == [], at.validar_atalhos_lmu()
     random.seed(20261031)
-    prof, pg, padrao, filha = (str(uuid.uuid4()).upper() for _ in range(4))
+    prof, pg, padrao, filha, telas = (str(uuid.uuid4()).upper() for _ in range(5))
     raiz = f"Profiles/{prof}.sdProfile"; arq = {}
-    mp = pagina(LAY["principal"], raiz, pg, arq, filha)
+    mp = pagina(LAY["principal"], raiz, pg, arq, {"suporte": filha, "telas": telas})
     ms = pagina(LAY["suporte"], raiz, filha, arq)
+    mt = pagina(LAY["telas"], raiz, telas, arq)
     vazio = {"Controllers": [{"Actions": None, "Type": "Keypad"}], "Icon": "", "Name": ""}
     mprof = {"Device": {"Model": MODEL, "UUID": DEVICE_UUID}, "Name": NOME, "Pages": {"Current": pg.lower(), "Default": padrao.lower(), "Pages": [pg.lower()]}, "Version": "3.0"}
     pac = {"AppVersion": "7.4.2.22730", "DeviceModel": MODEL, "DeviceSettings": None, "FormatVersion": 1, "OSType": "Windows", "OSVersion": "10.0.26200",
@@ -91,7 +93,7 @@ def main():
     with zipfile.ZipFile(saida, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("package.json", dump(pac)); z.writestr(f"{raiz}/manifest.json", dump(mprof))
         z.writestr(f"{raiz}/Profiles/{padrao}/manifest.json", dump(vazio))
-        z.writestr(f"{raiz}/Profiles/{pg}/manifest.json", dump(mp)); z.writestr(f"{raiz}/Profiles/{filha}/manifest.json", dump(ms))
+        z.writestr(f"{raiz}/Profiles/{pg}/manifest.json", dump(mp)); z.writestr(f"{raiz}/Profiles/{filha}/manifest.json", dump(ms)); z.writestr(f"{raiz}/Profiles/{telas}/manifest.json", dump(mt))
         for p, b in arq.items(): z.writestr(p, b)
     print(saida)
 

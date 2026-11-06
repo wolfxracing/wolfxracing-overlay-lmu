@@ -88,7 +88,7 @@ confere(t._base_largada([2, 1, 3, 4]) == {0: 2, 1: 1, 2: 3, 3: 4}, "overlay aber
 estado2["SessionNum"] = 4
 confere(t._base_largada([4, 3, 2, 1]) == {0: 4, 1: 3, 2: 2, 3: 1}, "sessao nova: base zerada")
 conf = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "overlay_iracing.py"), encoding="utf-8").read()
-confere('"overlay": "1.6.3' in conf, "versao 1.6.3")
+confere('VERSAO_PRODUTO = "1.7.0"' in conf and '"overlay": f"{VERSAO_PRODUTO}' in conf, "versao 1.7.0 (constante VERSAO_PRODUTO)")
 print()
 print("TODOS OS TESTES DA 1.4.2 PASSARAM" if not falhas else f"{len(falhas)} FALHA(S)")
 sys.exit(1 if falhas else 0)

@@ -82,37 +82,55 @@ class PitEntrada:
     DECEL = 12.0                    # m/s2 (~1,2 g) usado para a distancia de frenagem: ESTIMATIVA
     ALCANCE_M = 700.0               # comeca a mostrar a ate esta distancia da entrada
 
+    VEL_MIN_APRENDER = 10.0         # m/s: a entrada so e aprendida entrando de verdade, andando (nao ao nascer no box)
+    ENTRADA_ATE_BOX_M = 1500.0      # a entrada fica ate isto ANTES do box (a pit lane tem esse tamanho, no maximo)
+
     def __init__(self, entradas=None):
         self.entradas = dict(entradas or {})      # chave da pista -> fracao da volta da entrada
         self._ant_pit = None
         self._ant_pct = None
+        self._ant_v = None
+        self._ant_sup = None
+        self.pedido = False                        # 1.7.0: pedido de entrada feito por voce (atalho) - liga a janela
         self.mudou = False                         # o chamador salva o arquivo quando for True
 
     def entrada(self, chave):
         v = self.entradas.get(chave)
         return float(v) if v is not None else None
 
-    def _aprender(self, chave, pct_antes):
-        # entrada = ponto onde "na pit lane" ligou; usa o pct do quadro anterior se existir (mais perto da linha)
+    def alternar_pedido(self):
+        self.pedido = not self.pedido
+        return self.pedido
+
+    def _aprender(self, chave, pct_antes, pct_box=None, comprimento=None):
+        # entrada = ponto onde "na pit lane" ligou; usa o pct do quadro anterior (mais perto da linha)
         if chave is None or pct_antes is None:
             return
+        if pct_box is not None and comprimento:
+            d_box = _delta_pct(pct_antes, pct_box) * comprimento
+            if not (0.0 < d_box <= self.ENTRADA_ATE_BOX_M):       # entrada tem que vir ANTES do box
+                return
         antigo = self.entradas.get(chave)
         if antigo is None or abs(_delta_pct(antigo, pct_antes)) > 0.002:
             self.entradas[chave] = round(pct_antes % 1.0, 5)
             self.mudou = True
 
     def atualizar(self, chave, na_pit_lane, pct, comprimento, v_ms, limite_kmh, pct_box=None, quer_parar=False,
-                  sempre=False):
-        """Retorna dict {"fase","dist","luz","vel","limite","freio_m","dist_box"} ou None (nada a mostrar)."""
-        ant_pit, ant_pct = self._ant_pit, self._ant_pct
-        self._ant_pit, self._ant_pct = bool(na_pit_lane), pct
+                  sempre=False, superficie=None):
+        """Retorna dict {"fase","dist","luz","vel","limite","freio_m","dist_box"} ou None (nada a mostrar).
+
+        quer_parar: pedido de entrada (iRacing: atalho; LMU: estado de pit do jogo). A entrada so e aprendida quando o
+        carro vinha andando (>= 36 km/h) pela pista (superficie 3 no iRacing) e entra na pit lane."""
+        ant_pit, ant_pct, ant_v, ant_sup = self._ant_pit, self._ant_pct, self._ant_v, self._ant_sup
+        self._ant_pit, self._ant_pct, self._ant_v, self._ant_sup = bool(na_pit_lane), pct, (v_ms or 0.0), superficie
         if pct is None or not comprimento or comprimento < 300.0:
             return None
         kmh = (v_ms or 0.0) * 3.6
         lim = float(limite_kmh) if limite_kmh and 10.0 < limite_kmh < 200.0 else None
         if na_pit_lane:
-            if ant_pit is False:
-                self._aprender(chave, ant_pct)
+            if ant_pit is False and (ant_v or 0.0) >= self.VEL_MIN_APRENDER and ant_sup in (None, 3):
+                self._aprender(chave, ant_pct, pct_box, comprimento)
+            self.pedido = False                       # ja entrou: o pedido foi atendido
             luz, excesso = "verde", None
             if lim is not None:
                 excesso = kmh - lim

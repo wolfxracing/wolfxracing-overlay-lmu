@@ -49,6 +49,17 @@ Isso cria `...\_ajustado.streamDeckProfile` com o seu caminho; importe esse arqu
 | `Alt+Shift+F23` | Mostrar/ocultar retorno à pista |
 | `Alt+Shift+F24` | Mostrar/ocultar estratégia de pneus |
 
+
+### Telas novas (build q)
+
+| Atalho | Ação |
+|---|---|
+| `Alt+F21` | Mostrar/ocultar Consumo |
+| `Alt+F22` | Mostrar/ocultar Delta Trace |
+| `Alt+F23` | Mostrar/ocultar Janela de curvas |
+
+No perfil, a página principal ganhou o botão **Telas novas** (posição 3,2) que abre a pasta com os três botões acima (e *Voltar* em 0,0). Perfil validado estruturalmente; **ainda não testado no aplicativo Stream Deck real**.
+
 - A lista é gerada a partir da tabela `ATALHOS_LMU` de `overlay/ov_atalhos_lmu.py`. As combinações são **diferentes** das do overlay de iRacing, então os dois perfis convivem sem colisão. O LMU não tem perfis Treino/Classificação/Corrida.
 - Os atalhos só funcionam com o **overlay aberto** e funcionam com o jogo em primeiro plano.
 - Se uma combinação já for usada por outro programa, o overlay avisa na bandeja e registra no log quais atalhos não foram registrados; os demais continuam funcionando.

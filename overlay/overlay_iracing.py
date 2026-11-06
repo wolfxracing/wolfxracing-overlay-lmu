@@ -39,6 +39,7 @@ import math
 import os
 import re
 import sys
+import threading
 import time
 import traceback
 import unicodedata
@@ -67,13 +68,41 @@ except ImportError:                       # pacote incompleto: avisa em vez de f
 
 try:
     import ov_curvas as curvas_mod        # v1.4.0: velocidade minima por curva (sem Qt e sem SDK)
+    import ov_onda1 as ons1               # build o: consumo por trecho (Burn Zones / Fuel Flow) e Delta Trace (logica pura)
 except ImportError:
-    _msg14 = "Falta o arquivo 'ov_curvas.py' na pasta do overlay. Copie TODOS os arquivos do pacote para a mesma pasta."
+    _msg14 = "Falta o arquivo 'ov_curvas.py' ou 'ov_onda1.py' na pasta do overlay. Copie TODOS os arquivos do pacote para a mesma pasta."
     try:
         import ctypes
         ctypes.windll.user32.MessageBoxW(0, _msg14, "Overlay iRacing", 0x10)
     except Exception:
         print(_msg14)
+    sys.exit(1)
+
+try:
+    import ov_coach as coach_mod          # v1.7.0: coach ao vivo (logica pura)
+except ImportError:
+    _msg17 = "Falta o arquivo 'ov_coach.py' na pasta do overlay. Copie TODOS os arquivos do pacote para a mesma pasta."
+    try:
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(0, _msg17, "Overlay iRacing", 0x10)
+    except Exception:
+        print(_msg17)
+    sys.exit(1)
+
+try:
+    import ov_coach_ritmo as coach_ritmo_mod     # v1.7.0: resumo de stint e coach de ritmo (logica pura)
+    import ov_voz as voz_mod                     # v1.7.0: decisao das falas e voz do Windows (opcional)
+    import ov_referencias                        # v1.7.0: importador de CSV de voltas de referencia
+    import ov_backup                             # v1.7.0: backup da configuracao e resumo para suporte
+    import ov_amigos                             # v1.7.0: lista de amigos destacados nas tabelas
+    import ov_ibt                                # v1.7.0: leitor de telemetria .ibt do iRacing (referencia a partir das suas voltas)
+except ImportError as _e17:
+    _msg17b = f"Falta um arquivo do pacote ({_e17.name}). Copie TODOS os arquivos do pacote para a mesma pasta."
+    try:
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(0, _msg17b, "Overlay iRacing", 0x10)
+    except Exception:
+        print(_msg17b)
     sys.exit(1)
 
 try:
@@ -121,14 +150,17 @@ except ImportError:
 
 from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt, QTimer
 from PySide6.QtGui import (QAction, QBrush, QColor, QFont, QFontMetrics, QIcon, QLinearGradient,
-                           QActionGroup, QImage, QPainter, QPainterPath, QPen, QPixmap, QRadialGradient, QTransform)
+                           QActionGroup, QImage, QPainter, QPainterPath, QPen, QPixmap, QPolygonF, QRadialGradient, QTransform)
 from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon, QWidget
 
 PASTA = _PASTA_BASE
+VERSAO_PRODUTO = "1.7.0"                      # versao do produto (ainda nao publicada); as correcoes da auditoria entram como BUILD
+BUILD = "v"                                    # identificacao da entrega dentro da 1.7.0 (aparece no cabecalho do log)
 ARQ_CONFIG = PASTA / "config.json"
 ARQ_LOG = PASTA / "overlay_log.txt"
 ARQ_MAPAS = PASTA / "mapas_pistas.json"
-ARQ_PIT = PASTA / "pit_entradas.json"          # v1.6.0: entrada dos boxes aprendida por pista
+PASTA_REFERENCIAS = PASTA / "referencias"        # v1.7.0: biblioteca de voltas de referencia do coach
+ARQ_PIT = PASTA / "pit_entradas_v2.json"       # 1.7.0: entrada dos boxes aprendida por pista (arquivo novo: o antigo guardava o box)
 PASTA_BANDEIRAS = PASTA / "bandeiras"        # bandeiras dos paises (incluidas no pacote)
 PASTA_EMBLEMAS = PASTA / "emblemas"          # emblemas das marcas (imagens que VOCE coloca aqui)
 ARQ_EMBLEMAS_FALTANDO = PASTA / "emblemas_faltando.txt"
@@ -256,10 +288,27 @@ def carregar_config():
         "x_contato": 1060, "y_contato": 330, "mostrar_contato": True, "escala_contato": 1.0,
         "x_pit": 1300, "y_pit": 330, "mostrar_pit": True, "escala_pit": 1.0, "pit_sempre": False,
         "x_tendencia": 60, "y_tendencia": 600, "mostrar_tendencia": True, "escala_tendencia": 1.0,
+        # ---- build o ----
+        "x_consumo": 1440, "y_consumo": 440, "mostrar_consumo": True, "escala_consumo": 1.0,
+        "x_delta_trace": 700, "y_delta_trace": 860, "mostrar_delta_trace": True, "escala_delta_trace": 1.0,
+        "delta_trace_layout": "grafico", "delta_trace_elementos": {},   # build r: "grafico" (area ao longo da volta) | "racelab" (numero grande + barra central)
+        # ---- v1.7.0 ----
+        "x_coach": 700, "y_coach": 330, "mostrar_coach": True, "escala_coach": 1.0, "coach_modo": "auto", "coach_voz": False,
+        "coach_ibt_auto": True,          # v1.7.0: ao entrar numa pista, procura a sua melhor volta nas telemetrias .ibt
+        "pasta_telemetria_ibt": "",     # vazio = Documents/iRacing/telemetry
+        "amigos": [],                    # v1.7.0: nomes destacados na classificacao e no relativo
+        "opacidade_painel": {},          # v1.7.0: opacidade do fundo por painel {chave: 0.2..1.0}; sem a chave = usa a geral
+        "classif_colunas": {},           # build l: colunas da classificacao {id: False} para esconder (ausente = visivel)
+        "classif_ordem": [],             # build m: ordem das colunas (ids de GRUPOS); vazio/ausente = ordem original
+        "classif_cabecalho": {},         # build m: itens do cabecalho {id: False} para esconder (barra, sessao, volta, tempo, ar, pista, umidade, inc, clima, titulos)
+        "minimapa_numeros": "classe",    # build l: numero da posicao dentro do marcador do carro: "off" | "classe" | "geral"
+        "volante_imagem": "",            # build l: PNG do volante escolhido pelo piloto (vazio = volante desenhado)
+        "volante_imagem_giro": True,     # build l: a imagem gira com o volante real
+        "volante_imagem_tamanho": 100,   # build l: tamanho da imagem em % (50..200)
     }
     # escala por eixo (largura / altura) de cada janela; None = acompanha a escala unica
     for sufixo in ("", "_voltas", "_relativo", "_classificacao", "_mapa", "_radar", "_pneus", "_setores", "_clima", "_danos", "_combustivel", "_forca_g",
-                   "_luz_abs", "_luz_tc", "_retorno", "_estrategia", "_curvas", "_bandeiras", "_trafego", "_minimapa", "_auxiliar", "_contato", "_pit", "_tendencia"):
+                   "_luz_abs", "_luz_tc", "_retorno", "_estrategia", "_curvas", "_bandeiras", "_trafego", "_minimapa", "_auxiliar", "_contato", "_pit", "_tendencia", "_coach", "_consumo", "_delta_trace"):
         padrao["escala_x" + sufixo] = None
         padrao["escala_y" + sufixo] = None
     try:
@@ -567,6 +616,68 @@ def abreviacao_marca(marca):
     if len(palavras) > 1:
         return "".join(w[0] for w in palavras[:3]).upper()
     return palavras[0][:3].upper()
+
+
+_cache_volante = {}
+LADO_MAX_VOLANTE = 512                      # a imagem escolhida e reduzida para no maximo 512 px (e guardada como PNG)
+NOME_ARQ_VOLANTE = "volante_personalizado.png"
+
+
+def _arq_volante():
+    """Destino da copia da imagem (ao lado do config.json, que no LMU e o config_lmu.json): calculado na hora de usar."""
+    return ARQ_CONFIG.parent / "volante" / NOME_ARQ_VOLANTE
+
+
+def imagem_volante(config):
+    """QPixmap do volante escolhido pelo piloto (config["volante_imagem"], relativo a pasta do overlay) ou None.
+    Recarrega se o arquivo mudar; nunca levanta."""
+    try:
+        rel = str(config.get("volante_imagem") or "")
+        if not rel:
+            return None
+        caminho = Path(rel)
+        if not caminho.is_absolute():
+            caminho = ARQ_CONFIG.parent / rel
+        marca = caminho.stat().st_mtime_ns
+        guardado = _cache_volante.get(str(caminho))
+        if guardado is None or guardado[0] != marca:
+            pm = QPixmap(str(caminho))
+            guardado = (marca, None if pm.isNull() else pm)
+            _cache_volante[str(caminho)] = guardado
+        return guardado[1]
+    except Exception:
+        return None
+
+
+def importar_imagem_volante(origem):
+    """Copia a imagem escolhida pelo piloto para a pasta do overlay (PNG, no maximo 512 px) e devolve o caminho relativo
+    para o config. Levanta ValueError com a mensagem para o piloto se nao for uma imagem valida."""
+    img = QImage(str(origem))
+    if img.isNull() or img.width() < 8 or img.height() < 8:
+        raise ValueError("Não consegui abrir esta imagem. Use um arquivo PNG (de preferência com fundo transparente).")
+    if max(img.width(), img.height()) > LADO_MAX_VOLANTE:
+        img = img.scaled(LADO_MAX_VOLANTE, LADO_MAX_VOLANTE, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+    destino = _arq_volante()
+    try:
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        tmp = destino.with_name(destino.name + ".tmp.png")
+        if not img.save(str(tmp), "PNG"):
+            raise OSError("falha ao gravar a imagem")
+        os.replace(tmp, destino)
+    except OSError as e:
+        raise ValueError(f"Não consegui guardar a imagem na pasta do overlay ({e}).")
+    _cache_volante.pop(str(destino), None)
+    return "volante/" + destino.name
+
+
+def remover_imagem_volante():
+    """Apaga a copia da imagem (o config volta ao volante desenhado)."""
+    destino = _arq_volante()
+    try:
+        destino.unlink()
+    except OSError:
+        pass
+    _cache_volante.pop(str(destino), None)
 
 
 def _carregar_pixmap(caminho):
@@ -1858,8 +1969,17 @@ class MapaPista:
         }
 
 
-def montar_mapa_carros(pilotos, meu, pcts, superficie):
-    """Lista de carros (porcentagem da volta, numero, cor da classe) para o desenho do mapa."""
+def _posicao_valida(valor):
+    try:
+        v = int(valor)
+        return v if v > 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
+def montar_mapa_carros(pilotos, meu, pcts, superficie, posc=None, pos_geral=None, voltas=None):
+    """Lista de carros (porcentagem da volta, numero, cor da classe e, build l, a posicao) para o desenho do mapa.
+    pos_classe = CarIdxClassPosition; pos = posicao geral (CarIdxPosition; sem ela, ordena por voltas + porcentagem)."""
     carros = []
     for idx, piloto in pilotos.items():
         pct = _item(pcts, idx, -1.0)
@@ -1871,7 +1991,19 @@ def montar_mapa_carros(pilotos, meu, pcts, superficie):
             "numero": piloto.get("numero", ""),
             "cor": piloto.get("classe_cor", (150, 150, 160)),
             "eu": idx == meu,
+            "pos_classe": _posicao_valida(_item(posc, idx, None)),
+            "pos": _posicao_valida(_item(pos_geral, idx, None)),
+            "_idx": idx,
         })
+    if carros and voltas is not None and not any(c["pos"] for c in carros):
+        # sem a posicao geral do jogo: ordem pela distancia total percorrida (aproximada, so para a numeracao)
+        def total(c):
+            v = _item(voltas, c["_idx"], 0) or 0
+            return float(v) + c["pct"]
+        for k, c in enumerate(sorted(carros, key=total, reverse=True), 1):
+            c["pos"] = k
+    for c in carros:
+        c.pop("_idx", None)
     carros.sort(key=lambda c: c["eu"])  # voce por ultimo (desenhado por cima)
     return carros
 
@@ -2612,6 +2744,12 @@ class Telemetria:
         self.v12_tc = v12.DetectorPatinagem("normal")          # v1.2.0
         self.v12_retorno = v12.CalculadorRetorno()
         self.v14_curvas = curvas_mod.AnalisadorCurvas()        # v1.4.0
+        self.vo_consumo = ons1.Consumo()                       # build o
+        self.vo_delta = ons1.DeltaTrace()                      # build o
+        self.config_coach_modo = "auto"                         # v1.7.0: ajustado pelo menu
+        self.v17_ibt_pasta = Path.home() / "Documents" / "iRacing" / "telemetry"       # v1.7.0 (so iRacing; o LMU nao grava .ibt)
+        coach_mod.registrar_log = lambda nivel, texto: (registrar_info if nivel == "info" else registrar_aviso)(texto)
+        self.v17_coach = coach_mod.Coach(coach_mod.BibliotecaReferencias(PASTA_REFERENCIAS))   # v1.7.0
         self.v15_bandeiras = v15.GestorBandeiras()             # v1.5.0
         self.v16_contato = v16.UltimoContato()                 # v1.6.0
         self.v16_pit = v16.PitEntrada(self._carregar_pit())
@@ -2672,10 +2810,13 @@ class Telemetria:
             "luz_tc": None,        # v1.2.0: {"ativa", "patinagem" (~ estimativa), "estado"}
             "retorno": None,       # v1.2.0: {"visivel", "estado" pare/ceda/livre, "segundos", "cor"}
             "estrategia": None,    # v1.2.0: chuva x seco (SEGUIR / PREPARE-SE / TROCAR)
+            "coach": None,         # v1.7.0: orientacao ao vivo (ver ov_coach.Coach.resumo)
             "curvas": None,        # v1.4.0: velocidade minima por curva ({"estado", "ultima", "lista", "volta_anterior"})
             "bandeira": None,      # v1.5.0: bandeira da pista ({"id", "titulo", "sub", "cor"})
             "trafego": None,       # v1.5.0: carros de outras classes por perto ({"linhas", "n"})
             "contato": None,       # v1.6.0: ultimo carro tocado ({"numero","nome","pontos","volta","ha_s","gap_s"...})
+            "consumo": None,       # build o: consumo por trecho / vazao ({"estado","inst_lh","medio_lv","zonas",...})
+            "delta_trace": None,   # build o: delta x distancia da volta atual contra a melhor da sessao
             "tendencia": None,     # v1.6.0: tendencia de ritmo ({"voltas","ritmo5","inclinacao","previsao","consistencia"...})
             "pit": None,           # v1.6.0: entrada do pit / pit lane ({"fase","dist","luz","vel","limite"...})
             "auxiliar": None,      # v1.5.0: etapa da sessao, tempo/voltas restantes ({"titulo", "valor", "sub", "modo"})
@@ -2847,6 +2988,9 @@ class Telemetria:
             try:
                 prog, par, comp, pneus, cab = classif_foto.entradas_demo(classif, volta, t)
                 classif_foto.enriquecer(classif, "CORRIDA", prog, 80.0, variacao_irating, par, comp, pneus, cab)
+                for l in (x for c in classif["classes"] for x in c["linhas"]):          # demo: voltas do pneu
+                    l["voltas_pneu"] = (l["idx"] * 3 + volta) % 24
+                    l["voltas_pneu_confiavel"] = l["idx"] % 5 != 3
             except Exception:
                 registrar_erro("classificacao demo: campos extras")
         return classif
@@ -2876,7 +3020,17 @@ class Telemetria:
         tot_eu = 3.0 + t / 12.0
         n = len(_DEMO_OFFSETS)
         pcts = [(tot_eu + _DEMO_OFFSETS[i]) % 1.0 for i in range(n)]
-        carros = montar_mapa_carros(self._pilotos_demo, 0, pcts, [3] * n)
+        # posicoes de exemplo (so para a pre-visualizacao da numeracao): geral por distancia total, classe pela cor da classe
+        ordem = sorted(range(n), key=lambda i: -(tot_eu + _DEMO_OFFSETS[i]))
+        geral = [0] * n
+        for k, i in enumerate(ordem, 1):
+            geral[i] = k
+        por_classe, posc, contagem = ordem, [0] * n, {}
+        for i in por_classe:
+            cor = tuple(self._pilotos_demo.get(i, {}).get("classe_cor", ()))
+            contagem[cor] = contagem.get(cor, 0) + 1
+            posc[i] = contagem[cor]
+        carros = montar_mapa_carros(self._pilotos_demo, 0, pcts, [3] * n, posc, geral)
         return {"pontos": self._pontos_demo, "completo": True, "progresso": 1.0, "versao": 1,
                 "carros": carros}
 
@@ -2969,6 +3123,23 @@ class Telemetria:
                 "volta_anterior": {"perda": 9.4, "ganho": 3.1, "pior_n": 5, "pior_delta": -4.8}}
 
     @staticmethod
+    def _demo_coach(t):
+        """Demonstracao: aproximando de uma zona de frenagem, com contagem 3-2-1-FREIE e feedback da curva anterior."""
+        ciclo = t % 12.0
+        dist = max(0.0, 180.0 - ciclo * 20.0)
+        contagem = None if dist > 100 else ("3" if dist > 70 else "2" if dist > 45 else "1" if dist > 15 else "FREIE")
+        fase = "livre" if dist > 150 else ("freando" if ciclo > 9.2 else "adiante")
+        return {"estado": "ok", "fonte": "importada", "pista": "Demo", "carro": "Demo", "tempo_ref": 92.4,
+                "proxima": {"n": 3, "dist_m": dist, "tempo_ate": dist / 55.0, "fase": fase, "contagem": contagem,
+                            "marcha": 3, "vel_apice": 94.0, "vel_entrada": 238.0, "pico": 0.92, "total": 9},
+                "delta": -0.18 if ciclo < 6 else 0.21,
+                "feedback": {"n": 2, "freada_m": 14.0, "nota": "cedo", "vel_apice": 101.0, "dif_vel": -3.0, "marcha": 3,
+                             "marcha_ref": 3, "dif_marcha": 0, "gravidade": 1, "texto": "C2: freou cedo (~14 m) | apice -3 km/h"},
+                "resumo_volta": None, "voltas_gravadas": 3, "aviso": None, "modo": "auto",
+                "tem_propria": True, "tem_importada": True,
+                "ritmo_texto": "Alvo 1:32.133 | +0.3 s | poupe 3%/volta", "stint": {"voltas": 4, "texto": "Onde mais perde: C2, freia cedo (3 de 4 voltas)"}}
+
+    @staticmethod
     def _demo_estrategia(t):
         passo = int((t % 32.0) // 8)
         acao = ("seguir", "prepare", "trocar", "pedido")[passo]
@@ -2985,6 +3156,9 @@ class Telemetria:
         rpm = 3500 + pos * 4300
         vel = 40 + ciclo * 230
         ace, fre, abs_ativo = self._demo_pedais(t)
+        previa = bool(getattr(self, "modo_previa", False))       # build t: na previa da Central os paineis de evento ficam sempre ativos
+        if previa:
+            abs_ativo = True
         volta_idx = int(t // 12.0)
         consumo = 2.4
         nivel = 40.0 - ((t / 12.0) % 15.0) * consumo
@@ -3029,18 +3203,21 @@ class Telemetria:
                 ciclo, self.margem_combustivel, 60.0),
             "painel_combustivel": self._demo_painel_combustivel(t, nivel),
             "tipo_sessao": "CORRIDA",
-            "luz_tc": {"ativa": ace > 0.9 and pos < 0.12, "patinagem": 0.07 if (ace > 0.9 and pos < 0.12) else 0.0,
+            "luz_tc": {"ativa": previa or (ace > 0.9 and pos < 0.12), "patinagem": 0.07 if (previa or (ace > 0.9 and pos < 0.12)) else 0.0,
                        "estado": "ok"},
             "pedais_cru": {"acelerador": ace * 0.96, "freio": fre * 0.92, "embreagem": 1.0 if pos > 0.96 else 0.0},
-            "retorno": self._demo_retorno(t),
+            "retorno": self._demo_retorno(t % 16.8 if previa else t),
             "estrategia": self._demo_estrategia(t),
             "curvas": self._demo_curvas(t),
+            "coach": self._demo_coach(t),
             "bandeira": self._demo_bandeira(t),
             "trafego": self._demo_trafego(t),
-            "auxiliar": self._demo_auxiliar(t),
+            "auxiliar": self._demo_auxiliar(t % 14.0 if previa else t),
             "contato": self._demo_contato(t),
             "pit": self._demo_pit(t),
             "tendencia": self._demo_tendencia(t),
+            "consumo": JanelaConsumo._exemplo(),
+            "delta_trace": JanelaDeltaTrace._exemplo(),
             "forca_g": {"lat": 2.4 * math.sin(t * 0.9), "lon": -1.6 * math.cos(t * 1.8) + 0.4,
                         "total": math.hypot(2.4 * math.sin(t * 0.9), -1.6 * math.cos(t * 1.8) + 0.4),
                         "pico": 3.1, "pista": "Road America", "temp": 24.0},
@@ -3348,6 +3525,28 @@ class Telemetria:
         est = estilo_pneu(nome)
         return v12.classe_pneu(est[1] if est else None)
 
+    def _alimentar_coach(self, dados, vivo):
+        """v1.7.0 / build s: alimenta o Coach. Le tempos direto do SDK porque 'tempo_volta' e 'ultima_volta' so existem depois."""
+        # v1.7.0: coach ao vivo (referencia por distancia). So alimenta com voce dirigindo; erro nunca derruba o ciclo
+        try:
+            if vivo and self._comprimento:
+                superficie = self._var("PlayerTrackSurface", None)
+                valido17 = (bool(self._var("IsOnTrack", True)) and not bool(self._var("OnPitRoad", False))
+                            and (superficie is None or int(superficie) == 3))
+                eu17 = self._pilotos.get(int(self._var("PlayerCarIdx", -1))) or {}
+                self.v17_coach.modo = self.config_coach_modo
+                self.v17_coach.definir_contexto(self._nome_pista, eu17.get("carro") or eu17.get("carro_id") or "", self._comprimento)
+                # build s: 'tempo_volta' e 'ultima_volta' so sao montados DEPOIS desta etapa (ficavam None e o Coach nunca gravava
+                # uma volta); leitura direta do SDK, como no Delta Trace
+                dados["coach"] = self.v17_coach.atualizar(
+                    self._var("LapDistPct", None), dados["velocidade"], dados["freio"], dados["acelerador"], dados["marcha"],
+                    self._tempo(self._var_primeiro(("LapCurrentLapTime", "LapCurLapTime"))), valido17, self._comprimento,
+                    self._tempo(self._var("LapLastLapTime", None)))
+            else:
+                dados["coach"] = self.v17_coach.resumo() if self.v17_coach.pista else None
+        except Exception:
+            registrar_erro("coach")
+
     def _montar_v12(self, dados):
         agora = time.monotonic()
         chave = (self._var("SessionNum", 0), self._var("SessionUniqueID", 0))
@@ -3358,6 +3557,8 @@ class Telemetria:
             self.v12_tc.resetar()
             self.v12_retorno.resetar()
             self.v14_curvas.resetar()
+            self.vo_consumo.resetar()
+            self.vo_delta.resetar()
             self.v15_bandeiras.resetar()
             self._memoria_trafego.clear()
             self.v12_pneus.resetar()
@@ -3409,6 +3610,24 @@ class Telemetria:
                 dados["curvas"] = self.v14_curvas.resumo()
         except Exception:
             registrar_erro("curvas")
+        # build o: consumo por trecho e delta trace (so alimentam com voce dirigindo ao vivo; erro nunca derruba o ciclo)
+        try:
+            if vivo and self._comprimento:
+                superficie_o = self._var("PlayerTrackSurface", None)
+                valido_o = (bool(self._var("IsOnTrack", True)) and not bool(self._var("OnPitRoad", False))
+                            and (superficie_o is None or int(superficie_o) == 3))
+                # leituras diretas do SDK: nesta altura do ciclo 'combustivel', 'tempo_volta' e 'ultima_volta' ainda nao foram montados
+                nivel_o = self._var("FuelLevel", None)
+                self.vo_consumo.atualizar(agora, self._var("LapDistPct", None), float(nivel_o) if nivel_o is not None else None, valido_o)
+                self.vo_delta.atualizar(self._var("LapDistPct", None), self._tempo(self._var_primeiro(("LapCurrentLapTime", "LapCurLapTime"))),
+                                        valido_o, self._tempo(self._var("LapLastLapTime", None)))
+            dados["consumo"] = self.vo_consumo.resumo()
+            dados["delta_trace"] = self.vo_delta.resumo()
+            dados["delta_trace"]["curvas"] = ons1.zonas_de_curvas(self.v14_curvas.curvas, curvas_mod.BINS)      # build q: blocos por curva
+        except Exception:
+            registrar_erro("consumo / delta trace")
+        self._alimentar_coach(dados, vivo)
+        completar_coach(self, dados)
         # v1.5.0: bandeiras, trafego de outras classes e auxiliar de sessao (cada um isolado)
         try:
             self._montar_v15(dados, vivo, agora)
@@ -3482,11 +3701,13 @@ class Telemetria:
             dados["contato"] = self.v16_contato.exibicao(agora, dist, bool(_item(box, c["id"], False)),
                                                          dados["velocidade"] / 3.6)
         # --- entrada do pit
-        flags = self._var("PitSvFlags", None)
-        quer = bool(flags) and int(flags) != 0
+        # 1.7.0: so aparece quando VOCE pede a entrada (atalho/menu) ou com "mostrar sempre". O PitSvFlags do iRacing fica
+        # diferente de zero o tempo todo na pista (medido em 5 telemetrias reais), entao nao serve como pedido.
         na_pit = bool(self._var("OnPitRoad", False))
+        sup = self._var("PlayerTrackSurface", None)
         pit = self.v16_pit.atualizar(self._chave_pista, na_pit, pct_eu, L, dados["velocidade"] / 3.6, self._pit_limite_kmh,
-                                     self._pit_pct_box, quer, bool(self.config_v16.get("pit_sempre", False)))
+                                     self._pit_pct_box, self.v16_pit.pedido, bool(self.config_v16.get("pit_sempre", False)),
+                                     int(sup) if sup is not None else None)
         if self.v16_pit.mudou:
             self.v16_pit.mudou = False
             self._salvar_pit()
@@ -3614,6 +3835,14 @@ class Telemetria:
                     "limite": self._limite_inc, "reboque": reboque,
                     "rapidos": int(self._var("FastRepairAvailable", 0) or 0)})
         return res
+
+    def pedir_pit(self, estado=None):
+        """Pedido de entrada no pit: estado True liga, False desliga, None alterna (menu). Desliga sozinho ao entrar na pit lane.
+        Os atalhos do Stream Deck usam True/False (idempotentes: apertar duas vezes nao desfaz o pedido)."""
+        if estado is None:
+            return self.v16_pit.alternar_pedido()
+        self.v16_pit.pedido = bool(estado)
+        return self.v16_pit.pedido
 
     def limpar_impactos(self):
         self.impactos.limpar_marcas()
@@ -3770,7 +3999,8 @@ class Telemetria:
             float(self._var("Speed", 0.0)), self._var("YawNorth", None),
         )
         dados = self.mapa.exibicao()
-        dados["carros"] = montar_mapa_carros(self._pilotos, meu, pcts, superficie)
+        dados["carros"] = montar_mapa_carros(self._pilotos, meu, pcts, superficie, self._var("CarIdxClassPosition", None),
+                                             self._var("CarIdxPosition", None), self._var("CarIdxLap", None))
         return dados
 
     def _montar_radar(self):
@@ -4137,6 +4367,11 @@ class Telemetria:
             est = estilo_pneu(nome)
             if est:
                 pneus[idx] = est
+        # 1.7.0: voltas de cada pneu (desde a ultima parada), o mesmo calculo do Relativo
+        self.idade_pneus.atualizar(chave, completadas, self._var("CarIdxOnPitRoad", None),
+                                   self._var("CarIdxTrackSurface", None), compostos)
+        for linha in (l for c in classif["classes"] for l in c["linhas"]):
+            linha["voltas_pneu"], linha["voltas_pneu_confiavel"] = self.idade_pneus.voltas(linha["idx"], completadas)
         restante = self._var("SessionTimeRemain", None)
         total = self._var("SessionTimeTotal", None)
         voltas_total = self._var("SessionLapsTotal", None)
@@ -4399,6 +4634,10 @@ class Telemetria:
         return dados
 
     def encerrar(self):
+        try:
+            self.v17_coach.encerrar(5.0)             # grava o que ainda estiver na fila (historico e referencia); registra no log se sobrar
+        except Exception:
+            pass
         try:
             if self.ir is not None:
                 self.ir.shutdown()
@@ -4714,6 +4953,57 @@ class JanelaBase(QWidget):
         self.move(int(config[self._chave("x")]), int(config[self._chave("y")]))
         self.aplicar_travamento(config["travado"])
 
+    # ---- elementos liga/desliga por painel (build u) ---------------------------------------------------------------
+    ELEMENTOS = ()            # ((id, rotulo), ...): o que a Central deixa ligar/desligar
+    SECOES = ()               # ((id, y_topo, altura), ...) de cima para baixo: o que for desligado "puxa" o resto para cima
+    CHAVE_ELEMENTOS = None    # chave do config; None = "elementos_<CHAVE>" ({id: False} para os desligados)
+
+    def _chave_elementos(self):
+        return self.CHAVE_ELEMENTOS or ("elementos_" + str(self.CHAVE))
+
+    def visivel(self, eid):
+        d = self.config.get(self._chave_elementos())
+        return not (isinstance(d, dict) and d.get(eid) is False)
+
+    def _secoes(self):
+        return self.SECOES
+
+    def _altura_oculta(self):
+        """Soma das alturas das secoes desligadas (a janela encolhe esse tanto)."""
+        return sum(h for eid, _y, h in self._secoes() if not self.visivel(eid))
+
+    ALT_MIN_ESPERA = 100      # altura minima (px base) quando ha secao desligada: a mensagem de "aguardando..." nunca pode ser cortada
+
+    def _alt_util(self, alt):
+        """Altura da janela: a base menos as secoes desligadas, mas nunca menos que ALT_MIN_ESPERA (build v)."""
+        return alt if self._altura_oculta() <= 0 else max(alt - self._altura_oculta(), self.ALT_MIN_ESPERA)
+
+    def _rect_espera(self, original):
+        """Retangulo da mensagem de espera: o original com tudo ligado; com algo desligado, logo abaixo do titulo e dentro da janela."""
+        if self._altura_oculta() <= 0:
+            return original
+        return QRectF(14, 28, original.width(), float(self.tamanho()[1]) - 34)
+
+    def _desloc(self, eid):
+        """Quanto a secao sobe (px, positivo) por causa das secoes desligadas acima dela."""
+        alvo = next((y for e, y, _h in self._secoes() if e == eid), None)
+        if alvo is None:
+            return 0.0
+        return float(sum(h for e, y, h in self._secoes() if y < alvo and not self.visivel(e)))
+
+    def _abre(self, p, eid):
+        """True se o elemento esta ligado; ja posiciona o pintor (sobe pelo que foi desligado acima). Casar com _fecha()."""
+        if not self.visivel(eid):
+            return False
+        p.save()
+        p.translate(0.0, -self._desloc(eid))
+        return True
+
+    @staticmethod
+    def _fecha(p):
+        p.restore()
+
+
     def tamanho(self):
         """Tamanho BASE (100 %) da janela; o tamanho real e este valor x escala_x / escala_y."""
         return (LARGURA, ALTURA)
@@ -4903,6 +5193,13 @@ class JanelaBase(QWidget):
             self._t_pintura = agora
             self.update()
 
+    def opcoes_mudaram(self):
+        """Build l: a Central mudou uma opcao deste painel (colunas, numeracao, imagem...). Quem tem layout dependente
+        da opcao reaplica aqui; o padrao e so repintar. Build u: com elementos liga/desliga a janela tambem muda de altura."""
+        if self.ELEMENTOS:
+            self.aplicar_tamanho()
+        self.update()
+
     def recarregar_layout(self):
         """Le de novo posicao, tamanho e visibilidade do config (usado ao trocar de perfil)."""
         self.escala_x, self.escala_y = self._ler_escalas(self.config)
@@ -4921,7 +5218,16 @@ class JanelaBase(QWidget):
         p.setRenderHint(QPainter.SmoothPixmapTransform)
         base = self._retangulo_base()
         if com_fundo:
-            pintar_superficie(p, base.adjusted(1, 1, -1, -1), 12)
+            op = (self.config.get("opacidade_painel") or {}).get(self.CHAVE)          # v1.7.0: opacidade propria do painel
+            if op is None:
+                pintar_superficie(p, base.adjusted(1, 1, -1, -1), 12)
+            else:
+                geral = TEMA["opacidade"]
+                TEMA["opacidade"] = max(0.2, min(1.0, float(op)))
+                try:
+                    pintar_superficie(p, base.adjusted(1, 1, -1, -1), 12)
+                finally:
+                    TEMA["opacidade"] = geral
 
         # Contorno amarelo indica "modo mover / redimensionar"
         if not self.config["travado"]:
@@ -5144,7 +5450,7 @@ class JanelaTelemetria(JanelaBase):
             p.drawText(x - 4, 112, 32, 14, Qt.AlignCenter, nome)
             x += 38
 
-        self._desenhar_volante(p, LARGURA - 54, 74, 36, d["volante"])
+        self._volante(p, LARGURA - 54, 74, 36, d["volante"])
 
     # cores do layout em barra
     COR_BARRA_EMB = QColor(52, 168, 255)
@@ -5153,7 +5459,7 @@ class JanelaTelemetria(JanelaBase):
 
     def _desenhar_barra(self, p, d):
         """v1.4.1/1.4.2: tudo numa linha e compacto - volante, marcha, velocidade, pedais (finos, com o valor) e grafico."""
-        self._desenhar_volante(p, 34, 33, 22, d["volante"], espessura=5)
+        self._volante(p, 34, 33, 22, d["volante"], espessura=5)
         marcha = d["marcha"]
         texto_marcha = "R" if marcha < 0 else ("N" if marcha == 0 else str(marcha))
         p.setPen(QColor(255, 255, 255))
@@ -5190,6 +5496,31 @@ class JanelaTelemetria(JanelaBase):
         if self.config.get("mostrar_grafico", True):
             desenhar_grafico_inputs(p, QRectF(294, 8, LARGURA_BARRA - 294 - 10, ALTURA_BARRA - 16), self.hist, self.config,
                                     self._marchas_max, self.COR_BARRA_ACE, self.COR_BARRA_FRE)
+
+    def _volante(self, p, cx, cy, r, graus, espessura=8):
+        """Build l: volante com a imagem escolhida pelo piloto (PNG), se houver; senao o volante desenhado."""
+        pm = imagem_volante(self.config)
+        if pm is None:
+            self._desenhar_volante(p, cx, cy, r, graus, espessura)
+            return
+        try:
+            fator = max(0.5, min(2.0, float(self.config.get("volante_imagem_tamanho", 100)) / 100.0))
+        except (TypeError, ValueError):
+            fator = 1.0
+        lado = (2 * r + espessura + 8) * fator
+        razao = min(lado / float(pm.width()), lado / float(pm.height()))
+        w, h = pm.width() * razao, pm.height() * razao
+        p.save()
+        p.setRenderHint(QPainter.Antialiasing)
+        p.setRenderHint(QPainter.SmoothPixmapTransform)
+        p.translate(cx, cy)
+        if self.config.get("volante_imagem_giro", True):
+            p.rotate(-graus)                                   # positivo = esquerda (anti-horario), como o desenhado
+        p.drawPixmap(QRectF(-w / 2.0, -h / 2.0, w, h), pm, QRectF(pm.rect()))
+        p.restore()
+        p.setPen(COR_CINZA)
+        p.setFont(fonte(8))
+        p.drawText(cx - 40, cy + r + 6, 80, 14, Qt.AlignCenter, f"{graus:+.0f}\u00b0")
 
     @staticmethod
     def _desenhar_volante(p, cx, cy, r, graus, espessura=8):
@@ -5292,6 +5623,8 @@ class JanelaVoltas(JanelaBase):
     CHAVE = "voltas"
     CHAVE_ATIVO = "mostrar_voltas"
     TAXA_HZ = 15.0
+    ELEMENTOS = (("delta", "Coluna do delta"), ("volta", "Coluna da volta"), ("combustivel", "Coluna do combustível"))
+
 
     def tamanho(self):
         extra = ALTURA_CALC_COMBUSTIVEL if self.config.get("mostrar_calc_combustivel", True) else 0
@@ -5397,73 +5730,76 @@ class JanelaVoltas(JanelaBase):
             p.setPen(cor)
             p.drawText(x, y, larg, 16, Qt.AlignRight | Qt.AlignVCenter, valor)
 
-        # ---- Coluna 1: delta vs melhor volta ---------------------------------
-        x = colunas[0]
-        rotulo(x, "DELTA")
-        delta = d["delta"]
-        if d["delta_ok"]:
-            if delta < -0.0005:
-                cor_delta = COR_VERDE
-            elif delta > 0.0005:
-                cor_delta = COR_VERMELHO
+        if self.visivel("delta"):
+            # ---- Coluna 1: delta vs melhor volta ---------------------------------
+            x = colunas[0]
+            rotulo(x, "DELTA")
+            delta = d["delta"]
+            if d["delta_ok"]:
+                if delta < -0.0005:
+                    cor_delta = COR_VERDE
+                elif delta > 0.0005:
+                    cor_delta = COR_VERMELHO
+                else:
+                    cor_delta = QColor(255, 255, 255)
+                texto_delta = f"{delta:+.3f}"
             else:
-                cor_delta = QColor(255, 255, 255)
-            texto_delta = f"{delta:+.3f}"
-        else:
-            cor_delta = COR_CINZA
-            texto_delta = "--.---"
-        p.setPen(cor_delta)
-        p.setFont(fonte(24, QFont.Bold))
-        p.drawText(x, y0 + 20, larg, 38, Qt.AlignLeft | Qt.AlignVCenter, texto_delta)
+                cor_delta = COR_CINZA
+                texto_delta = "--.---"
+            p.setPen(cor_delta)
+            p.setFont(fonte(24, QFont.Bold))
+            p.drawText(x, y0 + 20, larg, 38, Qt.AlignLeft | Qt.AlignVCenter, texto_delta)
 
-        # Barra de delta: verde para a direita (mais rapido), vermelha para a esquerda
-        p.setPen(Qt.NoPen)
-        p.setBrush(COR_FUNDO_BARRA)
-        p.drawRoundedRect(x, y0 + 62, larg, 10, 4, 4)
-        if d["delta_ok"]:
-            metade = larg / 2.0
-            tamanho = int(min(1.0, abs(delta) / 1.0) * metade)  # 1,0 s = barra cheia
-            p.setBrush(cor_delta)
-            if delta < 0:
-                p.drawRect(int(x + metade), y0 + 62, tamanho, 10)
+            # Barra de delta: verde para a direita (mais rapido), vermelha para a esquerda
+            p.setPen(Qt.NoPen)
+            p.setBrush(COR_FUNDO_BARRA)
+            p.drawRoundedRect(x, y0 + 62, larg, 10, 4, 4)
+            if d["delta_ok"]:
+                metade = larg / 2.0
+                tamanho = int(min(1.0, abs(delta) / 1.0) * metade)  # 1,0 s = barra cheia
+                p.setBrush(cor_delta)
+                if delta < 0:
+                    p.drawRect(int(x + metade), y0 + 62, tamanho, 10)
+                else:
+                    p.drawRect(int(x + metade) - tamanho, y0 + 62, tamanho, 10)
+            p.setPen(QPen(QColor(255, 255, 255, 140), 1))
+            p.drawLine(int(x + larg / 2), y0 + 60, int(x + larg / 2), y0 + 74)
+            p.setPen(COR_CINZA)
+            p.setFont(fonte(8))
+            p.drawText(x, y0 + 78, larg, 14, Qt.AlignLeft | Qt.AlignVCenter,
+                       ("SDK \u00b7 vs melhor volta" if d.get("delta_fonte") == "sim"
+                        else "~ calc. \u00b7 melhor volta limpa") if d["delta_ok"] else "complete 1 volta limpa")
+
+        if self.visivel("volta"):
+            # ---- Coluna 2: voltas -------------------------------------------------
+            x = colunas[1]
+            rotulo(x, f"VOLTA {d['volta']}")
+            p.setPen(QColor(255, 255, 255))
+            p.setFont(fonte(20, QFont.Bold))
+            p.drawText(x, y0 + 20, larg, 38, Qt.AlignLeft | Qt.AlignVCenter, fmt_tempo(d["tempo_volta"]))
+            linha(x, y0 + 58, "ULTIMA", fmt_tempo(d["ultima_volta"]))
+            linha(x, y0 + 76, "MELHOR", fmt_tempo(d["melhor_volta"]), QColor(190, 130, 255))
+
+        if self.visivel("combustivel"):
+            # ---- Coluna 3: combustivel -------------------------------------------
+            x = colunas[2]
+            rotulo(x, "COMBUSTIVEL")
+            p.setPen(QColor(255, 255, 255))
+            p.setFont(fonte(22, QFont.Bold))
+            p.drawText(x, y0 + 20, larg, 38, Qt.AlignLeft | Qt.AlignVCenter, f"{d['combustivel']:.1f} L")
+            consumo = d["consumo_volta"]
+            restantes = d["voltas_restantes"]
+            linha(x, y0 + 58, "CONSUMO", f"{consumo:.2f} L/v" if consumo else "--")
+            if restantes is None:
+                linha(x, y0 + 76, "RESTAM", "--")
             else:
-                p.drawRect(int(x + metade) - tamanho, y0 + 62, tamanho, 10)
-        p.setPen(QPen(QColor(255, 255, 255, 140), 1))
-        p.drawLine(int(x + larg / 2), y0 + 60, int(x + larg / 2), y0 + 74)
-        p.setPen(COR_CINZA)
-        p.setFont(fonte(8))
-        p.drawText(x, y0 + 78, larg, 14, Qt.AlignLeft | Qt.AlignVCenter,
-                   ("SDK \u00b7 vs melhor volta" if d.get("delta_fonte") == "sim"
-                    else "~ calc. \u00b7 melhor volta limpa") if d["delta_ok"] else "complete 1 volta limpa")
-
-        # ---- Coluna 2: voltas -------------------------------------------------
-        x = colunas[1]
-        rotulo(x, f"VOLTA {d['volta']}")
-        p.setPen(QColor(255, 255, 255))
-        p.setFont(fonte(20, QFont.Bold))
-        p.drawText(x, y0 + 20, larg, 38, Qt.AlignLeft | Qt.AlignVCenter, fmt_tempo(d["tempo_volta"]))
-        linha(x, y0 + 58, "ULTIMA", fmt_tempo(d["ultima_volta"]))
-        linha(x, y0 + 76, "MELHOR", fmt_tempo(d["melhor_volta"]), QColor(190, 130, 255))
-
-        # ---- Coluna 3: combustivel -------------------------------------------
-        x = colunas[2]
-        rotulo(x, "COMBUSTIVEL")
-        p.setPen(QColor(255, 255, 255))
-        p.setFont(fonte(22, QFont.Bold))
-        p.drawText(x, y0 + 20, larg, 38, Qt.AlignLeft | Qt.AlignVCenter, f"{d['combustivel']:.1f} L")
-        consumo = d["consumo_volta"]
-        restantes = d["voltas_restantes"]
-        linha(x, y0 + 58, "CONSUMO", f"{consumo:.2f} L/v" if consumo else "--")
-        if restantes is None:
-            linha(x, y0 + 76, "RESTAM", "--")
-        else:
-            if restantes < 3:
-                cor_rest = COR_VERMELHO
-            elif restantes < 6:
-                cor_rest = COR_AMARELO
-            else:
-                cor_rest = COR_TEXTO
-            linha(x, y0 + 76, "RESTAM", f"{restantes:.1f} voltas", cor_rest)
+                if restantes < 3:
+                    cor_rest = COR_VERMELHO
+                elif restantes < 6:
+                    cor_rest = COR_AMARELO
+                else:
+                    cor_rest = COR_TEXTO
+                linha(x, y0 + 76, "RESTAM", f"{restantes:.1f} voltas", cor_rest)
 
 
 # ---- Janela 3: relativo -------------------------------------------------------------
@@ -5660,7 +5996,11 @@ class JanelaRelativo(JanelaBase):
             p.setPen(QColor(120, 175, 255))
         else:
             p.setPen(QColor(255, 255, 255))
-        nome = QFontMetrics(fonte_nome).elidedText(d["nome"], Qt.ElideRight, 116)
+        rotulo_nome = d["nome"]
+        if not d["eu"] and nome_de_amigo(rotulo_nome):                       # v1.7.0: amigo
+            p.setPen(COR_AMIGO)
+            rotulo_nome = "\u2605 " + rotulo_nome
+        nome = QFontMetrics(fonte_nome).elidedText(rotulo_nome, Qt.ElideRight, 116)
         p.drawText(134, y, 118, h, Qt.AlignLeft | Qt.AlignVCenter, nome)
 
         # Licenca e iRating
@@ -5922,7 +6262,11 @@ class JanelaClassificacao(JanelaBase):
         fonte_nome = fonte(10, QFont.Bold)
         p.setFont(fonte_nome)
         p.setPen(QColor(255, 255, 255))
-        nome = QFontMetrics(fonte_nome).elidedText(d["nome"], Qt.ElideRight, 136)
+        rotulo_nome = d["nome"]
+        if not d["eu"] and nome_de_amigo(rotulo_nome):                       # v1.7.0: amigo
+            p.setPen(COR_AMIGO)
+            rotulo_nome = "\u2605 " + rotulo_nome
+        nome = QFontMetrics(fonte_nome).elidedText(rotulo_nome, Qt.ElideRight, 136)
         p.drawText(168, y, 140, h, Qt.AlignLeft | Qt.AlignVCenter, nome)
 
         # Licenca/SR e iRating (dados da sessao: DriverInfo)
@@ -6376,6 +6720,8 @@ class JanelaSetores(JanelaBase):
     CHAVE_ATIVO = "mostrar_setores"
     TAXA_HZ = 4.0
     COR_ROXO = QColor(200, 120, 255)
+    ELEMENTOS = (("titulo", "Título e pista/carro"), ("setores", "Tempos dos setores"), ("resumo", "Última, melhor e ótima"))
+
 
     def __init__(self, config):
         self._n = 3
@@ -6385,8 +6731,13 @@ class JanelaSetores(JanelaBase):
     def altura_para(n):
         return ALTURA_TOPO_SETORES + n * ALTURA_LINHA_SETOR + 14 + 3 * ALTURA_LINHA_SETOR + 22
 
+    def _secoes(self):
+        n, h = self._n, ALTURA_LINHA_SETOR
+        return (("titulo", 0, ALTURA_TOPO_SETORES), ("setores", ALTURA_TOPO_SETORES, n * h),
+                ("resumo", ALTURA_TOPO_SETORES + n * h, 14 + 3 * h), ("nota", ALTURA_TOPO_SETORES + n * h + 14 + 3 * h, 22))
+
     def tamanho(self):
-        return (LARGURA_SETORES, self.altura_para(self._n))
+        return (LARGURA_SETORES, self.altura_para(self._n) - self._altura_oculta())
 
     def atualizar(self, dados):
         self.dados = dados
@@ -6426,37 +6777,45 @@ class JanelaSetores(JanelaBase):
             p.setFont(fonte(11))
             p.drawText(self._retangulo_base(), Qt.AlignCenter, "Sem dados de setores")
             return
-        # titulo
-        p.setFont(fonte(12, QFont.Bold))
-        p.setPen(COR_AMARELO)
-        p.drawText(16, 8, LARGURA_SETORES - 32, 22, Qt.AlignLeft | Qt.AlignVCenter, "VS MELHOR VOLTA")
-        sub = " | ".join(x for x in (st.get("pista"), st.get("carro")) if x)
-        fnt = fonte(8)
-        p.setFont(fnt)
-        p.setPen(COR_CINZA)
-        p.drawText(16, 30, LARGURA_SETORES - 32, 14, Qt.AlignLeft | Qt.AlignVCenter,
-                   QFontMetrics(fnt).elidedText(sub, Qt.ElideRight, LARGURA_SETORES - 32))
-        y = ALTURA_TOPO_SETORES
-        for k, ln in enumerate(st["linhas"]):
-            self._linha(p, y, f"Setor {k + 1}:", ln["tempo"], ln["delta"], ln["roxo"], ln["ao_vivo"])
-            y += ALTURA_LINHA_SETOR
-        p.setPen(QPen(QColor(255, 255, 255, 70), 1))
-        p.drawLine(16, y + 5, LARGURA_SETORES - 16, y + 5)
-        y += 10
-        u = st.get("ultima")
-        self._linha(p, y, "Ultima:", u["tempo"] if u else None, u["delta"] if u else None,
-                    bool(u and u["roxo"]))
-        y += ALTURA_LINHA_SETOR
-        self._linha(p, y, "Melhor:", st.get("melhor"), None, mostrar_delta=False)
-        y += ALTURA_LINHA_SETOR
-        self._linha(p, y, "Otima:", st.get("otima"), None, mostrar_delta=False)
-        if st.get("estimado") or st.get("melhor") is None:
-            p.setFont(fonte(7))
+        if self._abre(p, "titulo"):
+            # titulo
+            p.setFont(fonte(12, QFont.Bold))
+            p.setPen(COR_AMARELO)
+            p.drawText(16, 8, LARGURA_SETORES - 32, 22, Qt.AlignLeft | Qt.AlignVCenter, "VS MELHOR VOLTA")
+            sub = " | ".join(x for x in (st.get("pista"), st.get("carro")) if x)
+            fnt = fonte(8)
+            p.setFont(fnt)
             p.setPen(COR_CINZA)
-            nota = ("setores iguais (o iRacing nao informou os setores)" if st.get("estimado")
-                    else "complete 1 volta limpa para criar a referencia")
-            p.drawText(16, int(self.altura_para(self._n)) - 16, LARGURA_SETORES - 32, 12,
-                       Qt.AlignLeft | Qt.AlignVCenter, nota)
+            p.drawText(16, 30, LARGURA_SETORES - 32, 14, Qt.AlignLeft | Qt.AlignVCenter,
+                       QFontMetrics(fnt).elidedText(sub, Qt.ElideRight, LARGURA_SETORES - 32))
+            self._fecha(p)
+        y = ALTURA_TOPO_SETORES
+        if self._abre(p, "setores"):
+            for k, ln in enumerate(st["linhas"]):
+                self._linha(p, y + k * ALTURA_LINHA_SETOR, f"Setor {k + 1}:", ln["tempo"], ln["delta"], ln["roxo"], ln["ao_vivo"])
+            self._fecha(p)
+        y += len(st["linhas"]) * ALTURA_LINHA_SETOR
+        if self._abre(p, "resumo"):
+            p.setPen(QPen(QColor(255, 255, 255, 70), 1))
+            p.drawLine(16, y + 5, LARGURA_SETORES - 16, y + 5)
+            y += 10
+            u = st.get("ultima")
+            self._linha(p, y, "Ultima:", u["tempo"] if u else None, u["delta"] if u else None,
+                        bool(u and u["roxo"]))
+            y += ALTURA_LINHA_SETOR
+            self._linha(p, y, "Melhor:", st.get("melhor"), None, mostrar_delta=False)
+            y += ALTURA_LINHA_SETOR
+            self._linha(p, y, "Otima:", st.get("otima"), None, mostrar_delta=False)
+            self._fecha(p)
+        if self._abre(p, "nota"):
+            if st.get("estimado") or st.get("melhor") is None:
+                p.setFont(fonte(7))
+                p.setPen(COR_CINZA)
+                nota = ("setores iguais (o iRacing nao informou os setores)" if st.get("estimado")
+                        else "complete 1 volta limpa para criar a referencia")
+                p.drawText(16, int(self.altura_para(self._n)) - 16, LARGURA_SETORES - 32, 12,
+                           Qt.AlignLeft | Qt.AlignVCenter, nota)
+            self._fecha(p)
 
 
 # ---- Janela 7: pneus (vida util e temperatura: leitura real + estimativa ao vivo) ----------
@@ -7858,6 +8217,19 @@ class JanelaMinimapa(JanelaBase):
     def tamanho(self):
         return (self.LADO, self.LADO)
 
+    def modo_numeracao(self):
+        """Build l: "classe" (posicao na classe), "geral" ou "" (desligado)."""
+        v = str(self.config.get("minimapa_numeros", "classe")).lower()
+        return v if v in ("classe", "geral") else ""
+
+    @staticmethod
+    def numero_do_carro(car, modo):
+        """Posicao a escrever no marcador do carro: da classe ou geral; sem o dado, a outra; sem nenhuma, None."""
+        if not car or not modo:
+            return None
+        primeira, segunda = ("pos_classe", "pos") if modo == "classe" else ("pos", "pos_classe")
+        return car.get(primeira) or car.get(segunda) or None
+
     # ---- dados ------------------------------------------------------------------------
     def _montar_caminho(self, pontos):
         suave = v15._suavizar(pontos, 1)
@@ -7983,6 +8355,9 @@ class JanelaMinimapa(JanelaBase):
         # carros dos outros (cor da classe) e depois o seu, no centro
         n = len(self._suave)
         lim = (self.LADO / 2.0 - 14) * 1.05
+        modo_num = self.modo_numeracao()
+        raio_car = 8.0 if modo_num else 5.5                   # com numero dentro, a bolinha cresce para caber
+        fonte_num = fonte(7, QFont.Bold)
         p.setFont(fonte(6, QFont.Bold))
         for car in am[2]:
             if car.get("eu"):
@@ -7991,9 +8366,16 @@ class JanelaMinimapa(JanelaBase):
             dx, dy = cx - ex, cy - ey
             sx, sy = (dx * ty - dy * tx) * esc, -(dx * tx + dy * ty) * esc
             if sx * sx + sy * sy <= lim * lim:
+                cor_car = QColor(*tuple(car.get("cor", (150, 150, 160)))[:3])
                 p.setPen(QPen(QColor(15, 15, 20), 1))
-                p.setBrush(QColor(*tuple(car.get("cor", (150, 150, 160)))[:3]))
-                p.drawEllipse(QPointF(sx, sy), 5.5, 5.5)
+                p.setBrush(cor_car)
+                p.drawEllipse(QPointF(sx, sy), raio_car, raio_car)
+                num = self.numero_do_carro(car, modo_num)
+                if num is not None:
+                    lum = 0.299 * cor_car.red() + 0.587 * cor_car.green() + 0.114 * cor_car.blue()
+                    p.setFont(fonte_num)
+                    p.setPen(QColor(15, 15, 20) if lum > 150 else QColor(255, 255, 255))
+                    p.drawText(QRectF(sx - raio_car, sy - raio_car, 2 * raio_car, 2 * raio_car), Qt.AlignCenter, str(num))
         seta = QPainterPath()
         seta.moveTo(0, -9)
         seta.lineTo(-6.5, 7)
@@ -8003,6 +8385,13 @@ class JanelaMinimapa(JanelaBase):
         p.setPen(QPen(QColor(255, 255, 255), 1.6))
         p.setBrush(QColor(255, 220, 0))
         p.drawPath(seta)
+        if modo_num:                                           # a sua posicao, logo abaixo da seta
+            meu_car = next((c for c in am[2] if c.get("eu")), None)
+            minha = self.numero_do_carro(meu_car, modo_num) if meu_car else None
+            if minha is not None:
+                p.setPen(QColor(255, 220, 0))
+                p.setFont(fonte(9, QFont.Bold))
+                p.drawText(QRectF(-24, 11, 48, 14), Qt.AlignCenter, "P%d" % minha)
         p.restore()
         # "N": onde fica o norte (gira conforme a pista)
         ang = math.atan2(-tx, ty)
@@ -8202,10 +8591,13 @@ class JanelaTendencia(JanelaBase):
     CHAVE_ATIVO = "mostrar_tendencia"
     TAXA_HZ = 2.0
     LARG, ALT = 420, 232
+    ELEMENTOS = (("titulo", "Título"), ("selo", "Selo de estado"), ("numeros", "Ritmo, inclinação, próxima e consistência"),
+                 ("grafico", "Gráfico das voltas"), ("legenda", "Legenda"))
+    SECOES = (("numeros", 26, 64), ("grafico", 90, 130), ("legenda", 220, 12))
     CORES = {"verde": COR_VERDE, "amarelo": COR_AMARELO, "vermelho": COR_VERMELHO, "cinza": COR_CINZA}
 
     def tamanho(self):
-        return (self.LARG, self.ALT)
+        return (self.LARG, self._alt_util(self.ALT))
 
     def paintEvent(self, _evento):
         p = self._pintor()
@@ -8215,54 +8607,62 @@ class JanelaTendencia(JanelaBase):
         t = d.get("tendencia") if d["conectado"] else None
         p.setFont(fonte(8, QFont.DemiBold))
         p.setPen(COR_CINZA)
-        p.drawText(QRectF(14, 6, 200, 16), Qt.AlignLeft | Qt.AlignVCenter, "TENDÊNCIA DE RITMO")
+        if self.visivel("titulo"):
+            p.drawText(QRectF(14, 6, 200, 16), Qt.AlignLeft | Qt.AlignVCenter, "TENDÊNCIA DE RITMO")
         if not t:
             p.setFont(fonte(10, QFont.DemiBold))
-            p.drawText(QRectF(14, 40, self.LARG - 28, 140), Qt.AlignCenter,
+            p.drawText(self._rect_espera(QRectF(14, 40, self.LARG - 28, 140)), Qt.AlignCenter,
                        "Aguardando voltas limpas\n(sem boxes e sem bandeira de perigo)")
             return
         rot, cor_n = v16.estado_tendencia(t["inclinacao"])
         cor = self.CORES[cor_n]
-        # selo de estado (canto superior direito)
-        p.setPen(Qt.NoPen)
-        c2 = QColor(cor)
-        c2.setAlpha(60)
-        p.setBrush(c2)
-        p.drawRoundedRect(QRectF(self.LARG - 150, 5, 136, 20), 5, 5)
-        p.setPen(cor)
-        p.setFont(fonte(9, QFont.Bold))
-        p.drawText(QRectF(self.LARG - 150, 5, 136, 20), Qt.AlignCenter, rot.upper())
-        # numeros
-        def bloco(x, titulo, valor, cor_v=QColor(255, 255, 255), sub=None, larg=96):
-            p.setFont(fonte(7, QFont.DemiBold))
-            p.setPen(COR_CINZA)
-            p.drawText(QRectF(x, 28, larg, 12), Qt.AlignLeft | Qt.AlignVCenter, titulo)
-            p.setFont(fonte(13, QFont.Bold))
-            p.setPen(cor_v)
-            p.drawText(QRectF(x, 40, larg, 22), Qt.AlignLeft | Qt.AlignVCenter, valor)
-            if sub:
+        if self.visivel("selo"):
+            # selo de estado (canto superior direito)
+            p.setPen(Qt.NoPen)
+            c2 = QColor(cor)
+            c2.setAlpha(60)
+            p.setBrush(c2)
+            p.drawRoundedRect(QRectF(self.LARG - 150, 5, 136, 20), 5, 5)
+            p.setPen(cor)
+            p.setFont(fonte(9, QFont.Bold))
+            p.drawText(QRectF(self.LARG - 150, 5, 136, 20), Qt.AlignCenter, rot.upper())
+        if self._abre(p, "numeros"):
+            # numeros
+            def bloco(x, titulo, valor, cor_v=QColor(255, 255, 255), sub=None, larg=96):
+                p.setFont(fonte(7, QFont.DemiBold))
+                p.setPen(COR_CINZA)
+                p.drawText(QRectF(x, 28, larg, 12), Qt.AlignLeft | Qt.AlignVCenter, titulo)
+                p.setFont(fonte(13, QFont.Bold))
+                p.setPen(cor_v)
+                p.drawText(QRectF(x, 40, larg, 22), Qt.AlignLeft | Qt.AlignVCenter, valor)
+                if sub:
+                    p.setFont(fonte(8, QFont.DemiBold))
+                    p.drawText(QRectF(x, 60, larg, 12), Qt.AlignLeft | Qt.AlignVCenter, sub)
+            dr = t["delta_ritmo"]
+            cd = COR_VERDE if (dr is not None and dr < 0.3) else (COR_AMARELO if (dr is not None and dr < 1.0) else COR_VERMELHO)
+            bloco(14, "RITMO (5 ÚLT.)", fmt_tempo(t["ritmo5"]), larg=104)
+            if dr is not None:
+                p.setPen(cd)
                 p.setFont(fonte(8, QFont.DemiBold))
-                p.drawText(QRectF(x, 60, larg, 12), Qt.AlignLeft | Qt.AlignVCenter, sub)
-        dr = t["delta_ritmo"]
-        cd = COR_VERDE if (dr is not None and dr < 0.3) else (COR_AMARELO if (dr is not None and dr < 1.0) else COR_VERMELHO)
-        bloco(14, "RITMO (5 ÚLT.)", fmt_tempo(t["ritmo5"]), larg=104)
-        if dr is not None:
-            p.setPen(cd)
-            p.setFont(fonte(8, QFont.DemiBold))
-            p.drawText(QRectF(14, 60, 104, 12), Qt.AlignLeft | Qt.AlignVCenter, f"{dr:+.2f} s vs melhor")
-        inc = t["inclinacao"]
-        bloco(124, "INCLINAÇÃO (~)", f"{inc:+.2f} s/v" if inc is not None else "--", cor_v=cor,
-              sub=None if inc is not None else f"precisa de {v16.MIN_VOLTAS_TENDENCIA} voltas", larg=100)
-        bloco(228, "PRÓXIMA (~)", fmt_tempo(t["previsao"]) if t["previsao"] else "--", larg=96)
-        cs = t["consistencia"]
-        bloco(322, "CONSISTÊNCIA", f"±{cs:.2f} s" if cs is not None else "--",
-              cor_v=(COR_VERDE if cs is not None and cs < 0.3 else (COR_AMARELO if cs is not None and cs < 0.7 else COR_VERMELHO))
-              if cs is not None else COR_CINZA, larg=90)
-        self._grafico(p, t, QRectF(46, 90, self.LARG - 62, self.ALT - 90 - 26), cor)
-        p.setFont(fonte(7))
-        p.setPen(COR_CINZA)
-        p.drawText(QRectF(14, self.ALT - 18, self.LARG - 28, 14), Qt.AlignLeft | Qt.AlignVCenter,
-                   "Limpa = sem boxes/bandeira, até 130% da melhor · (~) estimativa · roxa = melhor")
+                p.drawText(QRectF(14, 60, 104, 12), Qt.AlignLeft | Qt.AlignVCenter, f"{dr:+.2f} s vs melhor")
+            inc = t["inclinacao"]
+            bloco(124, "INCLINAÇÃO (~)", f"{inc:+.2f} s/v" if inc is not None else "--", cor_v=cor,
+                  sub=None if inc is not None else f"precisa de {v16.MIN_VOLTAS_TENDENCIA} voltas", larg=100)
+            bloco(228, "PRÓXIMA (~)", fmt_tempo(t["previsao"]) if t["previsao"] else "--", larg=96)
+            cs = t["consistencia"]
+            bloco(322, "CONSISTÊNCIA", f"±{cs:.2f} s" if cs is not None else "--",
+                  cor_v=(COR_VERDE if cs is not None and cs < 0.3 else (COR_AMARELO if cs is not None and cs < 0.7 else COR_VERMELHO))
+                  if cs is not None else COR_CINZA, larg=90)
+            self._fecha(p)
+        if self._abre(p, "grafico"):
+            self._grafico(p, t, QRectF(46, 90, self.LARG - 62, self.ALT - 90 - 26), cor)
+            self._fecha(p)
+        if self._abre(p, "legenda"):
+            p.setFont(fonte(7))
+            p.setPen(COR_CINZA)
+            p.drawText(QRectF(14, self.ALT - 12, self.LARG - 28, 12), Qt.AlignLeft | Qt.AlignVCenter,
+                       "Limpa = sem boxes/bandeira, até 130% da melhor · (~) estimativa · roxa = melhor")
+            self._fecha(p)
 
     @staticmethod
     def _grafico(p, t, r, cor_reta):
@@ -8331,9 +8731,12 @@ class JanelaCurvas(JanelaBase):
     TAXA_HZ = 20.0
     LARG, ALT = 360, 252
     LINHAS = 5
+    ELEMENTOS = (("titulo", "Título e contador"), ("cartao", "Cartão da última curva"), ("lista", "Lista das últimas curvas"),
+                 ("rodape", "Volta anterior (rodapé)"))
+    SECOES = (("cartao", 30, 70), ("lista", 100, 126), ("rodape", 226, 26))
 
     def tamanho(self):
-        return (self.LARG, self.ALT)
+        return (self.LARG, self._alt_util(self.ALT))
 
     def atualizar(self, dados):
         self.dados = dados
@@ -8375,88 +8778,96 @@ class JanelaCurvas(JanelaBase):
             c = self._exemplo()                                  # destravada: mostra um exemplo para voce posicionar a janela
         p.setFont(fonte_titulo(11))
         p.setPen(COR_CINZA)
-        p.drawText(QRectF(14, 8, 150, 18), Qt.AlignLeft | Qt.AlignVCenter, "CURVAS")
+        if self.visivel("titulo"):
+            p.drawText(QRectF(14, 8, 150, 18), Qt.AlignLeft | Qt.AlignVCenter, "CURVAS")
         if not c or c.get("estado") != "ok":
             p.setFont(fonte(12, QFont.DemiBold))
             validas = (c or {}).get("voltas_validas", 0)
-            p.drawText(QRectF(14, 40, self.LARG - 28, 120), Qt.AlignCenter | Qt.TextWordWrap,
+            p.drawText(self._rect_espera(QRectF(14, 40, self.LARG - 28, 120)), Qt.AlignCenter | Qt.TextWordWrap,
                        "Dirija uma volta limpa (sem boxes\nnem sair da pista) para mapear as curvas")
             p.setFont(fonte(11))
-            p.drawText(QRectF(14, 170, self.LARG - 28, 22), Qt.AlignCenter, f"Voltas validas: {validas}")
+            p.drawText(QRectF(14, 170 if self._altura_oculta() <= 0 else self.tamanho()[1] - 26, self.LARG - 28, 22), Qt.AlignCenter,
+                       f"Voltas validas: {validas}")
             return
         p.setFont(fonte(11, QFont.Bold))
         p.setPen(QColor(255, 255, 255))
         u = c.get("ultima")
-        if u:
+        if u and self.visivel("titulo"):
             p.drawText(QRectF(self.LARG - 150, 8, 136, 18), Qt.AlignRight | Qt.AlignVCenter, f"C{u['n']} de {c['n']}")
-        # cartao da ultima curva concluida
-        cab = (("MIN km/h", 14, 110), ("BEST", 128, 76), ("DELTA", 208, 76), ("VOLANTE", 288, 62))
-        p.setFont(fonte(10, QFont.DemiBold))
-        p.setPen(COR_CINZA)
-        for nome, x, w in cab:
-            p.drawText(QRectF(x, 30, w, 14), Qt.AlignLeft | Qt.AlignVCenter, nome)
-        if u:
-            p.setPen(QColor(255, 255, 255))
-            p.setFont(fonte(36, QFont.Bold))
-            p.drawText(QRectF(14, 44, 110, 50), Qt.AlignLeft | Qt.AlignVCenter, fmt_dec(u["min"], 0))
-            p.setFont(fonte(22, QFont.DemiBold))
-            p.drawText(QRectF(128, 44, 76, 50), Qt.AlignLeft | Qt.AlignVCenter, fmt_dec(u["best"], 0) if u["best"] is not None else "--")
-            p.setPen(self._cor_delta(u["delta"]))
-            p.setFont(fonte(24, QFont.Bold))
-            p.drawText(QRectF(208, 44, 78, 50), Qt.AlignLeft | Qt.AlignVCenter,
-                       fmt_dec(u["delta"], 1, sinal=True) if u["delta"] is not None else "--")
-            p.setPen(QColor(235, 235, 240))
-            p.setFont(fonte(15, QFont.DemiBold))
-            p.drawText(QRectF(288, 44, 70, 50), Qt.AlignLeft | Qt.AlignVCenter, self._texto_volante(u["volante"]))
-        else:
+        if self._abre(p, "cartao"):
+            # cartao da ultima curva concluida
+            cab = (("MIN km/h", 14, 110), ("BEST", 128, 76), ("DELTA", 208, 76), ("VOLANTE", 288, 62))
+            p.setFont(fonte(10, QFont.DemiBold))
             p.setPen(COR_CINZA)
-            p.setFont(fonte(13, QFont.DemiBold))
-            p.drawText(QRectF(14, 44, self.LARG - 28, 50), Qt.AlignLeft | Qt.AlignVCenter, "Aguardando a primeira curva da volta...")
-        # linhas: as ultimas curvas desta volta (a mais recente em cima)
-        p.setPen(QPen(QColor(255, 255, 255, 40), 1))
-        p.drawLine(QPointF(14, 100), QPointF(self.LARG - 14, 100))
-        p.setFont(fonte(10, QFont.DemiBold))
-        p.setPen(COR_CINZA)
-        colunas = ((14, 44, Qt.AlignLeft), (70, 64, Qt.AlignRight), (150, 64, Qt.AlignRight), (230, 64, Qt.AlignRight),
-                   (300, 46, Qt.AlignRight))
-        for (x, w, al), nome in zip(colunas, ("CURVA", "MIN", "BEST", "DELTA", "VOL.")):
-            p.drawText(QRectF(x, 104, w, 14), al | Qt.AlignVCenter, nome)
-        lista = list(reversed((c.get("lista") or [])[-self.LINHAS:]))
-        for i, r in enumerate(lista):
-            y = 120 + i * 20
-            if i == 0:
-                p.setBrush(QColor(255, 255, 255, 22))
-                p.setPen(Qt.NoPen)
-                p.drawRoundedRect(QRectF(8, y - 1, self.LARG - 16, 19), 4, 4)
-            p.setFont(fonte(12, QFont.Bold))
-            p.setPen(QColor(255, 255, 255))
-            p.drawText(QRectF(14, y, 44, 18), Qt.AlignLeft | Qt.AlignVCenter, f"C{r['n']}")
-            p.setFont(fonte(12, QFont.DemiBold))
-            p.drawText(QRectF(70, y, 64, 18), Qt.AlignRight | Qt.AlignVCenter, fmt_dec(r["min"], 0))
+            for nome, x, w in cab:
+                p.drawText(QRectF(x, 30, w, 14), Qt.AlignLeft | Qt.AlignVCenter, nome)
+            if u:
+                p.setPen(QColor(255, 255, 255))
+                p.setFont(fonte(36, QFont.Bold))
+                p.drawText(QRectF(14, 44, 110, 50), Qt.AlignLeft | Qt.AlignVCenter, fmt_dec(u["min"], 0))
+                p.setFont(fonte(22, QFont.DemiBold))
+                p.drawText(QRectF(128, 44, 76, 50), Qt.AlignLeft | Qt.AlignVCenter, fmt_dec(u["best"], 0) if u["best"] is not None else "--")
+                p.setPen(self._cor_delta(u["delta"]))
+                p.setFont(fonte(24, QFont.Bold))
+                p.drawText(QRectF(208, 44, 78, 50), Qt.AlignLeft | Qt.AlignVCenter,
+                           fmt_dec(u["delta"], 1, sinal=True) if u["delta"] is not None else "--")
+                p.setPen(QColor(235, 235, 240))
+                p.setFont(fonte(15, QFont.DemiBold))
+                p.drawText(QRectF(288, 44, 70, 50), Qt.AlignLeft | Qt.AlignVCenter, self._texto_volante(u["volante"]))
+            else:
+                p.setPen(COR_CINZA)
+                p.setFont(fonte(13, QFont.DemiBold))
+                p.drawText(QRectF(14, 44, self.LARG - 28, 50), Qt.AlignLeft | Qt.AlignVCenter, "Aguardando a primeira curva da volta...")
+            self._fecha(p)
+        if self._abre(p, "lista"):
+            # linhas: as ultimas curvas desta volta (a mais recente em cima)
+            p.setPen(QPen(QColor(255, 255, 255, 40), 1))
+            p.drawLine(QPointF(14, 100), QPointF(self.LARG - 14, 100))
+            p.setFont(fonte(10, QFont.DemiBold))
             p.setPen(COR_CINZA)
-            p.drawText(QRectF(150, y, 64, 18), Qt.AlignRight | Qt.AlignVCenter, fmt_dec(r["best"], 0) if r["best"] is not None else "--")
-            p.setPen(self._cor_delta(r["delta"]))
-            p.setFont(fonte(12, QFont.Bold))
-            p.drawText(QRectF(230, y, 64, 18), Qt.AlignRight | Qt.AlignVCenter,
-                       fmt_dec(r["delta"], 1, sinal=True) if r["delta"] is not None else "--")
-            p.setPen(COR_CINZA)
+            colunas = ((14, 44, Qt.AlignLeft), (70, 64, Qt.AlignRight), (150, 64, Qt.AlignRight), (230, 64, Qt.AlignRight),
+                       (300, 46, Qt.AlignRight))
+            for (x, w, al), nome in zip(colunas, ("CURVA", "MIN", "BEST", "DELTA", "VOL.")):
+                p.drawText(QRectF(x, 104, w, 14), al | Qt.AlignVCenter, nome)
+            lista = list(reversed((c.get("lista") or [])[-self.LINHAS:]))
+            for i, r in enumerate(lista):
+                y = 120 + i * 20
+                if i == 0:
+                    p.setBrush(QColor(255, 255, 255, 22))
+                    p.setPen(Qt.NoPen)
+                    p.drawRoundedRect(QRectF(8, y - 1, self.LARG - 16, 19), 4, 4)
+                p.setFont(fonte(12, QFont.Bold))
+                p.setPen(QColor(255, 255, 255))
+                p.drawText(QRectF(14, y, 44, 18), Qt.AlignLeft | Qt.AlignVCenter, f"C{r['n']}")
+                p.setFont(fonte(12, QFont.DemiBold))
+                p.drawText(QRectF(70, y, 64, 18), Qt.AlignRight | Qt.AlignVCenter, fmt_dec(r["min"], 0))
+                p.setPen(COR_CINZA)
+                p.drawText(QRectF(150, y, 64, 18), Qt.AlignRight | Qt.AlignVCenter, fmt_dec(r["best"], 0) if r["best"] is not None else "--")
+                p.setPen(self._cor_delta(r["delta"]))
+                p.setFont(fonte(12, QFont.Bold))
+                p.drawText(QRectF(230, y, 64, 18), Qt.AlignRight | Qt.AlignVCenter,
+                           fmt_dec(r["delta"], 1, sinal=True) if r["delta"] is not None else "--")
+                p.setPen(COR_CINZA)
+                p.setFont(fonte(11))
+                p.drawText(QRectF(300, y, 46, 18), Qt.AlignRight | Qt.AlignVCenter, self._texto_volante(r["volante"]))
+            self._fecha(p)
+        if self._abre(p, "rodape"):
+            # rodape: resumo da volta anterior
+            va = c.get("volta_anterior")
             p.setFont(fonte(11))
-            p.drawText(QRectF(300, y, 46, 18), Qt.AlignRight | Qt.AlignVCenter, self._texto_volante(r["volante"]))
-        # rodape: resumo da volta anterior
-        va = c.get("volta_anterior")
-        p.setFont(fonte(11))
-        p.setPen(COR_CINZA)
-        if va:
-            p.drawText(QRectF(14, self.ALT - 26, 220, 20), Qt.AlignLeft | Qt.AlignVCenter,
-                       f"Volta anterior: -{fmt_dec(va['perda'], 1)} / +{fmt_dec(va['ganho'], 1)} km/h")
-            if va.get("pior_n"):
-                p.setPen(COR_LARANJA)
-                p.setFont(fonte(11, QFont.Bold))
-                p.drawText(QRectF(self.LARG - 134, self.ALT - 26, 120, 20), Qt.AlignRight | Qt.AlignVCenter,
-                           f"pior C{va['pior_n']} ({fmt_dec(va['pior_delta'], 1, sinal=True)})")
-        else:
-            p.drawText(QRectF(14, self.ALT - 26, self.LARG - 28, 20), Qt.AlignLeft | Qt.AlignVCenter,
-                       "Compare com a sua melhor passagem a partir da 2a volta valida")
+            p.setPen(COR_CINZA)
+            if va:
+                p.drawText(QRectF(14, self.ALT - 26, 220, 20), Qt.AlignLeft | Qt.AlignVCenter,
+                           f"Volta anterior: -{fmt_dec(va['perda'], 1)} / +{fmt_dec(va['ganho'], 1)} km/h")
+                if va.get("pior_n"):
+                    p.setPen(COR_LARANJA)
+                    p.setFont(fonte(11, QFont.Bold))
+                    p.drawText(QRectF(self.LARG - 134, self.ALT - 26, 120, 20), Qt.AlignRight | Qt.AlignVCenter,
+                               f"pior C{va['pior_n']} ({fmt_dec(va['pior_delta'], 1, sinal=True)})")
+            else:
+                p.drawText(QRectF(14, self.ALT - 26, self.LARG - 28, 20), Qt.AlignLeft | Qt.AlignVCenter,
+                           "Compare com a sua melhor passagem a partir da 2a volta valida")
+            self._fecha(p)
 
 
 # Compatibilidade com a versao anterior
@@ -8466,6 +8877,661 @@ Overlay = OverlayPrincipal = JanelaTelemetria
 # --------------------------------------------------------------------------
 # Aparecer sozinho + iniciar com o Windows + instancia unica
 # --------------------------------------------------------------------------
+class JanelaConsumo(JanelaBase):
+    """Consumo por trecho da pista (Burn Zones) e vazao instantanea (Fuel Flow) - build o. So le dados: os trechos vem da mediana das
+    suas ultimas voltas limpas; 'oportunidades' (interno) sao os TRECHOS DE MAIOR CONSUMO: gastam bem mais que a media do carro, o que nao significa economia possivel (nao e estimada)."""
+    CHAVE = "consumo"
+    CHAVE_ATIVO = "mostrar_consumo"
+    TAXA_HZ = 10.0
+    LARG, ALT = 360, 232
+    ELEMENTOS = (("titulo", "Título"), ("numeros", "Agora, média e última volta"), ("faixa", "Faixa de consumo por trecho"),
+                 ("trechos", "Trechos de maior consumo"))
+    SECOES = (("numeros", 28, 58), ("faixa", 88, 56), ("trechos", 144, 88))
+
+    def tamanho(self):
+        return (self.LARG, self._alt_util(self.ALT))
+
+    def atualizar(self, dados):
+        self.dados = dados
+        self._repintar()
+
+    @staticmethod
+    def _exemplo():
+        n = ons1.N_ZONAS
+        ratio = [0.9] * n
+        for i in (5, 6, 7):
+            ratio[i] = 1.9
+        for i in (14, 15):
+            ratio[i] = 0.5
+        for i in (19, 20):
+            ratio[i] = 1.5
+        zonas = [{"ratio": r, "nivel": "alta" if r >= 1.25 else ("baixa" if r <= 0.75 else "normal"), "litros": r * 0.09} for r in ratio]
+        atual = [z["litros"] * (1.0 + 0.3 * math.sin(i)) for i, z in enumerate(zonas[:17])] + [None] * (n - 17)
+        return {"estado": "ok", "voltas": 5, "minimo": 3, "inst_lh": 62.4, "medio_lv": 2.18, "ultima_lv": 2.21, "tendencia": "estavel",
+                "zonas": zonas, "atual": atual, "n_zonas": n,
+                "oportunidades": [{"ini": 5 / n, "fim": 8 / n, "parcela": 0.21, "ratio": 1.9}, {"ini": 19 / n, "fim": 21 / n, "parcela": 0.12, "ratio": 1.5}]}
+
+    def paintEvent(self, _evento):
+        p = self._pintor()
+        d = self.dados
+        if not self._fundo(p, d["conectado"]):
+            return
+        c = d.get("consumo")
+        if (not c or c.get("estado") == "sem_dados") and not self.config["travado"]:
+            c = self._exemplo()
+        p.setFont(fonte_titulo(11))
+        p.setPen(COR_CINZA)
+        if self.visivel("titulo"):
+            p.drawText(QRectF(14, 8, 150, 18), Qt.AlignLeft | Qt.AlignVCenter, "CONSUMO")
+        if not c or c.get("estado") == "sem_dados":
+            p.setFont(fonte(12, QFont.DemiBold))
+            p.drawText(self._rect_espera(QRectF(14, 40, self.LARG - 28, 150)), Qt.AlignCenter | Qt.TextWordWrap,
+                       "Dirija voltas limpas (sem box,\nsem reabastecer) para medir o consumo\npor trecho da pista")
+            return
+        if self._abre(p, "numeros"):
+            inst, medio, ult = c.get("inst_lh"), c.get("medio_lv"), c.get("ultima_lv")
+            p.setFont(fonte(8, QFont.DemiBold))
+            p.setPen(COR_CINZA)
+            for x, rot in ((14, "AGORA  L/h"), (130, "MEDIA  L/volta"), (250, "ULTIMA  L/volta")):
+                p.drawText(QRectF(x, 30, 116, 14), Qt.AlignLeft | Qt.AlignVCenter, rot)
+            p.setFont(fonte(20, QFont.Bold))
+            p.setPen(COR_TEXTO)
+            p.drawText(QRectF(14, 44, 112, 30), Qt.AlignLeft | Qt.AlignVCenter, "--" if inst is None else "%.1f" % inst)
+            p.drawText(QRectF(130, 44, 116, 30), Qt.AlignLeft | Qt.AlignVCenter, "--" if medio is None else "%.2f" % medio)
+            tend = c.get("tendencia")
+            cor_u = {"subindo": COR_VERMELHO, "caindo": COR_VERDE}.get(tend, COR_TEXTO)
+            p.setPen(cor_u)
+            p.drawText(QRectF(250, 44, 80, 30), Qt.AlignLeft | Qt.AlignVCenter, "--" if ult is None else "%.2f" % ult)
+            if tend in ("subindo", "caindo"):                                  # seta: consumo das ultimas voltas vs as anteriores
+                xs, ys = 336, 59
+                p.setPen(Qt.NoPen)
+                p.setBrush(cor_u)
+                seta = QPolygonF([QPointF(xs - 6, ys + 4), QPointF(xs + 6, ys + 4), QPointF(xs, ys - 6)]) if tend == "subindo" \
+                    else QPolygonF([QPointF(xs - 6, ys - 4), QPointF(xs + 6, ys - 4), QPointF(xs, ys + 6)])
+                p.drawPolygon(seta)
+            self._fecha(p)
+        n = int(c.get("n_zonas") or ons1.N_ZONAS)
+        zonas = c.get("zonas")
+        x0, larg, y0, h = 14.0, self.LARG - 28.0, 92.0, 30.0
+        cel = larg / n
+        p.setPen(Qt.NoPen)
+        if zonas:
+            if self._abre(p, "faixa"):
+                for i, z in enumerate(zonas):
+                    r = z["ratio"]
+                    if z["nivel"] == "alta":
+                        cor = QColor(235, 60 + int(max(0.0, 2.0 - r) * 60), 50)
+                    elif z["nivel"] == "baixa":
+                        cor = QColor(60, 190, 100)
+                    else:
+                        cor = QColor(205, 205, 215, 150)
+                    p.setBrush(cor)
+                    p.drawRoundedRect(QRectF(x0 + i * cel + 0.5, y0, cel - 1.0, h), 2, 2)
+                atual = c.get("atual")
+                if atual:                                                      # esta volta contra o seu normal (so trechos ja completos)
+                    ultimo = max((i for i, a in enumerate(atual) if a is not None), default=-1)
+                    for i, a in enumerate(atual):
+                        if a is None or i >= ultimo:
+                            continue
+                        ref = zonas[i]["litros"]
+                        if ref <= 0:
+                            continue
+                        k = a / ref
+                        p.setBrush(COR_VERMELHO if k > 1.15 else (COR_VERDE if k < 0.85 else QColor(150, 150, 165)))
+                        p.drawRoundedRect(QRectF(x0 + i * cel + 0.5, y0 + h + 3, cel - 1.0, 5), 1.5, 1.5)
+                p.setFont(fonte(7, QFont.DemiBold))
+                p.setPen(COR_CINZA)
+                p.drawText(QRectF(x0, y0 + h + 10, 120, 12), Qt.AlignLeft | Qt.AlignVCenter, "LARGADA")
+                p.drawText(QRectF(x0 + larg - 120, y0 + h + 10, 120, 12), Qt.AlignRight | Qt.AlignVCenter, "CHEGADA")
+                p.setFont(fonte(8, QFont.DemiBold))
+                p.drawText(QRectF(x0 + 120, y0 + h + 10, larg - 240, 12), Qt.AlignCenter, "abaixo: esta volta")
+                self._fecha(p)
+            if self._abre(p, "trechos"):
+                ops = c.get("oportunidades") or []
+                if ops:
+                    p.setFont(fonte(7, QFont.DemiBold))
+                    p.setPen(COR_CINZA)
+                    p.drawText(QRectF(14, 146, self.LARG - 28, 12), Qt.AlignLeft | Qt.AlignVCenter, "TRECHOS DE MAIOR CONSUMO (indicativo, nao e economia)")
+                p.setFont(fonte(10, QFont.DemiBold))
+                if ops:
+                    for k, o in enumerate(ops[:3]):
+                        p.setPen(COR_LARANJA)
+                        p.drawText(QRectF(14, 160 + k * 20, 90, 18), Qt.AlignLeft | Qt.AlignVCenter, "%d%% - %d%%" % (round(o["ini"] * 100), round(o["fim"] * 100)))
+                        p.setPen(COR_TEXTO)
+                        p.drawText(QRectF(104, 160 + k * 20, self.LARG - 118, 18), Qt.AlignLeft | Qt.AlignVCenter,
+                                   "%.0f%% do consumo (%.1fx a media)" % (o["parcela"] * 100, o["ratio"]))
+                else:
+                    p.setPen(COR_CINZA)
+                    p.drawText(QRectF(14, 148, self.LARG - 28, 18), Qt.AlignLeft | Qt.AlignVCenter, "Consumo uniforme: nenhum trecho se destaca")
+                self._fecha(p)
+        else:
+            p.setFont(fonte(11, QFont.DemiBold))
+            p.setPen(COR_CINZA)
+            p.drawText(QRectF(14, 94, self.LARG - 28, 70), Qt.AlignCenter | Qt.TextWordWrap,
+                       "Mapeando os trechos: %d/%d voltas limpas" % (c.get("voltas", 0), c.get("minimo", 3)))
+
+
+class JanelaDeltaTrace(JanelaBase):
+    """Delta Trace (build o, redesenhado na build q): tempo ganho/perdido ao longo da volta contra a melhor volta limpa da sessao, com
+    o delta atual em destaque e, abaixo, um bloco por CURVA com o que foi ganho/perdido nela (as curvas vem do mapa da janela Curvas).
+    Sinal do jogo: negativo = mais rapido. No grafico, ganhar tempo SOBE (verde) e perder DESCE (vermelho)."""
+    CHAVE = "delta_trace"
+    CHAVE_ATIVO = "mostrar_delta_trace"
+    TAXA_HZ = 15.0
+    LARG, ALT = 710, 200
+    LARG_GRAF = 558                  # largura da area do grafico; o resto e o painel da curva (numero + pista)
+    LIMIAR_CURVA = 0.02               # abaixo disso o bloco da curva fica neutro (ruido)
+
+    CHAVE_ELEMENTOS = "delta_trace_elementos"        # (build r: chave propria, mantida)
+    ELEMENTOS = (("titulo", "Título e referência"), ("delta", "Delta grande"), ("grafico", "Gráfico / barra do delta"),
+                 ("anterior", "Volta anterior (tracejada)"), ("ideal", "Ritmo ideal estimado (soma dos melhores trechos)"), ("blocos", "Blocos por curva"), ("curva", "Número da curva"),
+                 ("mapa", "Desenho da pista"))
+
+    def _geom(self):
+        """(largura, altura, y_dos_blocos) conforme os elementos ligados; tudo ligado = 710 x 200 (como antes)."""
+        painel = self.visivel("curva") or self.visivel("mapa")
+        larg = self.LARG if painel else self.LARG_GRAF
+        if self.visivel("grafico"):
+            base = 136.0
+        elif self.layout_atual() == "racelab" and self.visivel("delta"):
+            base = 88.0
+        else:
+            base = 44.0
+        yb = base + 8.0
+        alt = (yb + 56.0) if self.visivel("blocos") else base
+        if painel:
+            alt = max(alt, 150.0 if self.visivel("mapa") else 70.0)
+        return (larg, max(70.0, alt), yb)
+
+    def tamanho(self):
+        g = self._geom()
+        return (int(g[0]), int(g[1]))
+
+    def atualizar(self, dados):
+        self.dados = dados
+        self._repintar()
+
+    @staticmethod
+    def _exemplo():
+        n = ons1.N_PONTOS
+        pts = [None] * (n + 1)
+        ant = [None] * (n + 1)
+        for i in range(n + 1):
+            x = i / n
+            ant[i] = 0.35 * math.sin(x * 5.0) - 0.1
+            if x <= 0.62:
+                pts[i] = 0.45 * math.sin(x * 6.0) + 0.1 * x
+        zonas = [{"n": k + 1, "ini": a, "fim": b} for k, (a, b) in enumerate(
+            ((0.04, 0.09), (0.14, 0.20), (0.24, 0.29), (0.35, 0.41), (0.46, 0.50), (0.55, 0.60), (0.66, 0.71), (0.78, 0.84), (0.90, 0.95)))]
+        ref = [0.0]
+        for i in range(1, n + 1):                                        # referencia: trechos de curva (lentos) levam mais tempo
+            x = (i - 0.5) / n
+            lento = any(z["ini"] <= x <= z["fim"] for z in zonas)
+            ref.append(ref[-1] + (2.2 if lento else 0.8))
+        k = 90.321 / ref[-1]
+        ref = [r * k for r in ref]
+        return {"estado": "ok", "n": n, "pontos": pts, "anterior": ant, "ref_total": 90.321, "atual": pts[int(0.62 * n)], "voltas": 4,
+                "melhor": min(v for v in pts if v is not None), "pior": max(v for v in pts if v is not None), "curvas": zonas, "ref_tempos": ref,
+                "ideal": [-0.32 * (i / n) ** 1.2 for i in range(n + 1)], "ideal_total": 90.321 - 0.32}
+
+    @staticmethod
+    def _escala(valores):
+        m = max([abs(v) for v in valores if v is not None] + [0.0])
+        for passo in (0.25, 0.5, 1.0, 2.0, 5.0, 10.0):
+            if m <= passo:
+                return passo
+        return 10.0
+
+    LAYOUTS = ("grafico", "racelab")
+
+    def layout_atual(self):
+        """Layout do painel (build r): "grafico" (area do delta ao longo da volta) ou "racelab" (numero grande + barra central)."""
+        v = str(self.config.get("delta_trace_layout", "grafico")).lower()
+        return v if v in self.LAYOUTS else "grafico"
+
+    def opcoes_mudaram(self):
+        self.aplicar_tamanho()                       # o painel encolhe/cresce conforme os elementos ligados
+        self.update()
+
+    def _barra_racelab(self, p, c, atual, ref, x0, x1):
+        """Layout estilo RaceLab: delta em numero grande no centro e uma barra horizontal a partir do zero (verde para a esquerda =
+        ganhando, vermelho para a direita = perdendo, mesmo sinal do jogo). Os blocos por curva e o painel da curva continuam os mesmos."""
+        cx = (x0 + x1) / 2.0
+        cor = COR_TEXTO
+        if atual is not None:
+            cor = COR_VERDE if atual < -0.005 else (COR_VERMELHO if atual > 0.005 else COR_TEXTO)
+        if self.visivel("delta"):
+            p.setFont(fonte(46, QFont.Bold))
+            p.setPen(cor)
+            p.drawText(QRectF(x0, 22, x1 - x0, 62), Qt.AlignCenter, ("%+.2f" % atual) if atual is not None else "--")
+        if not self.visivel("grafico"):
+            return
+        yb, hb = 96.0, 18.0
+        meia = (x1 - x0) / 2.0 - 4.0
+        esc = self._escala([atual] if atual is not None else [])
+        p.setPen(Qt.NoPen)
+        p.setBrush(QColor(255, 255, 255, 22))
+        p.drawRoundedRect(QRectF(cx - meia, yb, 2 * meia, hb), 5, 5)
+        if atual is not None:
+            f = max(-1.0, min(1.0, atual / esc))
+            larg = abs(f) * meia
+            p.setBrush(QColor(cor.red(), cor.green(), cor.blue(), 220))
+            if f < 0:
+                p.drawRoundedRect(QRectF(cx - larg, yb, larg, hb), 5, 5)
+            else:
+                p.drawRoundedRect(QRectF(cx, yb, larg, hb), 5, 5)
+        p.setPen(QPen(QColor(255, 255, 255, 200), 2))
+        p.drawLine(QPointF(cx, yb - 4), QPointF(cx, yb + hb + 4))
+        p.setFont(fonte(7, QFont.DemiBold))
+        p.setPen(COR_CINZA)
+        p.drawText(QRectF(cx - meia, yb + hb + 2, 140, 11), Qt.AlignLeft | Qt.AlignVCenter, "-%.2gs (ganhando)" % esc)
+        p.drawText(QRectF(cx + meia - 140, yb + hb + 2, 140, 11), Qt.AlignRight | Qt.AlignVCenter, "+%.2gs (perdendo)" % esc)
+
+    def _geometria_pista(self, mapa, caixa):
+        """Pontos do tracado (do Mapa) ajustados a `caixa` (QRectF), em coordenadas da janela; guardado ate o tracado mudar."""
+        chave = (mapa.get("versao"), len(mapa["pontos"]), round(caixa.width()), round(caixa.height()))
+        if getattr(self, "_geo_chave", None) == chave:
+            return self._geo_tela
+        pontos = mapa["pontos"]
+        validos = [q for q in pontos if q is not None]
+        xs, ys = [q[0] for q in validos], [q[1] for q in validos]
+        larg, alt = (max(xs) - min(xs)) or 1.0, (max(ys) - min(ys)) or 1.0
+        esc = min(caixa.width() / larg, caixa.height() / alt)
+        ox = caixa.left() + (caixa.width() - larg * esc) / 2.0 - min(xs) * esc
+        oy = caixa.top() + (caixa.height() - alt * esc) / 2.0 + max(ys) * esc
+        self._geo_tela = [None if q is None else (ox + q[0] * esc, oy - q[1] * esc) for q in pontos]    # norte para cima
+        self._geo_chave = chave
+        return self._geo_tela
+
+    def _painel_curva(self, p, d, zonas, pts, pct):
+        """Direita do painel: numero da curva (a que voce faz agora ou a proxima), o desenho da pista com ela destacada e a posicao do carro."""
+        xp = self.LARG_GRAF + 4.0
+        lp = self.LARG - xp - 12.0
+        p.setPen(QPen(QColor(255, 255, 255, 36), 1))
+        p.drawLine(QPointF(self.LARG_GRAF, 12), QPointF(self.LARG_GRAF, self._geom()[1] - 12))
+        z, estado = ons1.curva_em_foco(zonas, pct)
+        mapa = d.get("mapa")
+        ver_num, ver_mapa = self.visivel("curva"), self.visivel("mapa")
+        alt_total = self._geom()[1]
+        if z is None and not (mapa and mapa.get("pontos")):
+            return
+        if z is not None and ver_num:
+            p.setFont(fonte(8, QFont.DemiBold))
+            p.setPen(COR_CINZA)
+            p.drawText(QRectF(xp, 8, lp, 12), Qt.AlignLeft | Qt.AlignVCenter, "CURVA" if estado == "agora" else "PROXIMA CURVA")
+            nd = min(3, len(str(z["n"])))                         # 1, 2 ou 3 digitos: a fonte diminui e o delta cede espaco
+            tam_num, larg_num = {1: (34, 52), 2: (30, 58), 3: (24, 62)}[nd]
+            p.setFont(fonte(tam_num, QFont.Bold))
+            p.setPen(COR_TEXTO)
+            p.drawText(QRectF(xp, 18, larg_num, 40), Qt.AlignLeft | Qt.AlignVCenter, str(z["n"]))
+            dc = ons1.delta_na_curva(pts, z, pct) if estado == "agora" else None
+            if dc is not None:
+                cor = COR_VERDE if dc < -self.LIMIAR_CURVA else (COR_VERMELHO if dc > self.LIMIAR_CURVA else COR_CINZA)
+                p.setPen(Qt.NoPen)
+                p.setBrush(QColor(cor.red(), cor.green(), cor.blue(), 60))
+                p.drawRoundedRect(QRectF(xp + larg_num + 2, 26, lp - larg_num - 2, 24), 5, 5)
+                p.setFont(fonte(11, QFont.Bold))
+                p.setPen(cor)
+                p.drawText(QRectF(xp + larg_num + 2, 26, lp - larg_num - 2, 24), Qt.AlignCenter, "%+.2fs" % dc)
+        # desenho da pista (so se o Mapa ja aprendeu o tracado)
+        if not ver_mapa or not mapa or not mapa.get("pontos") or not any(q is not None for q in mapa["pontos"]):
+            return
+        topo = 66.0 if ver_num else 12.0
+        caixa = QRectF(xp + 2, topo, lp - 4, alt_total - topo - 14)
+        tela = self._geometria_pista(mapa, caixa)
+        m = len(tela)
+        validos = [q for q in tela if q is not None]
+        suave = v15._suavizar(validos, 1) if len(validos) == m else tela
+        def trilha(a, b):
+            cam = QPainterPath()
+            primeiro = True
+            for q in suave[a:b + 1]:
+                if q is None:
+                    primeiro = True
+                    continue
+                if primeiro:
+                    cam.moveTo(*q)
+                    primeiro = False
+                else:
+                    cam.lineTo(*q)
+            return cam
+        todo = trilha(0, m - 1)
+        if mapa.get("completo") and len(validos) == m:
+            todo.closeSubpath()
+        p.setBrush(Qt.NoBrush)
+        # estilo do minimapa: contorno claro + miolo escuro
+        p.setPen(QPen(QColor(240, 240, 245, 235), 9, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        p.drawPath(todo)
+        p.setPen(QPen(QColor(24, 24, 30), 5.5, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        p.drawPath(todo)
+        # parte ja percorrida, verde onde ganhou tempo e vermelho onde perdeu
+        ritmo = ons1.ritmo_por_trecho(pts, pct)
+        ns = len(ritmo)
+        for s in range(ns):
+            r = ritmo[s]
+            if r is None:
+                continue
+            a = int(s * m / float(ns))
+            b = min(m - 1, int((s + 1) * m / float(ns)) + 1)
+            cor = COR_VERDE if r < 0 else (COR_VERMELHO if r > 0 else QColor(150, 150, 160))
+            p.setPen(QPen(cor, 5.5, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+            p.drawPath(trilha(a, b))
+        if z is not None:                                        # curva em foco: moldura laranja/branca por fora
+            i0, i1 = int(z["ini"] * m), min(m - 1, int(round(z["fim"] * m)))
+            p.setPen(QPen(COR_LARANJA if estado == "agora" else QColor(255, 255, 255), 2.0, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+            if ons1.zona_circular(z):                            # build r: curva sobre a linha de chegada = dois pedacos do mesmo desenho
+                p.drawPath(trilha(i0, m - 1))
+                p.drawPath(trilha(0, min(m - 1, i1)))
+            else:
+                p.drawPath(trilha(i0, i1))
+        if tela[0] is not None and m > 4 and tela[2] is not None:      # linha de largada/chegada
+            x0, y0 = tela[0]
+            x1, y1 = tela[2]
+            dx, dy = x1 - x0, y1 - y0
+            nrm = math.hypot(dx, dy) or 1.0
+            p.setPen(QPen(QColor(255, 255, 255), 2))
+            p.drawLine(QPointF(x0 - dy / nrm * 6, y0 + dx / nrm * 6), QPointF(x0 + dy / nrm * 6, y0 - dx / nrm * 6))
+        k = min(m - 1, int(max(0.0, min(1.0, pct)) * m))                # o carro
+        if tela[k] is not None:
+            p.setPen(QPen(QColor(255, 255, 255), 1.6))
+            p.setBrush(QColor(255, 220, 0))
+            p.drawEllipse(QPointF(*tela[k]), 5.0, 5.0)
+
+    def paintEvent(self, _evento):
+        p = self._pintor()
+        d = self.dados
+        if not self._fundo(p, d["conectado"]):
+            return
+        c = d.get("delta_trace")
+        if (not c or c.get("estado") != "ok") and not self.config["travado"]:
+            c = self._exemplo()
+            if not d.get("mapa"):
+                d = dict(d)
+                d["mapa"] = {"pontos": _tracado_demo(), "completo": True, "versao": "demo"}        # destravado: exemplo com pista
+        p.setFont(fonte_titulo(11))
+        p.setPen(COR_CINZA)
+        if self.visivel("titulo") or not c or c.get("estado") != "ok":
+            p.drawText(QRectF(14, 8, 110, 18), Qt.AlignLeft | Qt.AlignVCenter, "DELTA TRACE")
+        if not c or c.get("estado") != "ok":
+            p.setFont(fonte(12, QFont.DemiBold))
+            p.drawText(QRectF(14, 40, self.tamanho()[0] - 28, max(30, self.tamanho()[1] - 50)), Qt.AlignCenter | Qt.TextWordWrap,
+                       "Complete uma volta limpa (sem box,\nsem sair da pista) para criar a referencia")
+            return
+        pts, ant = c.get("pontos") or [], c.get("anterior") or []
+        atual = c.get("atual")
+        # ---- cabecalho: referencia e delta grande
+        ref = c.get("ref_total")
+        if ref and self.visivel("titulo"):
+            p.setFont(fonte(8, QFont.DemiBold))
+            p.setPen(COR_CINZA)
+            p.drawText(QRectF(124, 8, 220, 18), Qt.AlignLeft | Qt.AlignVCenter, "ref: melhor da sessao  %s" % fmt_tempo(ref))
+        racelab = self.layout_atual() == "racelab"
+        if atual is not None and not racelab and self.visivel("delta"):
+            p.setFont(fonte(26, QFont.Bold))
+            p.setPen(COR_VERDE if atual < -0.005 else (COR_VERMELHO if atual > 0.005 else COR_TEXTO))
+            p.drawText(QRectF(self.LARG_GRAF - 150, 2, 136, 34), Qt.AlignRight | Qt.AlignVCenter, "%+.2f" % atual)
+        # ---- grafico
+        esc = self._escala(list(pts) + list(ant) + list(c.get("ideal") or []))
+        x0, x1, y0, y1 = 14.0, self.LARG_GRAF - 14.0, 44.0, 122.0
+        meio, meia = (y0 + y1) / 2.0, (y1 - y0) / 2.0
+        n = max(1, len(pts) - 1)
+
+        xs = ons1.eixo_tempo(c.get("ref_tempos"), n)                   # eixo de TEMPO da referencia: curva lenta = trecho mais largo
+
+        def px(i):
+            return x0 + (x1 - x0) * xs[max(0, min(len(xs) - 1, i))]
+
+        def py(v):
+            return meio + max(-esc, min(esc, v)) / esc * meia          # delta negativo (ganho) sobe
+        feitos = [i for i, v in enumerate(pts) if v is not None]
+        x_atual = px(feitos[-1]) if feitos else x0
+        if racelab:
+            self._barra_racelab(p, c, atual, ref, x0, x1)
+        elif self.visivel("grafico"):
+            p.setPen(Qt.NoPen)
+            p.setBrush(QColor(255, 255, 255, 12))
+            p.drawRect(QRectF(x_atual, y0, x1 - x_atual, y1 - y0))         # o que ainda vem da volta, levemente destacado
+            p.setPen(QPen(QColor(255, 255, 255, 26), 1))
+            for f in (-1.0, -0.5, 0.5, 1.0):
+                p.drawLine(QPointF(x0, meio + f * meia), QPointF(x1, meio + f * meia))
+            p.setPen(QPen(QColor(255, 255, 255, 110), 1.2))
+            p.drawLine(QPointF(x0, meio), QPointF(x1, meio))
+            p.setFont(fonte(7, QFont.DemiBold))
+            p.setPen(COR_CINZA)
+            p.drawText(QRectF(x0 + 2, y0 - 11, 120, 11), Qt.AlignLeft | Qt.AlignVCenter, "-%.2gs (ganhando)" % esc)
+            p.drawText(QRectF(x0 + 2, y1 + 1, 120, 11), Qt.AlignLeft | Qt.AlignVCenter, "+%.2gs (perdendo)" % esc)
+            p.drawText(QRectF(x1 - 150, y1 + 1, 150, 11), Qt.AlignRight | Qt.AlignVCenter, "tracejado: volta anterior")
+            if ant and len(ant) == len(pts) and self.visivel("anterior"):                # volta anterior, tracejada (sempre contra a referencia vigente)
+                p.setPen(QPen(QColor(200, 200, 215, 95), 1.2, Qt.DashLine))
+                prev = None
+                for i, v in enumerate(ant):
+                    if v is None:
+                        prev = None
+                        continue
+                    if prev is not None:
+                        p.drawLine(QPointF(px(i - 1), py(prev)), QPointF(px(i), py(v)))
+                    prev = v
+            ideal = c.get("ideal")
+            if ideal and len(ideal) == len(pts) and self.visivel("ideal"):               # build s: ritmo ideal ESTIMADO = soma dos seus melhores trechos (nao e uma volta feita)
+                cor_i = QColor(90, 200, 255, 215)
+                p.setPen(QPen(cor_i, 1.6))
+                for i in range(1, len(ideal)):
+                    if ideal[i] is not None and ideal[i - 1] is not None:
+                        p.drawLine(QPointF(px(i - 1), py(ideal[i - 1])), QPointF(px(i), py(ideal[i])))
+                it = c.get("ideal_total")
+                if it and ref:
+                    p.setFont(fonte(7, QFont.DemiBold))
+                    p.setPen(cor_i)
+                    p.drawText(QRectF(x0 + 128, y1 + 1, 200, 11), Qt.AlignLeft | Qt.AlignVCenter, "azul: ritmo ideal estimado (%+.2fs)" % (it - ref))
+            prev = None
+            for i, v in enumerate(pts):
+                if v is None:
+                    prev = None
+                    continue
+                if prev is not None:
+                    cor = COR_VERDE if (v + prev) / 2.0 < 0 else COR_VERMELHO
+                    p.setPen(Qt.NoPen)
+                    p.setBrush(QColor(cor.red(), cor.green(), cor.blue(), 70))
+                    p.drawPolygon(QPolygonF([QPointF(px(i - 1), meio), QPointF(px(i - 1), py(prev)), QPointF(px(i), py(v)), QPointF(px(i), meio)]))
+                    p.setPen(QPen(cor, 2.2))
+                    p.drawLine(QPointF(px(i - 1), py(prev)), QPointF(px(i), py(v)))
+                prev = v
+            if feitos:                                                      # cursor: onde voce esta agora
+                p.setPen(QPen(QColor(255, 255, 255, 190), 1.4))
+                p.drawLine(QPointF(x_atual, y0), QPointF(x_atual, y1))
+        # ---- painel da curva (numero + desenho da pista), blocos por curva (o que foi ganho/perdido em cada uma)
+        zonas = c.get("curvas") or []
+        pct_atual = (feitos[-1] / float(n)) if feitos else 0.0
+        if self.visivel("curva") or self.visivel("mapa"):
+            self._painel_curva(p, d, zonas, pts, pct_atual)
+        if not self.visivel("blocos"):
+            self.ultimo_layout_blocos = []
+            return
+        yb, hb = self._geom()[2], 30.0
+        blocos = ons1.delta_por_curva(pts, zonas)
+        if not blocos:
+            p.setFont(fonte(8, QFont.DemiBold))
+            p.setPen(COR_CINZA)
+            p.drawText(QRectF(x0, yb, x1 - x0, hb), Qt.AlignCenter, "Os blocos por curva aparecem depois que a janela Curvas mapear a pista (1 volta limpa)")
+            return
+        ult_rot = -100.0
+        desej = []
+        for b in blocos:                                                 # posicao ideal de cada bloco; largura = tempo gasto na curva
+            bx0, bx1 = px(int(round(b["ini"] * n))), px(int(round(b["fim"] * n)))
+            if ons1.zona_circular(b):                                    # build r: curva sobre a linha de chegada: um bloco so, no fim da faixa
+                w_t = max(0.0, x1 - bx0) + max(0.0, bx1 - x0)
+                bx0, bx1 = x1 - w_t, x1
+            desej.append((bx0, bx1))
+        ordem = sorted(range(len(blocos)), key=lambda i: desej[i][0] + desej[i][1])
+        pos_blocos = ons1.layout_blocos([desej[i] for i in ordem], x0, x1, 30.0, 2.0)      # dentro da faixa, sem sobrepor, larguras adaptadas
+        self.ultimo_layout_blocos = [(blocos[i]["n"],) + pos_blocos[k] for k, i in enumerate(ordem)]
+        for k, i in enumerate(ordem):
+            b = blocos[i]
+            bx, larg = pos_blocos[k]
+            dd = b["delta"]
+            if dd is None:
+                cor, txt = QColor(120, 120, 132, 60), ""
+            elif dd < -self.LIMIAR_CURVA:
+                cor, txt = QColor(COR_VERDE.red(), COR_VERDE.green(), COR_VERDE.blue(), 215), "%+.2f" % dd
+            elif dd > self.LIMIAR_CURVA:
+                cor, txt = QColor(COR_VERMELHO.red(), COR_VERMELHO.green(), COR_VERMELHO.blue(), 215), "%+.2f" % dd
+            else:
+                cor, txt = QColor(150, 150, 165, 150), "0.0"
+            p.setPen(Qt.NoPen)
+            p.setBrush(cor)
+            p.drawRoundedRect(QRectF(bx, yb, larg, hb), 4, 4)
+            if txt and larg >= 26:                                       # com muitas curvas o bloco estreito fica so na cor
+                p.setFont(fonte(8, QFont.Bold))
+                p.setPen(QColor(255, 255, 255))
+                p.drawText(QRectF(bx, yb, larg, hb), Qt.AlignCenter, txt)
+            if bx - ult_rot >= 16:                                      # numero da curva (sem sobrepor o vizinho)
+                p.setFont(fonte(7, QFont.DemiBold))
+                p.setPen(COR_CINZA)
+                p.drawText(QRectF(bx - 4, yb + hb + 2, larg + 8, 11), Qt.AlignCenter, str(b["n"]))
+                ult_rot = bx
+
+
+class JanelaCoach(JanelaBase):
+    """Coach ao vivo (v1.7.0): distancia ate a proxima freada da volta de referencia, contagem 3-2-1-FREIE, marcha e
+    velocidade-alvo no apice, delta contra a referencia e o resultado da curva anterior. So le o resumo do Coach."""
+    CHAVE = "coach"
+    CHAVE_ATIVO = "mostrar_coach"
+    TAXA_HZ = 30.0
+    LARG, ALT = 360, 238
+    ELEMENTOS = (("titulo", "Título e fonte da referência"), ("proxima", "Próxima freada (contagem, marcha, ápice)"),
+                 ("delta", "Delta e avaliação da curva"), ("ritmo", "Ritmo, dica da curva e resumo"), ("rodape", "Aviso / stint (rodapé)"))
+    SECOES = (("proxima", 24, 82), ("delta", 106, 50), ("ritmo", 156, 50), ("rodape", 206, 32))
+
+    def tamanho(self):
+        return (self.LARG, self._alt_util(self.ALT))
+
+    def atualizar(self, dados):
+        self.dados = dados
+        self._repintar()
+
+    @staticmethod
+    def _exemplo():
+        return {"estado": "ok", "fonte": "propria", "pista": "Exemplo", "carro": "Exemplo", "tempo_ref": 92.4,
+                "proxima": {"n": 3, "dist_m": 84.0, "tempo_ate": 1.5, "fase": "adiante", "contagem": "2", "marcha": 3,
+                            "vel_apice": 94.0, "vel_entrada": 238.0, "pico": 0.9, "total": 9,
+                            "melhor_sua": {"n": 3, "texto": "C3 | Melhor passagem: -0,08 s | Freada 12 m depois da referência"}},
+                "delta": -0.12, "aviso": None, "voltas_gravadas": 2,
+                "feedback": {"n": 2, "nota": "cedo", "gravidade": 1, "texto": "C2: freou cedo (~14 m) | apice -3 km/h"}}
+
+    @staticmethod
+    def _cor_nota(nota):
+        if nota in ("perfeita", "boa"):
+            return COR_VERDE
+        if nota in ("cedo", "tarde", "sem_tirada", "freou_em_vez"):
+            return COR_LARANJA
+        return COR_VERMELHO
+
+    def paintEvent(self, _evento):
+        p = self._pintor()
+        d = self.dados
+        if not self._fundo(p, d["conectado"]):
+            return
+        c = d.get("coach")
+        if (not c or c.get("estado") != "ok") and not self.config["travado"] and not (c and c.get("estado") == "gravando"):
+            c = self._exemplo()
+        p.setFont(fonte_titulo(11))
+        p.setPen(COR_CINZA)
+        if self.visivel("titulo"):
+            p.drawText(QRectF(14, 8, 150, 18), Qt.AlignLeft | Qt.AlignVCenter, "COACH")
+        if not c or c.get("estado") != "ok":
+            p.setFont(fonte(12, QFont.DemiBold))
+            if c and c.get("estado") == "gravando":
+                msg = "Dirija uma volta limpa para gravar\na sua referencia nesta pista e carro"
+            else:
+                msg = "Aguardando pista e carro..."
+            p.drawText(self._rect_espera(QRectF(14, 40, self.LARG - 28, 100)), Qt.AlignCenter | Qt.TextWordWrap, msg)
+            return
+        fonte_txt = {"propria": "SUA MELHOR", "importada": "IMPORTADA"}.get(c.get("fonte"), "")
+        p.setFont(fonte(10, QFont.DemiBold))
+        if self.visivel("titulo"):
+            p.drawText(QRectF(self.LARG - 160, 8, 146, 18), Qt.AlignRight | Qt.AlignVCenter, fonte_txt)
+        pr = c.get("proxima")
+        if self._abre(p, "proxima"):
+            if pr:
+                cont = pr.get("contagem")
+                tirada = pr.get("tipo") == "tirada"
+                if pr.get("fase") == "freando":
+                    cor, grande = (COR_AMARELO, "TIRANDO") if tirada else (COR_VERMELHO, "FREANDO")
+                elif cont == "FREIE":
+                    cor, grande = COR_VERMELHO, "FREIE"
+                elif cont == "TIRE":
+                    cor, grande = COR_AMARELO, "TIRE"
+                elif cont:
+                    cor, grande = COR_LARANJA, cont
+                else:
+                    cor, grande = QColor(255, 255, 255), f"{pr['dist_m']:.0f} m"
+                p.setPen(cor)
+                p.setFont(fonte(40 if (len(grande) <= 5 or grande.endswith(" m")) else 29, QFont.Bold))
+                p.drawText(QRectF(14, 28, 196, 56), Qt.AlignLeft | Qt.AlignVCenter, grande)
+                p.setPen(COR_CINZA)
+                p.setFont(fonte(10, QFont.DemiBold))
+                p.drawText(QRectF(14, 84, 190, 14), Qt.AlignLeft | Qt.AlignVCenter, f"C{pr['n']} de {pr['total']}  |  {'tirada' if pr.get('tipo') == 'tirada' else 'freada'} em {pr['dist_m']:.0f} m")
+                p.setPen(QColor(255, 255, 255))
+                p.setFont(fonte(10, QFont.DemiBold))
+                p.setPen(COR_CINZA)
+                p.drawText(QRectF(214, 30, 64, 14), Qt.AlignLeft | Qt.AlignVCenter, "MARCHA")
+                p.drawText(QRectF(284, 30, 70, 14), Qt.AlignLeft | Qt.AlignVCenter, "APICE")
+                p.setPen(QColor(255, 255, 255))
+                p.setFont(fonte(30, QFont.Bold))
+                p.drawText(QRectF(214, 44, 64, 40), Qt.AlignLeft | Qt.AlignVCenter, str(pr["marcha"]) if pr.get("marcha") else "--")
+                p.setFont(fonte(22, QFont.DemiBold))
+                p.drawText(QRectF(284, 44, 72, 40), Qt.AlignLeft | Qt.AlignVCenter, fmt_dec(pr["vel_apice"], 0))
+            else:
+                p.setPen(COR_CINZA)
+                p.setFont(fonte(13, QFont.DemiBold))
+                p.drawText(QRectF(14, 36, self.LARG - 28, 60), Qt.AlignLeft | Qt.AlignVCenter | Qt.TextWordWrap, "Sem zona de frenagem a frente")
+            self._fecha(p)
+        if self._abre(p, "delta"):
+            # delta contra a referencia
+            p.setPen(QPen(QColor(255, 255, 255, 40), 1))
+            p.drawLine(QPointF(14, 106), QPointF(self.LARG - 14, 106))
+            dl = c.get("delta")
+            p.setFont(fonte(10, QFont.DemiBold))
+            p.setPen(COR_CINZA)
+            p.drawText(QRectF(14, 110, 120, 14), Qt.AlignLeft | Qt.AlignVCenter, "DELTA REF.")
+            p.setFont(fonte(20, QFont.Bold))
+            p.setPen(COR_VERDE if (dl is not None and dl <= 0) else COR_VERMELHO if dl is not None else COR_CINZA)
+            p.drawText(QRectF(14, 124, 120, 28), Qt.AlignLeft | Qt.AlignVCenter, fmt_dec(dl, 2, sinal=True) if dl is not None else "--")
+            fb = c.get("feedback")
+            p.setFont(fonte(11, QFont.DemiBold))
+            if fb:
+                p.setPen(self._cor_nota(fb.get("nota")))
+                p.drawText(QRectF(140, 112, self.LARG - 154, 40), Qt.AlignLeft | Qt.AlignVCenter | Qt.TextWordWrap, fb.get("texto", ""))
+            else:
+                p.setPen(COR_CINZA)
+                p.drawText(QRectF(140, 112, self.LARG - 154, 40), Qt.AlignLeft | Qt.AlignVCenter | Qt.TextWordWrap, "Avaliacao da curva aparece aqui")
+            if self.visivel("ritmo") or self.visivel("rodape"):             # build v: sem divisor na borda de baixo (cortado) quando nada vem depois
+                p.setPen(QPen(QColor(255, 255, 255, 40), 1))
+                p.drawLine(QPointF(14, 156), QPointF(self.LARG - 14, 156))
+            self._fecha(p)
+        if self._abre(p, "ritmo"):
+            rt = c.get("ritmo_texto")
+            if rt:
+                p.setPen(QColor(235, 235, 240))
+                p.setFont(fonte(11, QFont.DemiBold))
+                p.drawText(QRectF(14, 160, self.LARG - 28, 20), Qt.AlignLeft | Qt.AlignVCenter, rt)
+            ms = (pr or {}).get("melhor_sua")
+            if ms and ms.get("texto"):                                          # 1.7.0: dica "melhor por curva" (so dica, a referencia nao muda)
+                p.setPen(COR_VERDE)
+                p.setFont(fonte(10, QFont.DemiBold))
+                p.drawText(QRectF(14, 182, self.LARG - 28, 18), Qt.AlignLeft | Qt.AlignVCenter,
+                           QFontMetrics(p.font()).elidedText(ms["texto"], Qt.ElideRight, int(self.LARG - 28)))
+            self._fecha(p)
+        if self._abre(p, "rodape"):
+            rodape = c.get("aviso") or ((c.get("stint") or {}).get("texto") or "")
+            if rodape:
+                aviso = bool(c.get("aviso"))
+                p.setPen(COR_LARANJA if aviso else COR_CINZA)
+                p.setFont(fonte(10, QFont.Bold if aviso else QFont.DemiBold))
+                p.drawText(QRectF(14, self.ALT - 30, self.LARG - 28, 18), Qt.AlignLeft | Qt.AlignVCenter, rodape.upper() if aviso else rodape)
+            self._fecha(p)
+
+
 class VisibilidadeAuto:
     """Decide se as janelas devem aparecer: so com o iRacing aberto e voce dentro do carro.
 
@@ -8587,6 +9653,10 @@ def montar_central(app, bandeja, menu, janelas, acao_por_chave, config, acao_sai
         return None
     try:
         telemetria_demo = criar_telemetria_demo()
+        telemetria_demo.modo_previa = True                 # build t: dados de exemplo estaveis (nenhuma previa fica em branco)
+        interno = getattr(telemetria_demo, "_demo", None)             # LMU: objeto gerador; iRacing: _demo e um METODO
+        if interno is not None and not callable(interno):
+            interno.modo_previa = True
 
         def criar_previa(j):
             cfg = dict(config)
@@ -8596,7 +9666,7 @@ def montar_central(app, bandeja, menu, janelas, acao_por_chave, config, acao_sai
             return type(j)(cfg)
 
         central = ov_central.Central(janelas, acao_por_chave, config, ganchos, telemetria_demo.ler, criar_previa, nome_jogo,
-                                     "1.6.3")
+                                     VERSAO_PRODUTO)
         curto = QMenu()
         a_cfg = curto.addAction("Abrir configurações…")
         a_cfg.triggered.connect(central.mostrar)
@@ -8696,7 +9766,7 @@ def definir_prioridade_baixa(ativa):
 
 def registrar_cabecalho():
     """Primeira linha da sessao no log: versoes (ajuda a diagnosticar problemas)."""
-    versoes = {"overlay": "1.6.3 (base Fase 20.2.2)", "nucleo": nucleo.VERSAO_NUCLEO, "python": sys.version.split()[0],
+    versoes = {"overlay": f"{VERSAO_PRODUTO} (base Fase 20.2.2)", "nucleo": nucleo.VERSAO_NUCLEO, "build": BUILD, "python": sys.version.split()[0],
                "SO": sys.platform}
     try:
         import PySide6
@@ -8710,6 +9780,380 @@ def registrar_cabecalho():
         versoes["pyirsdk"] = "nao instalado (modo demo?)"
     versoes["modo"] = "demo" if DEMO else "iRacing"
     _REGISTRO.cabecalho(versoes)
+
+
+def _assinatura_pasta_ibt(pasta):
+    """(quantidade, maior data de modificacao) dos .ibt da pasta; serve para saber se chegou telemetria nova. Nunca levanta."""
+    try:
+        arq = [p.stat().st_mtime for p in Path(pasta).glob("*.ibt")]
+        return (len(arq), max(arq) if arq else 0.0)
+    except OSError:
+        return (0, 0.0)
+
+
+def _carregar_ibt_se_preciso(tele, c=None, forcar=False):
+    """v1.7.0: ao entrar numa pista e carro, procura (em segundo plano, uma vez por execucao) a melhor volta valida nas
+    telemetrias .ibt gravadas pelo iRacing; ela vira a referencia propria se for mais rapida que a atual (ou se nao houver)."""
+    pasta = getattr(tele, "v17_ibt_pasta", None)
+    coach = getattr(tele, "v17_coach", None)
+    if pasta is None or coach is None or not (forcar or getattr(tele, "config_coach_ibt_auto", True)):
+        return
+    if not coach.pista or not coach.comprimento:
+        return                                  # com referencia ja existente tambem procura (1x por pista/carro): so troca se achar mais rapida
+    chave = (coach.pista, coach.carro, round(coach.comprimento))
+    feitos = getattr(tele, "v17_ibt_feitos", None)
+    if feitos is None:
+        feitos = tele.v17_ibt_feitos = set()
+    agora_m = time.monotonic()
+    if not hasattr(tele, "v17_ibt_assin"):
+        tele.v17_ibt_assin = {}
+    if chave in feitos and not forcar:
+        # 1.7.0: durante a sessao, relê a pasta se chegou .ibt novo ou algum mudou (checa a cada 2 min; so le se mudou)
+        if agora_m - getattr(tele, "v17_ibt_ult", 0.0) < 120.0:
+            return
+        tele.v17_ibt_ult = agora_m
+        if _assinatura_pasta_ibt(pasta) == tele.v17_ibt_assin.get(chave):
+            return
+    else:
+        tele.v17_ibt_ult = agora_m
+    feitos.add(chave)
+    tele.v17_ibt_assin[chave] = _assinatura_pasta_ibt(pasta)
+    pista, carro, comp = coach.pista, coach.carro, coach.comprimento
+
+    def trabalho():
+        try:
+            achou = ov_ibt.melhor_volta_da_pasta(pasta, pista, carro, comp)
+            if not achou:
+                registrar_info(f"coach: nenhuma volta valida de {pista} / {carro} nas telemetrias .ibt")
+                return
+            caminho, volta, info = achou
+            ref = ov_ibt.referencia_de_volta(info, volta, "propria", f"telemetria {caminho.name}")
+            if coach.definir_propria(ref):
+                registrar_info(f"coach: referencia propria carregada de {caminho.name} ({volta['tempo']:.3f} s)")
+            # 1.7.0: as suas voltas validas alimentam o "melhor por curva" e o resumo (so entram as da mesma pista e carro)
+            entraram = 0
+            for info2, v2 in ov_ibt.voltas_validas_da_pasta(pasta, pista, carro, comp):
+                try:
+                    if coach.registrar_volta_externa(ov_ibt.referencia_de_volta(info2, v2, "propria", "telemetria .ibt")):
+                        entraram += 1
+                except Exception:
+                    continue
+            if entraram:
+                registrar_info(f"coach: {entraram} voltas das telemetrias .ibt entraram no historico por curva")
+        except Exception:
+            registrar_erro("coach: telemetrias .ibt")
+    threading.Thread(target=trabalho, name="coach-ibt", daemon=True).start()
+
+
+def completar_coach(tele, dados):
+    """v1.7.0: acrescenta ao resumo do coach o resumo do stint, o coach de ritmo e a voz. Serve aos dois jogos. Nunca levanta."""
+    try:
+        c = dados.get("coach")
+        if not isinstance(c, dict):
+            return
+        if not hasattr(tele, "v17_stint"):
+            tele.v17_stint = coach_ritmo_mod.AcumuladorStint()
+            tele.v17_ult_rv = None
+            tele.v17_ctx = None
+            tele.v17_fala = voz_mod.FalaWindows()
+            tele.v17_voz = voz_mod.Locutor(tele.v17_fala.falar, time.monotonic)
+            tele.config_coach_voz = False
+        tend = dados.get("tendencia") if isinstance(dados.get("tendencia"), dict) else None
+        ctx = (c.get("pista"), c.get("carro"), (tend or {}).get("stint_atual"))
+        if ctx != tele.v17_ctx:                            # outra pista, carro ou stint: recomeca o resumo
+            tele.v17_ctx = ctx
+            tele.v17_stint.resetar()
+            tele.v17_ult_rv = c.get("resumo_volta")
+        rv = c.get("resumo_volta")
+        if rv is not tele.v17_ult_rv:
+            tele.v17_ult_rv = rv
+            tele.v17_stint.registrar(rv)
+        _carregar_ibt_se_preciso(tele, c)
+        c["stint"] = tele.v17_stint.resumo()
+        cal = dados.get("calc_combustivel") if isinstance(dados.get("calc_combustivel"), dict) else {}
+        c["ritmo"] = coach_ritmo_mod.coach_ritmo(tend, cal.get("voltas_fim"), dados.get("combustivel"), dados.get("consumo_volta"),
+                                                 cal.get("margem_voltas") or 0.5)
+        c["ritmo_texto"] = coach_ritmo_mod.texto_ritmo(c["ritmo"])
+        quer = bool(getattr(tele, "config_coach_voz", False))
+        tele.v17_voz.ativo = quer
+        if quer:
+            tele.v17_voz.processar(c, c["ritmo"], bool(dados.get("no_carro", True)))
+    except Exception:
+        registrar_erro("coach (ritmo/voz)")
+
+
+_AMIGOS = ()                      # v1.7.0: lista preparada (ov_amigos.preparar)
+COR_AMIGO = QColor(120, 230, 160)
+
+
+def definir_amigos(entradas):
+    global _AMIGOS
+    _AMIGOS = ov_amigos.preparar(entradas)
+
+
+def nome_de_amigo(nome):
+    return bool(_AMIGOS) and ov_amigos.eh_amigo(nome, _AMIGOS)
+
+
+def montar_menu_amigos(menu, config):
+    """v1.7.0: edita a lista de amigos (um nome por linha). Destaque verde e estrela na classificacao e no relativo."""
+    from PySide6.QtWidgets import QInputDialog
+    definir_amigos(config.get("amigos", []))
+
+    def editar():
+        atual = "\n".join(config.get("amigos", []))
+        texto, ok = QInputDialog.getMultiLineText(None, "Amigos", "Um nome por linha (o nome completo ou parte dele, ex.: Joao Silva).\n"
+                                                  "Eles aparecem destacados em verde na classificacao e no relativo:", atual)
+        if ok:
+            config["amigos"] = [l.strip() for l in texto.splitlines() if l.strip()][:200]
+            definir_amigos(config["amigos"])
+            salvar_config(config)
+    a = QAction("Amigos: destacar pilotos na classificacao e no relativo...", menu)
+    a.triggered.connect(lambda _=False: editar())
+    menu.addAction(a)
+
+
+def montar_menu_backup(menu, config, jogo, versao, aplicar):
+    """v1.7.0: backup/restauracao da configuracao e resumo para suporte (copiado para a area de transferencia).
+    aplicar(): chamado depois de importar, para o programa reler layout e tema sem reiniciar."""
+    from PySide6.QtWidgets import QFileDialog
+    sub = menu.addMenu("Configuracao: backup e suporte")
+
+    def exportar():
+        nome = f"wolfxracing_config_{jogo}_{time.strftime('%Y%m%d_%H%M')}.json"
+        caminho, _ = QFileDialog.getSaveFileName(None, "Salvar backup da configuracao", str(Path.home() / "Documents" / nome), "JSON (*.json)")
+        if not caminho:
+            return
+        try:
+            salvar_config(config)
+            Path(caminho).write_text(ov_backup.exportar(config, jogo, versao), encoding="utf-8")
+            QMessageBox.information(None, "Backup", f"Backup salvo em:\n{caminho}")
+        except OSError as e:
+            QMessageBox.warning(None, "Backup", f"Nao consegui salvar o backup ({e.__class__.__name__}).")
+
+    def importar():
+        caminho, _ = QFileDialog.getOpenFileName(None, "Restaurar backup da configuracao", str(Path.home() / "Documents"), "JSON (*.json)")
+        if not caminho:
+            return
+        try:
+            novo, avisos = ov_backup.importar(Path(caminho).read_text(encoding="utf-8-sig"), config, jogo)
+        except (ov_backup.ErroBackup, OSError, UnicodeDecodeError) as e:
+            QMessageBox.warning(None, "Backup", f"Nao consegui restaurar este arquivo:\n{e}")
+            return
+        resposta = QMessageBox.question(None, "Backup", "Substituir a configuracao atual pela do backup?\n" + "\n".join("- " + a for a in avisos))
+        if resposta != QMessageBox.Yes:
+            return
+        config.update(novo)
+        try:
+            aplicar()
+        except Exception:
+            registrar_erro("aplicar backup")
+        salvar_config(config)
+        QMessageBox.information(None, "Backup", "Configuracao restaurada. Se algum item do menu parecer desatualizado, reinicie o overlay.")
+
+    def copiar_suporte():
+        try:
+            linhas = ARQ_LOG.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            linhas = []
+        QApplication.clipboard().setText(ov_backup.resumo_suporte(versao, jogo, config, linhas, {"Ciclo de leitura (ms)": (DESEMPENHO.resumo() or {}).get("ciclo")}))
+        QMessageBox.information(None, "Suporte", "Resumo copiado. Cole na mensagem de ajuda (nao leva senhas nem dados de conta).")
+    for rotulo, fn in (("Salvar backup da configuracao...", exportar), ("Restaurar backup da configuracao...", importar),
+                       ("Copiar resumo para suporte", copiar_suporte)):
+        a = QAction(rotulo, sub)
+        a.triggered.connect(lambda _=False, f=fn: f())
+        sub.addAction(a)
+
+
+def montar_menu_coach(menu, telemetria, config):
+    """v1.7.0: submenu do Coach (modo da referencia, importar CSV de outro piloto, pasta de entrada, apagar importada).
+    Serve aos dois jogos: usa so telemetria.v17_coach e a config."""
+    import ov_referencias
+    from PySide6.QtWidgets import QFileDialog
+    coach = telemetria.v17_coach
+    telemetria.config_coach_modo = config.get("coach_modo", "auto")
+    sub = menu.addMenu("Coach: referencia e importacao")
+    grupo = QActionGroup(sub)
+
+    def definir_modo(modo):
+        config["coach_modo"] = modo
+        telemetria.config_coach_modo = modo
+        salvar_config(config)
+    for modo, rotulo in (("auto", "Automatico (a mais rapida entre a minha e a importada)"),
+                         ("propria", "Usar so a minha melhor volta"), ("importada", "Usar so a volta importada")):
+        a = QAction(rotulo, sub)
+        a.setCheckable(True)
+        a.setChecked(config.get("coach_modo", "auto") == modo)
+        a.triggered.connect(lambda _=False, m=modo: definir_modo(m))
+        grupo.addAction(a)
+        sub.addAction(a)
+    sub.addSeparator()
+    telemetria.config_coach_voz = bool(config.get("coach_voz", False))
+    a_voz = QAction("Avisos por voz (voz do Windows)", sub)
+    a_voz.setCheckable(True)
+    a_voz.setChecked(telemetria.config_coach_voz)
+
+    def alternar_voz(marcado):
+        config["coach_voz"] = bool(marcado)
+        telemetria.config_coach_voz = bool(marcado)
+        salvar_config(config)
+    a_voz.triggered.connect(alternar_voz)
+    sub.addAction(a_voz)
+    if getattr(telemetria, "v17_ibt_pasta", None) is not None:             # so iRacing: o LMU nao grava .ibt
+        telemetria.config_coach_ibt_auto = bool(config.get("coach_ibt_auto", True))
+        if config.get("pasta_telemetria_ibt"):
+            telemetria.v17_ibt_pasta = Path(config["pasta_telemetria_ibt"])
+        a_auto = QAction("Carregar sozinho a minha melhor volta das telemetrias gravadas (.ibt)", sub)
+        a_auto.setCheckable(True)
+        a_auto.setChecked(telemetria.config_coach_ibt_auto)
+
+        def alternar_auto(marcado):
+            config["coach_ibt_auto"] = bool(marcado)
+            telemetria.config_coach_ibt_auto = bool(marcado)
+            salvar_config(config)
+        a_auto.triggered.connect(alternar_auto)
+        sub.addAction(a_auto)
+        a_agora = QAction("Procurar agora a minha melhor volta nas telemetrias (.ibt)", sub)
+
+        def procurar_agora():
+            if not coach.pista:
+                QMessageBox.information(None, "Coach", "Entre no carro e passe pela linha de chegada uma vez: preciso saber a pista e o carro.")
+                return
+            _carregar_ibt_se_preciso(telemetria, forcar=True)
+            QMessageBox.information(None, "Coach", "Procurando em segundo plano. Se houver uma volta valida desta pista e carro mais rapida que a atual, ela vira a referencia (veja o overlay_log.txt).")
+        a_agora.triggered.connect(lambda _=False: procurar_agora())
+        sub.addAction(a_agora)
+    sub.addSeparator()
+
+    def importar_ibt(caminho):
+        try:
+            info, voltas = ov_ibt.voltas_ibt(caminho)
+            v = ov_ibt.melhor_volta(voltas)
+            if v is None:
+                QMessageBox.warning(None, "Coach", "Este arquivo .ibt nao tem nenhuma volta valida (completa, sem boxes e sem sair da pista).")
+                return
+            if coach_mod.normalizar_nome(info["pista"]) != coach_mod.normalizar_nome(coach.pista):
+                QMessageBox.warning(None, "Coach", f"Este .ibt e de outra pista ({info['pista']}).")
+                return
+            ref = ov_ibt.referencia_de_volta(info, v, "importada", Path(caminho).name)
+        except (ov_ibt.ErroIbt, ov_referencias.ErroImportacao, OSError) as e:
+            QMessageBox.warning(None, "Coach", f"Nao consegui usar este arquivo .ibt:\n{e}")
+            return
+        comp = coach.definir_importada(ref)
+        if comp == "incompativel":
+            QMessageBox.warning(None, "Coach", "Esta volta e de outro tracado (comprimento diferente da pista atual).")
+            return
+        texto = f"Melhor volta valida do arquivo: {v['tempo']:.3f} s ({info['carro']})."
+        if comp == "outro_carro":
+            texto += "\nAtencao: e de outro carro. So serve de alvo se o carro e o acerto forem comparaveis."
+        QMessageBox.information(None, "Coach", texto)
+
+    def importar(caminho):
+        if str(caminho).lower().endswith(".ibt"):
+            if not coach.pista:
+                QMessageBox.information(None, "Coach", "Entre no carro e passe pela linha de chegada uma vez antes de importar.")
+                return
+            return importar_ibt(caminho)
+        if not coach.pista or not coach.comprimento:
+            QMessageBox.information(None, "Coach", "Entre no carro e passe pela linha de chegada uma vez: preciso saber a pista, o "
+                                                   "carro e o comprimento da volta antes de importar.")
+            return
+        try:
+            ref, avisos = ov_referencias.importar_arquivo(caminho, coach.pista, coach.carro, coach.comprimento)
+        except ov_referencias.ErroImportacao as e:
+            QMessageBox.warning(None, "Coach", f"Nao consegui importar este arquivo:\n{e}")
+            return
+        comp = coach.definir_importada(ref)
+        if comp == "incompativel":
+            QMessageBox.warning(None, "Coach", "Esta volta e de outro traçado (comprimento muito diferente da pista atual).")
+            return
+        texto = f"Volta importada: {ref['tempo']:.3f} s ({ref['fonte']}) para {coach.pista}."
+        if comp == "outro_carro":
+            texto += "\nAtencao: o arquivo nao diz que e o mesmo carro. A volta de outro carro/acerto so serve de alvo se for comparavel."
+        if avisos:
+            texto += "\n" + "\n".join("- " + a for a in avisos)
+        texto += "\nA origem fica guardada no arquivo da referencia. Mantenha o credito ao piloto/serviço de origem."
+        QMessageBox.information(None, "Coach", texto)
+
+    def escolher():
+        pasta_ini = str(Path.home() / "Downloads")
+        caminho, _ = QFileDialog.getOpenFileName(None, "Importar volta de referencia (CSV ou .ibt)", pasta_ini, "Telemetria (*.csv *.ibt);;CSV (*.csv);;iRacing (*.ibt);;Todos (*.*)")
+        if caminho:
+            importar(caminho)
+
+    def da_pasta():
+        arquivos = ov_referencias.listar_csv(coach.bib.pasta / "entrada")
+        if not arquivos:
+            QMessageBox.information(None, "Coach", "Nenhum CSV na pasta de entrada. Use 'Abrir a pasta de entrada' e coloque o arquivo la.")
+            return
+        importar(arquivos[0])
+
+    def abrir_pasta():
+        pasta = coach.bib.pasta / "entrada"
+        pasta.mkdir(parents=True, exist_ok=True)
+        try:
+            os.startfile(str(pasta))
+        except Exception:
+            QMessageBox.information(None, "Coach", f"Pasta de entrada:\n{pasta}")
+
+    def apagar():
+        if coach.pista and coach.bib.apagar(coach.pista, coach.carro, "importada"):
+            coach.ref_importada = None
+            QMessageBox.information(None, "Coach", "Volta importada apagada desta pista e carro.")
+        else:
+            QMessageBox.information(None, "Coach", "Nao ha volta importada para esta pista e carro.")
+    for rotulo, fn in (("Importar volta de referencia (CSV ou .ibt)...", escolher), ("Importar o CSV mais novo da pasta de entrada", da_pasta),
+                       ("Abrir a pasta de entrada", abrir_pasta), ("Apagar a volta importada desta pista e carro", apagar)):
+        a = QAction(rotulo, sub)
+        a.triggered.connect(lambda _=False, f=fn: f())
+        sub.addAction(a)
+    # 1.7.0: resumo da sessao (onde mais perdi tempo, por curva) e historico por curva
+    a_res = QAction("Resumo da sessao: onde perdi tempo, por curva...", menu)
+    a_res.triggered.connect(lambda _=False: mostrar_resumo_sessao(coach))
+    menu.addAction(a_res)
+
+    def apagar_historico():
+        if coach.apagar_historico():
+            QMessageBox.information(None, "Coach", "Historico por curva apagado desta pista e carro.")
+        else:
+            QMessageBox.information(None, "Coach", "Nao ha historico por curva para esta pista e carro.")
+    a_hist = QAction("   Apagar o historico por curva desta pista e carro", menu)
+    a_hist.triggered.connect(lambda _=False: apagar_historico())
+    menu.addAction(a_hist)
+
+
+_JANELA_RESUMO = []
+
+
+def mostrar_resumo_sessao(coach):
+    """1.7.0: janela com o resumo da sessao do Coach (texto puro; da para copiar). Nao bloqueia o overlay."""
+    from PySide6.QtWidgets import QDialog, QHBoxLayout, QPlainTextEdit, QPushButton, QVBoxLayout
+    dlg = QDialog()
+    dlg.setWindowTitle("Coach - resumo da sessao")
+    dlg.resize(620, 360)
+    caixa = QPlainTextEdit()
+    caixa.setReadOnly(True)
+    caixa.setFont(QFont("Consolas", 10))
+    lay = QVBoxLayout(dlg)
+    lay.addWidget(caixa)
+    linha = QHBoxLayout()
+    b_atualizar, b_copiar, b_fechar = QPushButton("Atualizar"), QPushButton("Copiar"), QPushButton("Fechar")
+    for b in (b_atualizar, b_copiar, b_fechar):
+        linha.addWidget(b)
+    lay.addLayout(linha)
+
+    def preencher():
+        if not coach.pista:
+            caixa.setPlainText("Entre no carro e passe pela linha de chegada uma vez: preciso saber a pista e o carro.")
+            return
+        r = coach.resumo_da_sessao()
+        caixa.setPlainText(f"{coach.pista}  |  {coach.carro}\n\n{r['texto']}")
+    b_atualizar.clicked.connect(preencher)
+    b_copiar.clicked.connect(lambda: QApplication.clipboard().setText(caixa.toPlainText()))
+    b_fechar.clicked.connect(dlg.close)
+    preencher()
+    _JANELA_RESUMO[:] = [dlg]                       # mantem a referencia (a anterior e descartada)
+    dlg.show()
 
 
 def principal():
@@ -8764,6 +10208,7 @@ def principal():
     janela_retorno = JanelaRetorno(config)
     janela_estrategia = JanelaEstrategia(config)
     janela_curvas = JanelaCurvas(config)
+    janela_coach = JanelaCoach(config)
     janela_bandeiras = JanelaBandeiras(config)
     janela_trafego = JanelaTrafego(config)
     janela_minimapa = JanelaMinimapa(config)
@@ -8771,11 +10216,14 @@ def principal():
     janela_contato = JanelaUltimoContato(config)
     janela_pit = JanelaPitEntrada(config)
     janela_tendencia = JanelaTendencia(config)
+    janela_consumo = JanelaConsumo(config)
+    janela_delta_trace = JanelaDeltaTrace(config)
     visib = VisibilidadeAuto(bool(config.get("auto_modo", True)) and not DEMO)
     janelas = [janela_telemetria, janela_voltas, janela_relativo, janela_classificacao,
                janela_mapa, janela_radar, janela_pneus, janela_setores, janela_clima, janela_danos, janela_combustivel, janela_forca_g,
-               janela_luz_abs, janela_luz_tc, janela_retorno, janela_estrategia, janela_curvas,
-               janela_bandeiras, janela_trafego, janela_minimapa, janela_auxiliar, janela_contato, janela_pit, janela_tendencia]
+               janela_luz_abs, janela_luz_tc, janela_retorno, janela_estrategia, janela_curvas, janela_coach,
+               janela_bandeiras, janela_trafego, janela_minimapa, janela_auxiliar, janela_contato, janela_pit, janela_tendencia,
+               janela_consumo, janela_delta_trace]
     if not config["travado"]:
         visib.visivel = True               # destravado = posicionando: tudo visivel
     for j in janelas:
@@ -8942,6 +10390,15 @@ def principal():
     def ao_limpar_impactos():
         telemetria.limpar_impactos()
 
+    def ao_pedir_pit():
+        telemetria.pedir_pit()                  # menu: alterna
+
+    def ao_pedir_pit_ligar():
+        telemetria.pedir_pit(True)              # atalho: sempre liga
+
+    def ao_cancelar_pit():
+        telemetria.pedir_pit(False)
+
     def ao_zerar_referencia():
         telemetria.zerar_referencia()
 
@@ -9107,6 +10564,9 @@ def principal():
     acao_zerar_g.triggered.connect(ao_zerar_pico_g)
     menu.addAction(acao_zerar_g)
     adicionar("Mostrar danos do carro", config["mostrar_danos"], ao_danos, chave="mostrar_danos")
+    acao_pit = QAction("   Pit: pedir/cancelar a entrada (liga a janela do pit)", menu)
+    acao_pit.triggered.connect(ao_pedir_pit)
+    menu.addAction(acao_pit)
     acao_limpar = QAction("   Limpar as marcas de impacto do desenho do carro", menu)
     acao_limpar.triggered.connect(ao_limpar_impactos)
     menu.addAction(acao_limpar)
@@ -9248,6 +10708,7 @@ def principal():
               ao_flag("estrategia_rivais"), chave="estrategia_rivais")
     adicionar("   Estrategia: pulsar quando for hora de trocar", config["estrategia_pulsar"], ao_flag("estrategia_pulsar"),
               chave="estrategia_pulsar")
+    adicionar("Mostrar Coach (onde frear, marcha e velocidade-alvo)", config["mostrar_coach"], lambda m: janela_coach.definir_ativo(m), chave="mostrar_coach")
     adicionar("Mostrar Curvas (velocidade minima x melhor passagem)", config["mostrar_curvas"], ao_curvas, chave="mostrar_curvas")
     adicionar("Mostrar Bandeiras (so aparece com bandeira)", config["mostrar_bandeiras"],
               lambda m: janela_bandeiras.definir_ativo(m), chave="mostrar_bandeiras")
@@ -9271,14 +10732,28 @@ def principal():
               id_tecla="auxiliar_sempre")
     adicionar("Mostrar Ultimo contato (so depois de tocar em um carro)", config["mostrar_contato"],
               lambda m: janela_contato.definir_ativo(m), chave="mostrar_contato")
+    adicionar("Mostrar Consumo por trecho (Burn Zones e Fuel Flow)", config["mostrar_consumo"],
+              lambda m: janela_consumo.definir_ativo(m), chave="mostrar_consumo")
+    adicionar("Mostrar Delta Trace (tempo ganho/perdido ao longo da volta)", config["mostrar_delta_trace"],
+              lambda m: janela_delta_trace.definir_ativo(m), chave="mostrar_delta_trace")
     adicionar("Mostrar Tendencia de ritmo (ultimas voltas limpas)", config["mostrar_tendencia"],
               lambda m: janela_tendencia.definir_ativo(m), chave="mostrar_tendencia")
     adicionar("Mostrar Entrada do pit (distancia, freio e limite)", config["mostrar_pit"],
               lambda m: janela_pit.definir_ativo(m), chave="mostrar_pit")
-    adicionar("   Pit: mostrar sempre perto da entrada (nao so com servico pedido)", config["pit_sempre"], ao_pit_sempre, id_tecla="pit_sempre")
+    adicionar("   Pit: mostrar sempre perto da entrada (nao so quando eu pedir)", config["pit_sempre"], ao_pit_sempre, id_tecla="pit_sempre")
     acao_zerar_curvas = QAction("   Curvas: reiniciar o aprendizado desta pista", menu)
     acao_zerar_curvas.triggered.connect(lambda: telemetria.v14_curvas.resetar())
     menu.addAction(acao_zerar_curvas)
+    montar_menu_coach(menu, telemetria, config)
+
+    def aplicar_backup():
+        definir_tema(config.get("tema_moderno", True), config.get("opacidade_fundo", 0.80), config.get("tema_sport", False), config.get("tema_vidro", True))
+        for j in janelas:
+            j.recarregar_layout()
+        for fn in ressincronizar:
+            fn()
+    montar_menu_backup(menu, config, "iracing", VERSAO_PRODUTO, aplicar_backup)
+    montar_menu_amigos(menu, config)
     menu.addSeparator()
     adicionar("Visual moderno (desmarque para voltar ao visual classico)", config["tema_moderno"], ao_tema, chave="tema_moderno")
     adicionar("   Estilo Glass Fume (vidro escuro translucido)", config["tema_vidro"], ao_vidro, chave="tema_vidro")
@@ -9315,7 +10790,7 @@ def principal():
         elif tipo == "alternar":
             acao_por_chave[alvo].toggle()           # liga/desliga e dispara o mesmo tratamento do clique no menu
         elif tipo == "chamar":
-            {"zerar_pico_g": ao_zerar_pico_g, "limpar_impactos": ao_limpar_impactos, "sair": app.quit}[alvo]()
+            {"zerar_pico_g": ao_zerar_pico_g, "limpar_impactos": ao_limpar_impactos, "pedir_pit": ao_pedir_pit_ligar, "cancelar_pit": ao_cancelar_pit, "sair": app.quit}[alvo]()
         else:
             raise ValueError(f"tipo de atalho desconhecido: {tipo}")
 
@@ -9385,7 +10860,9 @@ def principal():
                              lambda: Telemetria(demo=True), {
                                  "modo_perfil": ao_modo_perfil, "copiar_layout": ao_copiar_layout,
                                  "opacidade": ao_opacidade, "restaurar": ao_restaurar_tamanhos,
-                                 "salvar": lambda: salvar_config(config), "alcance_minimapa": trocar_raio})
+                                 "salvar": lambda: salvar_config(config), "alcance_minimapa": trocar_raio,
+                                 "importar_volante": importar_imagem_volante, "remover_volante": remover_imagem_volante,
+                                 "registrar_erro": registrar_erro})
     bandeja.show()
     if config.get("teclas_globais", True):
         iniciar_teclas()
@@ -9432,6 +10909,17 @@ def principal():
                               ciclo_ms_p95=ciclo_est.get("p95", 0.0), ciclo_ms_max=ciclo_est.get("max", 0.0),
                               desenho_ms_por_segundo=pintura_ms_s,
                               janelas_visiveis=len(taxas), economia=bool(config.get("economia_cpu")))
+            try:                                     # 1.7.0: custo do Coach por atualizacao (meta: p95 <= 2 ms, p99 <= 5 ms)
+                ce = telemetria.v17_coach.estatisticas_desempenho()
+                if ce["n"]:
+                    registrar_calculo("coach_desempenho", n=ce["n"], total=ce["total"], p50_ms=round(ce["p50"], 3),
+                                      p95_ms=round(ce["p95"], 3), p99_ms=round(ce["p99"], 3), max_ms=round(ce["max"], 3))
+                    cg = telemetria.v17_coach.estatisticas_gravacao()
+                    registrar_calculo("coach_gravacao", **cg)
+                    if ce["p95"] > 2.0 or ce["p99"] > 5.0:
+                        registrar_aviso(f"Coach acima da meta (p95 {ce['p95']:.2f} ms, p99 {ce['p99']:.2f} ms)")
+            except Exception:
+                pass
             lentas = sorted(((n, e["media"]) for n, e in DESEMPENHO.resumo().items()
                              if n.startswith("pintura:") and e and e["media"] > 8.0), key=lambda t: -t[1])
             if lentas:

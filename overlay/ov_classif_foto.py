@@ -349,6 +349,7 @@ LARGURA_FOTO = 846
 ALTURA_LINHA_FOTO = 26
 ALTURA_BARRA = 36
 ALTURA_ROTULOS = 18
+ALTURA_TOPO_FOTO = ALTURA_BARRA + ALTURA_ROTULOS + 6
 
 _cache_classe = {}
 
@@ -362,24 +363,124 @@ def construir(base):
     from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainterPath, QPen
 
     class JanelaClassificacaoFoto(base.JanelaClassificacao):
-        ALTURA_TOPO = ALTURA_BARRA + ALTURA_ROTULOS + 6
+        ALTURA_TOPO = ALTURA_TOPO_FOTO
 
-        X = {"pos": 12, "delta": 42, "num": 80, "pneu": 131, "lic": 158, "ir": 208, "ird": 250, "marca": 284,
-             "pais": 318, "piloto": 348, "gap": 490, "int": 552, "melhor": 612, "ultima": 690, "pit": 768, "stint": 800}
+        X_BASE = {"pos": 12, "delta": 42, "num": 80, "pneu": 131, "lic": 158, "ir": 208, "ird": 250, "marca": 284,
+                  "pais": 318, "piloto": 348, "gap": 490, "int": 552, "melhor": 612, "ultima": 690, "pit": 768, "stint": 800}
+        # colunas que o piloto pode ligar/desligar: (id, rotulo na Central, chaves de X que a compoem)
+        GRUPOS = (("pos", "Posição", ("pos",)),
+                  ("delta", "Posições ganhas ou perdidas (+/−)", ("delta",)),
+                  ("num", "Número do carro", ("num",)),
+                  ("pneu", "Pneu (composto e voltas)", ("pneu",)),
+                  ("lic", "Licença (SR)", ("lic",)),
+                  ("ir", "iRating e variação projetada", ("ir", "ird")),
+                  ("marca", "Marca do carro", ("marca",)),
+                  ("pais", "País", ("pais",)),
+                  ("piloto", "Piloto", ("piloto",)),
+                  ("gap", "Diferença para o líder (GAP)", ("gap",)),
+                  ("int", "Intervalo para o carro da frente (INT)", ("int",)),
+                  ("melhor", "Melhor volta", ("melhor",)),
+                  ("ultima", "Última volta", ("ultima",)),
+                  ("pit", "Paradas no box", ("pit",)),
+                  ("stint", "Voltas do stint", ("stint",)))
+        FIXAS = ("piloto",)                 # o nome do piloto nunca some
+        # itens do cabecalho que o piloto pode ligar/desligar: (id, rotulo na Central). "barra" = a barra superior inteira,
+        # "titulos" = a linha com os nomes das colunas
+        CABECALHO = (("barra", "Barra superior"), ("sessao", "Tipo da sessão (RACE, QUALY...)"), ("volta", "Volta atual / total"),
+                     ("tempo", "Tempo decorrido / total"), ("ar", "Temperatura do ar"), ("pista", "Temperatura da pista"),
+                     ("umidade", "Umidade"), ("inc", "Incidentes"), ("clima", "Clima da pista"),
+                     ("titulos", "Títulos das colunas (POS, DRIVER, GAP...)"))
+        RESERVA_DIREITA = 0                 # px que a barra superior deixa livres a direita (o LMU escreve 'N CARS' ali)
+        LARGURA_BASE = LARGURA_FOTO
+        FIM_COLUNAS = 840                   # x onde termina a ultima coluna (stint 800 + 40)
 
         def __init__(self, config):
             self._tx = textos(config.get("classificacao_idioma", "en"))
+            self._assin_colunas = None
+            self._topo = ALTURA_TOPO_FOTO
+            self._reserva = self.RESERVA_DIREITA
+            self._aplicar_colunas(config)
             super().__init__(config)
+
+        # -- colunas personalizaveis ---------------------------------------------------
+        def _ocultas(self, config=None):
+            cfg = (config if config is not None else self.config).get("classif_colunas")
+            cfg = cfg if isinstance(cfg, dict) else {}
+            return tuple(g for g, _r, _k in self.GRUPOS if cfg.get(g, True) is False and g not in self.FIXAS)
+
+        def _ordem(self, config=None):
+            """Ordem das colunas (config["classif_ordem"]): ids validos, sem repeticao; o que faltar entra no fim, na ordem original."""
+            cfg = (config if config is not None else self.config).get("classif_ordem")
+            ids = [g for g, _r, _k in self.GRUPOS]
+            vistos = []
+            if isinstance(cfg, (list, tuple)):
+                for g in cfg:
+                    if isinstance(g, str) and g in ids and g not in vistos:
+                        vistos.append(g)
+            return tuple(vistos + [g for g in ids if g not in vistos])
+
+        def _cab_ocultos(self, config=None):
+            cfg = (config if config is not None else self.config).get("classif_cabecalho")
+            cfg = cfg if isinstance(cfg, dict) else {}
+            return tuple(i for i, _r in self.CABECALHO if cfg.get(i, True) is False)
+
+        def _aplicar_colunas(self, config=None):
+            """Recalcula X (posicao de cada coluna), a largura e a altura do topo a partir de config["classif_colunas"] (ligar/desligar),
+            ["classif_ordem"] (ordem) e ["classif_cabecalho"] (itens do cabecalho). Com tudo no padrao devolve exatamente o layout original.
+            True se mudou."""
+            ocultas, ordem, cab = self._ocultas(config), self._ordem(config), self._cab_ocultos(config)
+            if (ocultas, ordem, cab) == self._assin_colunas:
+                return False
+            inicios = sorted((min(self.X_BASE[k] for k in ks), g) for g, _r, ks in self.GRUPOS)
+            trecho = {}
+            for i, (x0, g) in enumerate(inicios):
+                x1 = inicios[i + 1][0] if i + 1 < len(inicios) else self.FIM_COLUNAS
+                trecho[g] = (x0, x1 - x0)
+            chaves = {g: ks for g, _r, ks in self.GRUPOS}
+            X = {}
+            cursor = inicios[0][0]
+            for g in ordem:                                  # cada coluna ocupa o mesmo trecho de antes, so que na nova posicao
+                x0, larg = trecho[g]
+                for k in chaves[g]:
+                    X[k] = self.X_BASE[k] + (cursor - x0)
+                if g not in ocultas:
+                    cursor += larg
+            self.X = X
+            self._largura = self.LARGURA_BASE - sum(trecho[h][1] for h in ocultas)
+            self._visiveis = frozenset(g for g, _r, _k in self.GRUPOS if g not in ocultas)
+            self._cab_off = frozenset(cab)
+            self._topo = (0 if "barra" in cab else ALTURA_BARRA) + (0 if "titulos" in cab else ALTURA_ROTULOS) + 6
+            self._reserva = 0 if "ncars" in cab else self.RESERVA_DIREITA
+            self._assin_colunas = (ocultas, ordem, cab)
+            return True
+
+        def _reajustar(self):
+            """Largura e altura novas (colunas/cabecalho mudaram): a altura depende do topo, entao e recalculada na hora."""
+            if hasattr(self, "_blocos_atual") and hasattr(self, "_altura_base"):
+                self._altura_base = self._altura_necessaria()
+            self.aplicar_tamanho()
+
+        def opcoes_mudaram(self):
+            """Chamado pela Central depois de mudar uma opcao do painel: reaplica colunas, cabecalho, largura e altura."""
+            if self._aplicar_colunas():
+                self._reajustar()
+            self.update()
+
+        def atualizar(self, dados):
+            if self._aplicar_colunas():
+                self._reajustar()
+            super().atualizar(dados)
 
         # -- tamanho -------------------------------------------------------------------
         def tamanho(self):
-            return (LARGURA_FOTO, self._altura_base)
+            return (self._largura, self._altura_base)
 
         def _altura_necessaria(self):
             if not self._blocos_atual:
-                return self.ALTURA_PADRAO
+                # sem dados: a altura padrao vale com o topo completo; com barra/titulos escondidos encolhe o mesmo tanto (minimo 80 px)
+                return max(80, self.ALTURA_PADRAO - (ALTURA_TOPO_FOTO - self._topo))
             linhas = sum(1 + len(v) for _, v in self._blocos_atual)
-            return self.ALTURA_TOPO + linhas * ALTURA_LINHA_FOTO + 10
+            return self._topo + linhas * ALTURA_LINHA_FOTO + 10
 
         # -- pintura -------------------------------------------------------------------
         def paintEvent(self, _evento):
@@ -393,9 +494,11 @@ def construir(base):
                 p.setFont(base.fonte(12))
                 p.drawText(self._retangulo_base(), Qt.AlignCenter, self._tx["sem_dados"])
                 return
-            self._barra(p, classif.get("cabecalho") or {})
-            self._rotulos(p)
-            y = self.ALTURA_TOPO
+            if "barra" not in self._cab_off:
+                self._barra(p, classif.get("cabecalho") or {})
+            if "titulos" not in self._cab_off:
+                self._rotulos(p)
+            y = self._topo
             for classe, linhas in self._blocos_atual:
                 self._faixa_classe(p, y, classe)
                 y += ALTURA_LINHA_FOTO
@@ -408,45 +511,18 @@ def construir(base):
             h = ALTURA_BARRA
             p.setPen(Qt.NoPen)
             p.setBrush(QColor(255, 255, 255, 16))
-            p.drawRoundedRect(QRectF(8, 6, LARGURA_FOTO - 16, h - 6), 8, 8)
-            x = 16
-            sessao = cab.get("sessao") or (self.dados.get("classificacao") or {}).get("tipo_sessao") or ""
-            if sessao:
-                f = base.fonte(9, QFont.Bold)
-                larg = QFontMetrics(f).horizontalAdvance(sessao) + 18
-                p.setBrush(QColor(176, 40, 56))
-                p.drawRoundedRect(QRectF(x, 11, larg, 20), 5, 5)
-                p.setFont(f)
-                p.setPen(QColor(255, 255, 255))
-                p.drawText(QRectF(x, 11, larg, 20), Qt.AlignCenter, sessao)
-                x += larg + 16
-            # voltas
-            if cab.get("volta") is not None:
-                total = cab.get("voltas_total")
-                texto = "%d/%s" % (cab["volta"], "%d" % total if total else "∞")
-                est = cab.get("voltas_estimadas")
-                if est and not total:
-                    texto += " = %.2f" % est
-                x = self._item(p, x, texto, cor=QColor(255, 255, 255), tam=10, larg_min=60)
-            if cab.get("decorrido") is not None and cab.get("total"):
-                x = self._item(p, x, "%s / %s" % (fmt_duracao(cab["decorrido"]), fmt_duracao_total(cab["total"])),
-                               cor=QColor(235, 235, 240), tam=10, larg_min=70)
-            if cab.get("ar") is not None:
-                x = self._item(p, x, "AIR %d°" % round(cab["ar"]), cor=base.COR_CINZA, tam=9)
-            if cab.get("pista") is not None:
-                x = self._item(p, x, "TRACK %d°" % round(cab["pista"]), cor=base.COR_CINZA, tam=9)
-            if cab.get("umidade") is not None:
-                x = self._item(p, x, "HUM %d%%" % round(cab["umidade"]), cor=base.COR_CINZA, tam=9)
-            # lado direito: incidentes e pista
-            xd = LARGURA_FOTO - 16
-            if cab.get("clima"):
+            p.drawRoundedRect(QRectF(8, 6, self._largura - 16, h - 6), 8, 8)
+            # lado direito primeiro (clima e incidentes): ele define ate onde os itens da esquerda podem ir
+            xd = self._largura - 16
+            off = self._cab_off
+            if cab.get("clima") and "clima" not in off:
                 f = base.fonte(10, QFont.Bold)
                 larg = QFontMetrics(f).horizontalAdvance(cab["clima"]) + 8
                 p.setFont(f)
                 p.setPen(QColor(235, 235, 240))
                 p.drawText(QRectF(xd - larg, 11, larg, 20), Qt.AlignRight | Qt.AlignVCenter, cab["clima"])
                 xd -= larg + 14
-            if cab.get("inc") is not None:
+            if cab.get("inc") is not None and "inc" not in off:
                 lim = cab.get("inc_limite")
                 txt = "%d/%d" % (cab["inc"], lim) if lim else "%d" % cab["inc"]
                 cor = QColor(235, 235, 240)
@@ -463,6 +539,42 @@ def construir(base):
                 p.setFont(base.fonte(8, QFont.DemiBold))
                 p.setPen(base.COR_CINZA)
                 p.drawText(QRectF(xd - 34, 11, 32, 20), Qt.AlignRight | Qt.AlignVCenter, "INC")
+                xd -= 36
+            limite = xd - 10 - self._reserva   # com colunas escondidas a janela fica mais estreita: o que nao couber some, sem sobrepor
+            x = 16
+            sessao = cab.get("sessao") or (self.dados.get("classificacao") or {}).get("tipo_sessao") or ""
+            if sessao and "sessao" not in off:
+                f = base.fonte(9, QFont.Bold)
+                larg = QFontMetrics(f).horizontalAdvance(sessao) + 18
+                p.setPen(Qt.NoPen)
+                p.setBrush(QColor(176, 40, 56))
+                p.drawRoundedRect(QRectF(x, 11, larg, 20), 5, 5)
+                p.setFont(f)
+                p.setPen(QColor(255, 255, 255))
+                p.drawText(QRectF(x, 11, larg, 20), Qt.AlignCenter, sessao)
+                x += larg + 16
+            itens = []
+            if cab.get("volta") is not None and "volta" not in off:
+                total = cab.get("voltas_total")
+                texto = "%d/%s" % (cab["volta"], "%d" % total if total else "∞")
+                est = cab.get("voltas_estimadas")
+                if est and not total:
+                    texto += " = %.2f" % est
+                itens.append((texto, QColor(255, 255, 255), 10, 60))
+            if cab.get("decorrido") is not None and cab.get("total") and "tempo" not in off:
+                itens.append(("%s / %s" % (fmt_duracao(cab["decorrido"]), fmt_duracao_total(cab["total"])),
+                              QColor(235, 235, 240), 10, 70))
+            if cab.get("ar") is not None and "ar" not in off:
+                itens.append(("AIR %d°" % round(cab["ar"]), base.COR_CINZA, 9, 0))
+            if cab.get("pista") is not None and "pista" not in off:
+                itens.append(("TRACK %d°" % round(cab["pista"]), base.COR_CINZA, 9, 0))
+            if cab.get("umidade") is not None and "umidade" not in off:
+                itens.append(("HUM %d%%" % round(cab["umidade"]), base.COR_CINZA, 9, 0))
+            for texto, cor, tam, larg_min in itens:          # em ordem de prioridade; parou de caber, os demais ficam de fora
+                larg = max(larg_min, QFontMetrics(base.fonte(tam, QFont.Bold)).horizontalAdvance(texto) + 8)
+                if x + larg > limite:
+                    break
+                x = self._item(p, x, texto, cor=cor, tam=tam, larg_min=larg_min)
 
         @staticmethod
         def _item(p, x, texto, cor, tam, larg_min=0):
@@ -474,34 +586,42 @@ def construir(base):
             return x + larg + 12
 
         # rotulos das colunas ----------------------------------------------------------------
+        def _y_rotulos(self):
+            return (0 if "barra" in self._cab_off else ALTURA_BARRA) + 4
+
         def _rotulos(self, p):
             t, X = self._tx, self.X
-            y = ALTURA_BARRA + 4
+            y = self._y_rotulos()
             p.setFont(base.fonte(7, QFont.DemiBold))
             p.setPen(base.COR_CINZA)
             h = ALTURA_ROTULOS
 
-            def rot(chave_x, larg, texto, alinh):
-                p.drawText(QRectF(X[chave_x], y, larg, h), alinh | Qt.AlignVCenter, texto)
+            vis = self._visiveis
 
-            rot("pos", 26, t["pos"], Qt.AlignCenter)
-            rot("delta", 34, "+/−", Qt.AlignCenter)
-            rot("num", 44, t["carro"], Qt.AlignCenter)
-            rot("lic", 118, t["lic"], Qt.AlignLeft)
-            rot("piloto", 140, t["piloto"], Qt.AlignLeft)
-            rot("gap", 58, t["gap"], Qt.AlignRight)
-            rot("int", 56, t["int"], Qt.AlignRight)
-            rot("melhor", 74, t["melhor"], Qt.AlignRight)
-            rot("ultima", 74, t["ultima"], Qt.AlignRight)
-            rot("pit", 30, t["pit"], Qt.AlignCenter)
-            rot("stint", 40, t["stint"], Qt.AlignCenter)
+            def rot(grupo, chave_x, larg, texto, alinh):
+                if grupo in vis:
+                    p.drawText(QRectF(X[chave_x], y, larg, h), alinh | Qt.AlignVCenter, texto)
+
+            rot("pos", "pos", 26, t["pos"], Qt.AlignCenter)
+            rot("delta", "delta", 34, "+/−", Qt.AlignCenter)
+            rot("num", "num", 44, t["carro"], Qt.AlignCenter)
+            rot("lic", "lic", 118, t["lic"], Qt.AlignLeft)
+            rot("piloto", "piloto", 140, t["piloto"], Qt.AlignLeft)
+            rot("gap", "gap", 58, t["gap"], Qt.AlignRight)
+            rot("int", "int", 56, t["int"], Qt.AlignRight)
+            rot("melhor", "melhor", 74, t["melhor"], Qt.AlignRight)
+            rot("ultima", "ultima", 74, t["ultima"], Qt.AlignRight)
+            rot("pit", "pit", 30, t["pit"], Qt.AlignCenter)
+            rot("stint", "stint", 40, t["stint"], Qt.AlignCenter)
             # circulo do pneu
-            cx, cy = X["pneu"] + 9, y + h / 2.0
-            p.setPen(QPen(base.COR_CINZA, 1.2))
-            p.setBrush(Qt.NoBrush)
-            p.drawEllipse(QRectF(cx - 5, cy - 5, 10, 10))
+            if "pneu" in vis:
+                cx, cy = X["pneu"] + 9, y + h / 2.0
+                p.setPen(QPen(base.COR_CINZA, 1.2))
+                p.setBrush(Qt.NoBrush)
+                p.drawEllipse(QRectF(cx - 5, cy - 5, 10, 10))
             p.setPen(QPen(QColor(255, 255, 255, 40), 1))
-            p.drawLine(14, ALTURA_BARRA + ALTURA_ROTULOS + 4, LARGURA_FOTO - 14, ALTURA_BARRA + ALTURA_ROTULOS + 4)
+            yl = y + ALTURA_ROTULOS
+            p.drawLine(14, yl, self._largura - 14, yl)
 
         # faixa da classe -------------------------------------------------------------------
         def _faixa_classe(self, p, y, classe):
@@ -524,49 +644,53 @@ def construir(base):
                            "%s %s" % (self._tx["sof"], int(round(classe["sof"]))))
             p.setFont(base.fonte(8, QFont.DemiBold))
             p.setPen(base.COR_CINZA)
-            p.drawText(QRectF(LARGURA_FOTO - 16 - 120, y, 120, h), Qt.AlignRight | Qt.AlignVCenter,
+            p.drawText(QRectF(self._largura - 16 - 120, y, 120, h), Qt.AlignRight | Qt.AlignVCenter,
                        "%d" % classe["n_carros"])
             p.setPen(QPen(QColor(cor.red(), cor.green(), cor.blue(), 90), 1))
-            p.drawLine(14, y + h - 1, LARGURA_FOTO - 14, y + h - 1)
+            p.drawLine(14, y + h - 1, self._largura - 14, y + h - 1)
 
         # linha -------------------------------------------------------------------------------
         def _linha_foto(self, p, y, d, salto, cor_classe):
-            h, X = ALTURA_LINHA_FOTO, self.X
+            h, X, vis = ALTURA_LINHA_FOTO, self.X, self._visiveis
             if salto:
                 p.setPen(QPen(QColor(255, 255, 255, 90), 1, Qt.DotLine))
-                p.drawLine(20, y, LARGURA_FOTO - 20, y)
+                p.drawLine(20, y, self._largura - 20, y)
             if d["eu"]:
                 p.setPen(Qt.NoPen)
                 p.setBrush(QColor(110, 62, 190, 220))
-                p.drawRoundedRect(QRectF(6, y + 1, LARGURA_FOTO - 12, h - 2), 6, 6)
+                p.drawRoundedRect(QRectF(6, y + 1, self._largura - 12, h - 2), 6, 6)
             na_box = bool(d.get("na_box"))
             texto = QColor(255, 255, 255) if not na_box else QColor(200, 200, 210)
 
             # posicao (quadrado)
-            p.setPen(QPen(QColor(255, 255, 255, 60), 1))
-            p.setBrush(QColor(0, 0, 0, 110) if not d["eu"] else QColor(255, 255, 255, 40))
-            p.drawRoundedRect(QRectF(X["pos"], y + 3, 26, h - 6), 5, 5)
-            p.setFont(base.fonte(10, QFont.Bold))
-            p.setPen(texto)
-            p.drawText(QRectF(X["pos"], y + 3, 26, h - 6), Qt.AlignCenter, str(d["pos"]))
+            if "pos" in vis:
+                p.setPen(QPen(QColor(255, 255, 255, 60), 1))
+                p.setBrush(QColor(0, 0, 0, 110) if not d["eu"] else QColor(255, 255, 255, 40))
+                p.drawRoundedRect(QRectF(X["pos"], y + 3, 26, h - 6), 5, 5)
+                p.setFont(base.fonte(10, QFont.Bold))
+                p.setPen(texto)
+                p.drawText(QRectF(X["pos"], y + 3, 26, h - 6), Qt.AlignCenter, str(d["pos"]))
 
-            self._ganho(p, X["delta"], y, 34, h, d.get("delta"))
+            if "delta" in vis:
+                self._ganho(p, X["delta"], y, 34, h, d.get("delta"))
 
             # numero na cor da classe
-            larg_num = 44
-            p.setPen(Qt.NoPen)
-            p.setBrush(cor_classe)
-            p.drawRoundedRect(QRectF(X["num"], y + 3, larg_num, h - 6), 5, 5)
-            lum = 0.299 * cor_classe.red() + 0.587 * cor_classe.green() + 0.114 * cor_classe.blue()
-            p.setFont(base.fonte(10, QFont.Bold))
-            p.setPen(QColor(20, 20, 25) if lum > 150 else QColor(255, 255, 255))
-            p.drawText(QRectF(X["num"], y + 3, larg_num, h - 6), Qt.AlignCenter, "#" + str(d["numero"]))
+            if "num" in vis:
+                larg_num = 44
+                p.setPen(Qt.NoPen)
+                p.setBrush(cor_classe)
+                p.drawRoundedRect(QRectF(X["num"], y + 3, larg_num, h - 6), 5, 5)
+                lum = 0.299 * cor_classe.red() + 0.587 * cor_classe.green() + 0.114 * cor_classe.blue()
+                p.setFont(base.fonte(10, QFont.Bold))
+                p.setPen(QColor(20, 20, 25) if lum > 150 else QColor(255, 255, 255))
+                p.drawText(QRectF(X["num"], y + 3, larg_num, h - 6), Qt.AlignCenter, "#" + str(d["numero"]))
 
-            self._pneu(p, X["pneu"], y, h, d.get("pneu"))
+            if "pneu" in vis:
+                self._pneu(p, X["pneu"], y, h, d.get("pneu"), d.get("voltas_pneu"), d.get("voltas_pneu_confiavel", True))
 
             # licenca + iRating + variacao projetada
             lic = d.get("lic") or ""
-            if lic:
+            if lic and "lic" in vis:
                 cor_lic = QColor(*d.get("lic_cor", (90, 90, 100)))
                 p.setPen(Qt.NoPen)
                 p.setBrush(cor_lic)
@@ -575,19 +699,22 @@ def construir(base):
                 p.setPen(QColor(20, 20, 25) if lum > 150 else QColor(255, 255, 255))
                 p.setFont(base.fonte(8, QFont.Bold))
                 p.drawText(QRectF(X["lic"], y + 4, 46, h - 8), Qt.AlignCenter, fmt_licenca(lic))
-            p.setFont(base.fonte(9, QFont.Bold))
-            p.setPen(texto if d.get("irating") else base.COR_CINZA)
-            p.drawText(QRectF(X["ir"], y, 42, h), Qt.AlignLeft | Qt.AlignVCenter, fmt_ir_k(d.get("irating")))
-            ird = d.get("ir_delta")
-            if ird:
-                sobe = ird > 0
-                p.setFont(base.fonte(8, QFont.Bold))
-                p.setPen(QColor(60, 220, 110) if sobe else QColor(255, 85, 85))
-                p.drawText(QRectF(X["ird"], y, 32, h), Qt.AlignLeft | Qt.AlignVCenter,
-                           ("▲" if sobe else "▼") + str(abs(ird)))
+            if "ir" in vis:
+                p.setFont(base.fonte(9, QFont.Bold))
+                p.setPen(texto if d.get("irating") else base.COR_CINZA)
+                p.drawText(QRectF(X["ir"], y, 42, h), Qt.AlignLeft | Qt.AlignVCenter, fmt_ir_k(d.get("irating")))
+                ird = d.get("ir_delta")
+                if ird:
+                    sobe = ird > 0
+                    p.setFont(base.fonte(8, QFont.Bold))
+                    p.setPen(QColor(60, 220, 110) if sobe else QColor(255, 85, 85))
+                    p.drawText(QRectF(X["ird"], y, 32, h), Qt.AlignLeft | Qt.AlignVCenter,
+                               ("▲" if sobe else "▼") + str(abs(ird)))
 
-            self._emblema(p, X["marca"], y, 32, h, d["marca"])
-            self._bandeira(p, X["pais"], y, h, d["pais"])
+            if "marca" in vis:
+                self._emblema(p, X["marca"], y, 32, h, d["marca"])
+            if "pais" in vis:
+                self._bandeira(p, X["pais"], y, h, d["pais"])
 
             f = base.fonte(10, QFont.Bold)
             p.setFont(f)
@@ -598,50 +725,64 @@ def construir(base):
             # gap / intervalo / melhor / ultima
             p.setFont(base.fonte(10, QFont.DemiBold))
             for chave, larg in (("gap", 58), ("int", 56)):
+                if chave not in vis:
+                    continue
                 v = d.get(chave)
                 p.setPen(base.COR_CINZA if v is None else texto)
                 p.drawText(QRectF(X[chave], y, larg, h), Qt.AlignRight | Qt.AlignVCenter, fmt_gap(v))
             p.setFont(base.fonte(10, QFont.Bold))
-            p.setPen(base.COR_CINZA if d["melhor"] is None else
-                     (QColor(190, 130, 255) if d["melhor_da_classe"] and not d["eu"] else texto))
-            if d["melhor"] is not None and d["melhor_da_classe"] and d["eu"]:
-                p.setPen(QColor(225, 195, 255))
-            p.drawText(QRectF(X["melhor"], y, 74, h), Qt.AlignRight | Qt.AlignVCenter, base.fmt_tempo(d["melhor"]))
-            if d["ultima"] is None:
-                p.setPen(base.COR_CINZA)
-            else:
-                p.setPen(base.COR_VERDE if d["pb"] else texto)
-            p.drawText(QRectF(X["ultima"], y, 74, h), Qt.AlignRight | Qt.AlignVCenter, base.fmt_tempo(d["ultima"]))
+            if "melhor" in vis:
+                p.setPen(base.COR_CINZA if d["melhor"] is None else
+                         (QColor(190, 130, 255) if d["melhor_da_classe"] and not d["eu"] else texto))
+                if d["melhor"] is not None and d["melhor_da_classe"] and d["eu"]:
+                    p.setPen(QColor(225, 195, 255))
+                p.drawText(QRectF(X["melhor"], y, 74, h), Qt.AlignRight | Qt.AlignVCenter, base.fmt_tempo(d["melhor"]))
+            if "ultima" in vis:
+                if d["ultima"] is None:
+                    p.setPen(base.COR_CINZA)
+                else:
+                    p.setPen(base.COR_VERDE if d["pb"] else texto)
+                p.drawText(QRectF(X["ultima"], y, 74, h), Qt.AlignRight | Qt.AlignVCenter, base.fmt_tempo(d["ultima"]))
 
             # paradas e stint
             n = d.get("paradas")
             p.setFont(base.fonte(10, QFont.Bold))
-            if na_box:
-                p.setPen(QColor(255, 165, 60))
-                p.drawText(QRectF(X["pit"] - 4, y, 38, h), Qt.AlignCenter, "BOX")
-            else:
-                p.setPen(base.COR_CINZA if n is None else texto)
-                p.drawText(QRectF(X["pit"], y, 30, h), Qt.AlignCenter, "--" if n is None else str(n))
-            s = d.get("stint")
-            p.setPen(base.COR_CINZA if s is None or not d.get("stint_confiavel", True) else texto)
-            p.drawText(QRectF(X["stint"], y, 40, h), Qt.AlignCenter, "--" if s is None else
-                       (str(s) if d.get("stint_confiavel", True) else "~" + str(s)))
+            if "pit" in vis:
+                if na_box:
+                    p.setPen(QColor(255, 165, 60))
+                    p.drawText(QRectF(X["pit"] - 4, y, 38, h), Qt.AlignCenter, "BOX")
+                else:
+                    p.setPen(base.COR_CINZA if n is None else texto)
+                    p.drawText(QRectF(X["pit"], y, 30, h), Qt.AlignCenter, "--" if n is None else str(n))
+            if "stint" in vis:
+                s_ = d.get("stint")
+                p.setPen(base.COR_CINZA if s_ is None or not d.get("stint_confiavel", True) else texto)
+                p.drawText(QRectF(X["stint"], y, 40, h), Qt.AlignCenter, "--" if s_ is None else
+                           (str(s_) if d.get("stint_confiavel", True) else "~" + str(s_)))
 
         @staticmethod
-        def _pneu(p, x, y, h, pneu):
-            cx, cy = x + 9, y + h / 2.0
+        def _pneu(p, x, y, h, pneu, voltas=None, confiavel=True):
+            """Circulo na cor do composto. Com as voltas do pneu (1.7.0) o numero fica DENTRO da bolinha, como no Relativo;
+            sem o dado, volta a letra do composto."""
+            cx, cy = x + 10, y + h / 2.0
+            r = 9
             if not pneu:
                 p.setPen(QPen(QColor(255, 255, 255, 50), 1))
                 p.setBrush(Qt.NoBrush)
-                p.drawEllipse(QRectF(cx - 8, cy - 8, 16, 16))
+                p.drawEllipse(QRectF(cx - r, cy - r, 2 * r, 2 * r))
                 return
             cor = QColor(*pneu["cor"])
-            p.setPen(QPen(cor, 2.2))
+            p.setPen(QPen(QColor(cor.red(), cor.green(), cor.blue(), 255 if (voltas is None or confiavel) else 110), 2.0))
             p.setBrush(QColor(0, 0, 0, 120))
-            p.drawEllipse(QRectF(cx - 8, cy - 8, 16, 16))
+            p.drawEllipse(QRectF(cx - r, cy - r, 2 * r, 2 * r))
             p.setFont(base.fonte(8, QFont.Bold))
-            p.setPen(cor)
-            p.drawText(QRectF(cx - 8, cy - 8, 16, 16), Qt.AlignCenter, pneu["letra"])
+            if voltas is None:
+                p.setPen(cor)
+                texto = pneu["letra"]
+            else:
+                p.setPen(QColor(255, 255, 255) if confiavel else QColor(150, 150, 160))
+                texto = str(voltas)
+            p.drawText(QRectF(cx - r, cy - r, 2 * r, 2 * r), Qt.AlignCenter, texto)
 
         def _bandeira(self, p, x, y, h, codigo):
             iso2 = base._ISO2.get(codigo)

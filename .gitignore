@@ -27,3 +27,6 @@ dist/
 *.zip
 # saida da compilacao do EXE
 overlay/exe/
+overlay/referencias/
+overlay/pit_entradas.json
+overlay/pit_entradas_v2.json

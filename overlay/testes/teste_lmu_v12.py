@@ -237,7 +237,7 @@ def teste_principal_v12():
         QTimer.singleShot(1900, app.quit)
     codigo = m.principal(leitor=leitor, config_extra={"auto_modo": False, "travado": True, "retorno_sempre": True}, ao_iniciar=ao_iniciar)
     confere(codigo == 0, "principal terminou sem erro")
-    confere(estado.get("n") == 23, f"23 janelas ({estado.get('n')})")
+    confere(estado.get("n") == 26, f"26 janelas ({estado.get('n')})")
     for nome in ("JanelaLuzAbs", "JanelaLuzTc", "JanelaRetorno", "JanelaEstrategia"):
         confere(nome in estado.get("nomes", []), f"{nome} criada")
     confere(estado.get("central") and estado.get("central_cartoes", 0) >= 20, f"central de configuracoes criada ({estado.get('central_cartoes')} paineis)")
@@ -247,7 +247,7 @@ def teste_principal_v12():
         confere(chave in estado.get("acoes", []), f"menu da bandeja tem {chave}")
     log = T.TMP / "log_principal_v12.txt"
     texto = log.read_text(encoding="utf-8") if log.exists() else ""
-    confere("LMU 1.6.3" in texto, "cabecalho do log com a versao 1.6.3")
+    confere("LMU 1.7.0" in texto, "cabecalho do log com a versao 1.7.0")
     confere("Traceback" not in texto and "ERRO" not in texto.upper().replace("ERROS", ""), "nenhum erro no log")
 
 

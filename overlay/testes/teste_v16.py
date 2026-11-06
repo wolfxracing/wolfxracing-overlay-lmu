@@ -58,6 +58,33 @@ confere(P.atualizar("t", False, 0.90, 4000.0, 70.0, 60.0, None, False, True) is 
 r = v.PitEntrada().atualizar("x", False, 0.9, 4000.0, 70.0, 60.0, None, True)
 confere(r is None, "pista sem entrada aprendida: nada")
 
+# ---- 1.7.0: pedido de entrada e aprendizado so ao entrar andando pela pista (dados reais: PitSvFlags fica != 0 sempre;
+#      ao nascer no box a transicao "pit lane" ligou com v=0 e marcava a regiao da SAIDA)
+Q = v.PitEntrada()
+Q.atualizar("f", False, 0.0, 4000.0, 0.0, 60.0, 0.0935, False, False, 3)                 # nasce parado
+r = Q.atualizar("f", True, 0.0935, 4000.0, 0.0, 60.0, 0.0935, False, False, 1)            # no box (superficie 1)
+confere(Q.entrada("f") is None and not Q.mudou, "nascer no box NAO aprende a entrada")
+Q = v.PitEntrada()
+Q.atualizar("f", False, 0.0935, 4000.0, 3.0, 60.0, 0.0935, False, False, 3)               # quase parado na pista
+Q.atualizar("f", True, 0.0936, 4000.0, 3.0, 60.0, 0.0935, False, False, 2)
+confere(Q.entrada("f") is None, "entrar devagar demais (< 36 km/h) tambem nao aprende")
+Q = v.PitEntrada()
+Q.atualizar("f", False, 0.9300, 4000.0, 20.0, 60.0, 0.0935, False, False, 3)
+Q.atualizar("f", True, 0.9310, 4000.0, 18.0, 60.0, 0.0935, False, False, 2)
+confere(abs(Q.entrada("f") - 0.93) < 1e-6 and Q.mudou, "entrando pela pista a 72 km/h aprende a linha de ENTRADA")
+Q = v.PitEntrada({"f": 0.93})
+Q.atualizar("f", False, 0.2000, 4000.0, 40.0, 60.0, 0.0935, False, False, 3)
+Q.atualizar("f", True, 0.2010, 4000.0, 40.0, 60.0, 0.0935, False, False, 2)
+confere(abs(Q.entrada("f") - 0.93) < 1e-6, "entrada fora de ate 1500 m antes do box e ignorada")
+Q = v.PitEntrada({"f": 0.93})
+confere(Q.atualizar("f", False, 0.90, 4000.0, 50.0, 60.0, None, False, False, 3) is None, "sem pedido: janela do pit nao aparece")
+confere(Q.alternar_pedido() is True and Q.atualizar("f", False, 0.90, 4000.0, 50.0, 60.0, None, Q.pedido, False, 3) is not None,
+        "com pedido (atalho): aparece perto da entrada")
+Q.atualizar("f", False, 0.9295, 4000.0, 20.0, 60.0, 0.0935, Q.pedido, False, 3)
+Q.atualizar("f", True, 0.9302, 4000.0, 18.0, 60.0, 0.0935, Q.pedido, False, 2)
+confere(Q.pedido is False, "o pedido some sozinho ao entrar na pit lane")
+confere(Q.alternar_pedido() is True and Q.alternar_pedido() is False, "o atalho liga e desliga o pedido")
+
 # ---- janelas
 for cls in (o.JanelaUltimoContato, o.JanelaPitEntrada):
     w = cls(cfg); w.show(); w.atualizar(d); w.grab()
@@ -125,7 +152,10 @@ sdk.update({"OnPitRoad": True, "CarIdxLapDistPct": [0.951, 0.6, 0.8], "CarIdxOnP
 confere(dd["pit"] is not None and dd["pit"]["fase"] == "pista" and abs(dd["pit"]["limite"] - 60.0) < 0.1, f"pit lane com limite lido do SDK ({dd['pit']})")
 confere(o.ARQ_PIT.exists() and "0.948" in o.ARQ_PIT.read_text(), "entrada aprendida e gravada em arquivo")
 sdk.update({"OnPitRoad": False, "CarIdxOnPitRoad": [False] * 3, "CarIdxLapDistPct": [0.90, 0.6, 0.8], "Speed": 70.0}); dd = passo()
-confere(dd["pit"] is not None and dd["pit"]["fase"] == "entrada" and dd["pit"]["luz"] == "vermelho", f"volta seguinte: luz de entrada ({dd['pit']})")
+confere(dd["pit"] is None, "volta seguinte SEM pedido: janela do pit nao aparece (PitSvFlags=1 nao conta como pedido)")
+tel.pedir_pit(True); tel.pedir_pit(True); dd = passo()      # atalho do Stream Deck: apertar duas vezes nao desfaz
+confere(tel.v16_pit.pedido is True and tel.pedir_pit(False) is False and tel.pedir_pit(True) is True, "atalhos pedir/cancelar sao idempotentes")
+confere(dd["pit"] is not None and dd["pit"]["fase"] == "entrada" and dd["pit"]["luz"] == "vermelho", f"volta seguinte, COM pedido: luz de entrada ({dd['pit']})")
 
 print("\n" + ("TUDO OK" if not falhas else f"{len(falhas)} FALHA(S)"))
 sys.exit(1 if falhas else 0)
