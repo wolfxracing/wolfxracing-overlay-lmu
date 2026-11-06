@@ -17,6 +17,24 @@ Overlay gratuito e de código aberto para **Le Mans Ultimate (LMU)** no Windows,
 | [`streamdeck/`](streamdeck) | Perfil para **Stream Deck XL**, biblioteca de ícones e gerador |
 | [`docs/`](docs) | Manual, guia do dash, guia do Stream Deck, arquitetura e histórico |
 
+## Novidades da 1.7.0
+
+**Coach ao vivo**, **Delta Trace** (com o *ritmo ideal estimado*), **Consumo**, **Curvas** e **Tendência**, e a **Central** com **Elementos** liga/desliga e prévia ao vivo. Imagens geradas com dados de exemplo; a calibração do Coach em sessão real ainda precisa ser confirmada ([docs/COACH.md](docs/COACH.md)).
+
+![Coach](docs/imagens/overlay_coach.png)
+
+![Delta Trace](docs/imagens/overlay_delta_trace.png)
+
+![Consumo](docs/imagens/overlay_consumo.png)
+
+![Curvas](docs/imagens/overlay_curvas.png)
+
+![Tendência](docs/imagens/janela_tendencia.png)
+
+![Central: elementos com prévia](docs/imagens/central_elementos.png)
+
+Mais prints e detalhes no [manual](docs/MANUAL.md) e no [histórico de versões](CHANGELOG.md).
+
 ## Novidades da 1.6.0
 
 **Central de configurações** (janela única para ligar/desligar painéis, ajustar aparência e atalhos), **Último contato**, **Entrada do pit**, minimapa rotativo mais fluido e janelas automáticas de bandeiras, tráfego e auxiliar.
