@@ -78,7 +78,13 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 - Cada impacto e gravado no overlay_log.txt (zona, tipo, g, reparo, incidentes) para diagnostico.
 - Novo teste teste_v18_danos.py (10 verificacoes). Sem homologacao em jogo real.
 
-## [1.8.0] - em preparo (nao publicada)
+## [1.8.0] - 2026-11-17
+
+### Resumo da versão 1.8.0 (build ar)
+- **Multi-idioma:** Português (Brasil), English, Español, Deutsch, Français e Italiano; automático pelo idioma do Windows, troca em *Central > Aparência e sistema* e no menu da bandeja (Central e menus pedem reinício; texto sem tradução aparece em português).
+- **Coach:** % de freio, trail braking e % do acelerador, com a janela **Pedais do Coach** (posição livre e centralizável).
+- **Novas janelas:** Mapa de vazão, Eficiência por marcha, Destino do combustível, Digiflag, Alerta de ultrapassagem, Calendário de corridas (importa o PDF *Season Schedule* do iRacing), Energia híbrida (Boost), Tempo da sessão; Calculadora de FOV; Danos estimados; modo daltônico; temas da Central; atalhos e Stream Deck para as janelas novas.
+- Validado com testes automáticos e dados simulados; a validação em corrida real e no Stream Deck real segue em andamento. Detalhes por build abaixo.
 
 ### Build ae (Stream Deck dos painéis da 1.8 — produto 1.8.0)
 - **Mesmo código funcional do build ad (auditado)**; a única mudança de código são os atalhos globais novos (`ov_nucleo.py`, `ov_atalhos_lmu.py`) e o `BUILD`.
