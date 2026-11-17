@@ -35,11 +35,20 @@ Deck convivem sem nenhuma colisao, mesmo com os dois overlays abertos ao mesmo t
   Alt+F21         Mostrar/ocultar consumo por trecho (Burn Zones e Fuel Flow)
   Alt+F22         Mostrar/ocultar Delta Trace
   Alt+F23         Mostrar/ocultar Curvas (velocidade minima por curva)
+  Shift+F13       Mostrar/ocultar Mapa de vazao
+  Shift+F14       Mostrar/ocultar Eficiencia por marcha
+  Shift+F15       Mostrar/ocultar Destino do combustivel
+  Shift+F16       Mostrar/ocultar Digiflag (bandeiras)
+  Shift+F17       Mostrar/ocultar Alerta de ultrapassagem
+  Shift+F18       Mostrar/ocultar Calendario de corridas
+  Shift+F19       Mostrar/ocultar Energia hibrida (Boost)
+  Shift+F20       Mostrar/ocultar Tempo da sessao
 
 COMO USAR
  - Janelas (Ctrl+Shift+F13..F24): cada toque liga ou desliga a janela (o estado fica salvo no config_lmu.json).
  - Janelas novas da 1.2.0 (Alt+Shift+F21..F24): Luz ABS, Luz TC, Retorno a pista e Estrategia de pneus.
  - Telas novas da 1.7.0 (build q, Alt+F21..F23): Consumo por trecho, Delta Trace e Curvas. Sao so Alt (sem Shift); o iRacing usa Alt+F13..F19, entao nao ha colisao.
+ - Paineis novos da 1.8 (Shift+F13..F20; o iRacing usa Ctrl+F13..F20): Mapa de vazao, Eficiencia por marcha, Destino do combustivel, Digiflag, Alerta de ultrapassagem, Calendario, Energia hibrida e Tempo da sessao. O perfil do Stream Deck traz estes botoes na pasta "Telas novas".
  - Controles (Alt+Shift+F13..F20): economia de CPU, aparecer sozinho, travar posicao, classificacao de todas as classes e
    manter por cima do jogo ligam/desligam; zerar pico de G e restaurar tamanhos executam na hora.
  - Alt+Shift+F20 FECHA o overlay (o mesmo que "Sair" no menu da bandeja). Para abrir de novo: botao "Iniciar Overlay".

@@ -1,0 +1,98 @@
+PAINÉIS¦PANELS¦PANELES¦PANELS¦PANNEAUX¦PANNELLI
+PAINÉIS LIGADOS¦PANELS ON¦PANELES ACTIVOS¦PANELS AKTIV¦PANNEAUX ACTIFS¦PANNELLI ATTIVI
+Painéis¦Panels¦Paneles¦Panels¦Panneaux¦Pannelli
+Perfis¦Profiles¦Perfiles¦Profile¦Profils¦Profili
+Aparência e sistema¦Appearance and system¦Apariencia y sistema¦Darstellung und System¦Apparence et système¦Aspetto e sistema
+APARÊNCIA DA CENTRAL¦SETTINGS WINDOW APPEARANCE¦APARIENCIA DE LA CENTRAL¦DARSTELLUNG DER ZENTRALE¦APPARENCE DE LA CENTRALE¦ASPETTO DELLA CENTRALE
+MODO DALTÔNICO¦COLOR-BLIND MODE¦MODO DALTÓNICO¦FARBENBLINDMODUS¦MODE DALTONIEN¦MODALITÀ DALTONICI
+POSIÇÃO E SISTEMA¦POSITION AND SYSTEM¦POSICIÓN Y SISTEMA¦POSITION UND SYSTEM¦POSITION ET SYSTÈME¦POSIZIONE E SISTEMA
+Padrão¦Default¦Predeterminado¦Standard¦Par défaut¦Predefinito
+Automático (Windows)¦Automatic (Windows)¦Automático (Windows)¦Automatisch (Windows)¦Automatique (Windows)¦Automatico (Windows)
+Automático (Windows) / Automatic¦Automatic (Windows)¦Automático (Windows)¦Automatisch (Windows)¦Automatique (Windows)¦Automatico (Windows)
+Tema moderno¦Modern theme¦Tema moderno¦Modernes Design¦Thème moderne¦Tema moderno
+Efeito vidro¦Glass effect¦Efecto cristal¦Glaseffekt¦Effet verre¦Effetto vetro
+Estilo Sport¦Sport style¦Estilo Sport¦Sport-Stil¦Style Sport¦Stile Sport
+Fontes e cantos do estilo atual.¦Fonts and corners of the current style.¦Fuentes y esquinas del estilo actual.¦Schriften und Ecken des aktuellen Stils.¦Polices et coins du style actuel.¦Caratteri e angoli dello stile attuale.
+Reflexo e brilho nas janelas.¦Reflection and shine on the windows.¦Reflejo y brillo en las ventanas.¦Spiegelung und Glanz auf den Fenstern.¦Reflet et brillance sur les fenêtres.¦Riflesso e lucentezza sulle finestre.
+Itálico e detalhes vermelhos.¦Italics and red details.¦Cursiva y detalles rojos.¦Kursiv und rote Details.¦Italique et détails rouges.¦Corsivo e dettagli rossi.
+Travar posição¦Lock position¦Bloquear posición¦Position sperren¦Verrouiller la position¦Blocca posizione
+Travar / destravar¦Lock / unlock¦Bloquear / desbloquear¦Sperren / entsperren¦Verrouiller / déverrouiller¦Blocca / sblocca
+Travadas¦Locked¦Bloqueadas¦Gesperrt¦Verrouillées¦Bloccate
+Destravadas (modo mover)¦Unlocked (move mode)¦Desbloqueadas (modo mover)¦Entsperrt (Verschiebemodus)¦Déverrouillées (mode déplacement)¦Sbloccate (modalità sposta)
+Só com as janelas travadas.¦Only with windows locked.¦Solo con las ventanas bloqueadas.¦Nur bei gesperrten Fenstern.¦Seulement fenêtres verrouillées.¦Solo con le finestre bloccate.
+Travado: os cliques atravessam o overlay. Destrave para mover e redimensionar.¦Locked: clicks pass through the overlay. Unlock to move and resize.¦Bloqueado: los clics atraviesan el overlay. Desbloquee para mover y redimensionar.¦Gesperrt: Klicks gehen durch das Overlay. Entsperren zum Verschieben und Skalieren.¦Verrouillé : les clics traversent l'overlay. Déverrouillez pour déplacer et redimensionner.¦Bloccato: i clic attraversano l'overlay. Sblocca per spostare e ridimensionare.
+Aparecer sozinho ao entrar no carro¦Appear automatically when you get in the car¦Aparecer solo al entrar en el coche¦Automatisch beim Einsteigen anzeigen¦Apparaître seul en montant dans la voiture¦Appari da solo salendo in auto
+Manter o overlay por cima do jogo¦Keep the overlay on top of the game¦Mantener el overlay sobre el juego¦Overlay über dem Spiel halten¦Garder l'overlay au-dessus du jeu¦Mantieni l'overlay sopra il gioco
+Reforça a posição acima do jogo.¦Reinforces the position above the game.¦Refuerza la posición sobre el juego.¦Verstärkt die Position über dem Spiel.¦Renforce la position au-dessus du jeu.¦Rinforza la posizione sopra il gioco.
+Modo economia de CPU¦CPU saving mode¦Modo ahorro de CPU¦CPU-Sparmodus¦Mode économie CPU¦Modalità risparmio CPU
+Metade das atualizações por segundo.¦Half the updates per second.¦La mitad de las actualizaciones por segundo.¦Halb so viele Aktualisierungen pro Sekunde.¦Moitié des mises à jour par seconde.¦Metà degli aggiornamenti al secondo.
+Prioridade baixa do overlay¦Low overlay priority¦Prioridad baja del overlay¦Niedrige Overlay-Priorität¦Priorité basse de l'overlay¦Priorità bassa dell'overlay
+O jogo tem preferência na CPU.¦The game gets CPU preference.¦El juego tiene preferencia en la CPU.¦Das Spiel hat CPU-Vorrang.¦Le jeu a la priorité sur le CPU.¦Il gioco ha la precedenza sulla CPU.
+Teclas de atalho do Stream Deck¦Stream Deck hotkeys¦Atajos de teclado del Stream Deck¦Stream-Deck-Tastenkürzel¦Raccourcis clavier Stream Deck¦Tasti di scelta rapida Stream Deck
+Estilo das janelas e comportamento do overlay.¦Window style and overlay behavior.¦Estilo de las ventanas y comportamiento del overlay.¦Fensterstil und Verhalten des Overlays.¦Style des fenêtres et comportement de l'overlay.¦Stile delle finestre e comportamento dell'overlay.
+Só muda esta janela de configurações; o overlay no jogo não é afetado.¦Only changes this settings window; the in-game overlay is not affected.¦Solo cambia esta ventana de configuración; el overlay en el juego no se ve afectado.¦Ändert nur dieses Einstellungsfenster; das Overlay im Spiel bleibt unverändert.¦Ne change que cette fenêtre de réglages ; l'overlay en jeu n'est pas affecté.¦Cambia solo questa finestra di impostazioni; l'overlay nel gioco non è interessato.
+Os painéis mudam na hora; reinicie o overlay para traduzir também esta janela e os menus.¦Panels change immediately; restart the overlay to translate this window and the menus too.¦Los paneles cambian al instante; reinicie el overlay para traducir también esta ventana y los menús.¦Die Panels wechseln sofort; starten Sie das Overlay neu, um auch dieses Fenster und die Menüs zu übersetzen.¦Les panneaux changent immédiatement ; redémarrez l'overlay pour traduire aussi cette fenêtre et les menus.¦I pannelli cambiano subito; riavvia l'overlay per tradurre anche questa finestra e i menu.
+IDIOMA / LANGUAGE¦LANGUAGE¦IDIOMA¦SPRACHE¦LANGUE¦LINGUA
+Idioma / Language¦Language¦Idioma¦Sprache¦Langue¦Lingua
+Abrir configurações…¦Open settings…¦Abrir configuración…¦Einstellungen öffnen…¦Ouvrir les réglages…¦Apri impostazioni…
+Todas as opções (avançado)¦All options (advanced)¦Todas las opciones (avanzado)¦Alle Optionen (erweitert)¦Toutes les options (avancé)¦Tutte le opzioni (avanzate)
+Sair¦Quit¦Salir¦Beenden¦Quitter¦Esci
+Abrir¦Open¦Abrir¦Öffnen¦Ouvrir¦Apri
+Buscar painéis e opções¦Search panels and options¦Buscar paneles y opciones¦Panels und Optionen suchen¦Rechercher panneaux et options¦Cerca pannelli e opzioni
+Buscar série...¦Search series...¦Buscar serie...¦Serie suchen...¦Rechercher une série...¦Cerca serie...
+← Todos os painéis¦← All panels¦← Todos los paneles¦← Alle Panels¦← Tous les panneaux¦← Tutti i pannelli
+Ver todos →¦See all →¦Ver todos →¦Alle anzeigen →¦Tout voir →¦Vedi tutti →
+Personalizar  ›¦Customize  ›¦Personalizar  ›¦Anpassen  ›¦Personnaliser  ›¦Personalizza  ›
+Personalizar →¦Customize →¦Personalizar →¦Anpassen →¦Personnaliser →¦Personalizza →
+Personalizada¦Custom¦Personalizada¦Benutzerdefiniert¦Personnalisée¦Personalizzata
+Mostrar este painel¦Show this panel¦Mostrar este panel¦Dieses Panel anzeigen¦Afficher ce panneau¦Mostra questo pannello
+Mostrar todos os elementos¦Show all elements¦Mostrar todos los elementos¦Alle Elemente anzeigen¦Afficher tous les éléments¦Mostra tutti gli elementi
+Mostrar todas as colunas¦Show all columns¦Mostrar todas las columnas¦Alle Spalten anzeigen¦Afficher toutes les colonnes¦Mostra tutte le colonne
+Mostrar todo o cabeçalho¦Show the whole header¦Mostrar toda la cabecera¦Gesamte Kopfzeile anzeigen¦Afficher tout l'en-tête¦Mostra tutta l'intestazione
+Marcar as visíveis¦Check the visible ones¦Marcar las visibles¦Sichtbare markieren¦Cocher les visibles¦Seleziona le visibili
+Desmarcar todas¦Uncheck all¦Desmarcar todas¦Alle abwählen¦Tout décocher¦Deseleziona tutte
+Ordem original¦Original order¦Orden original¦Ursprüngliche Reihenfolge¦Ordre d'origine¦Ordine originale
+Mover para a direita¦Move right¦Mover a la derecha¦Nach rechts¦Déplacer à droite¦Sposta a destra
+Mover para a esquerda¦Move left¦Mover a la izquierda¦Nach links¦Déplacer à gauche¦Sposta a sinistra
+○  DESLIGADO¦○  OFF¦○  APAGADO¦○  AUS¦○  DÉSACTIVÉ¦○  SPENTO
+●  LIGADO¦●  ON¦●  ACTIVADO¦●  EIN¦●  ACTIVÉ¦●  ACCESO
+Desligada¦Off¦Desactivada¦Aus¦Désactivée¦Spenta
+{} de {} ligados¦{} of {} on¦{} de {} activados¦{} von {} aktiv¦{} sur {} activés¦{} di {} attivi
+Escolha um exemplo...¦Choose an example...¦Elija un ejemplo...¦Beispiel wählen...¦Choisissez un exemple...¦Scegli un esempio...
+EXEMPLOS¦EXAMPLES¦EJEMPLOS¦BEISPIELE¦EXEMPLES¦ESEMPI
+PRÉVIA AO VIVO¦LIVE PREVIEW¦VISTA PREVIA EN VIVO¦LIVE-VORSCHAU¦APERÇU EN DIRECT¦ANTEPRIMA IN DIRETTA
+Layout em barra horizontal¦Horizontal bar layout¦Diseño en barra horizontal¦Horizontale Balkenanzeige¦Disposition en barre horizontale¦Layout a barra orizzontale
+Padrão (a mais rapida)¦Default (fastest)¦Predeterminado (la más rápida)¦Standard (schnellste)¦Par défaut (la plus rapide)¦Predefinito (la più veloce)
+Perfil de exibicao (posicao, tamanho e janelas por perfil)¦Display profile (position, size and windows per profile)¦Perfil de visualización (posición, tamaño y ventanas por perfil)¦Anzeigeprofil (Position, Größe und Fenster je Profil)¦Profil d'affichage (position, taille et fenêtres par profil)¦Profilo di visualizzazione (posizione, dimensione e finestre per profilo)
+Perfil ativo: Corrida¦Active profile: Race¦Perfil activo: Carrera¦Aktives Profil: Rennen¦Profil actif : Course¦Profilo attivo: Gara
+Perfil ativo: Corrida  (automatico)¦Active profile: Race  (automatic)¦Perfil activo: Carrera  (automático)¦Aktives Profil: Rennen  (automatisch)¦Profil actif : Course  (automatique)¦Profilo attivo: Gara  (automatico)
+Perfil ativo: Corrida  (manual)¦Active profile: Race  (manual)¦Perfil activo: Carrera  (manual)¦Aktives Profil: Rennen  (manuell)¦Profil actif : Course  (manuel)¦Profilo attivo: Gara  (manuale)
+Perfil ativo: Classificacao  (automatico)¦Active profile: Qualifying  (automatic)¦Perfil activo: Clasificación  (automático)¦Aktives Profil: Qualifying  (automatisch)¦Profil actif : Qualification  (automatique)¦Profilo attivo: Qualifica  (automatico)
+Perfil ativo: Classificacao  (manual)¦Active profile: Qualifying  (manual)¦Perfil activo: Clasificación  (manual)¦Aktives Profil: Qualifying  (manuell)¦Profil actif : Qualification  (manuel)¦Profilo attivo: Qualifica  (manuale)
+Perfil ativo: Treino  (manual)¦Active profile: Practice  (manual)¦Perfil activo: Entrenamiento  (manual)¦Aktives Profil: Training  (manuell)¦Profil actif : Essais  (manuel)¦Profilo attivo: Prove  (manuale)
+Automatico (pelo tipo de sessao)¦Automatic (by session type)¦Automático (por tipo de sesión)¦Automatisch (nach Sitzungstyp)¦Automatique (selon le type de session)¦Automatico (in base al tipo di sessione)
+Automático (pelo tipo de sessão)¦Automatic (by session type)¦Automático (por tipo de sesión)¦Automatisch (nach Sitzungstyp)¦Automatique (selon le type de session)¦Automatico (in base al tipo di sessione)
+Treino¦Practice¦Entrenamiento¦Training¦Essais¦Prove
+Corrida¦Race¦Carrera¦Rennen¦Course¦Gara
+CORRIDA¦RACE¦CARRERA¦RENNEN¦COURSE¦GARA
+Classificação¦Qualifying¦Clasificación¦Qualifying¦Qualification¦Qualifica
+Classificacao¦Qualifying¦Clasificación¦Qualifying¦Qualification¦Qualifica
+CLASSIFICACAO¦QUALIFYING¦CLASIFICACIÓN¦QUALIFYING¦QUALIFICATION¦QUALIFICA
+Copiar o layout atual para os outros perfis¦Copy the current layout to the other profiles¦Copiar el diseño actual a los otros perfiles¦Aktuelles Layout in die anderen Profile kopieren¦Copier la disposition actuelle vers les autres profils¦Copia il layout attuale negli altri profili
+Restaurar o tamanho das janelas ({}%)¦Restore window size ({}%)¦Restaurar el tamaño de las ventanas ({}%)¦Fenstergröße zurücksetzen ({}%)¦Restaurer la taille des fenêtres ({}%)¦Ripristina la dimensione delle finestre ({}%)
+Restaurar o tamanho de todas as janelas ({}%)¦Restore the size of all windows ({}%)¦Restaurar el tamaño de todas las ventanas ({}%)¦Größe aller Fenster zurücksetzen ({}%)¦Restaurer la taille de toutes les fenêtres ({}%)¦Ripristina la dimensione di tutte le finestre ({}%)
+Restaurar tamanho ({}%)¦Restore size ({}%)¦Restaurar tamaño ({}%)¦Größe zurücksetzen ({}%)¦Restaurer la taille ({}%)¦Ripristina dimensione ({}%)
+Tamanho: {}%¦Size: {}%¦Tamaño: {}%¦Größe: {}%¦Taille : {}%¦Dimensione: {}%
+Opacidade do fundo: {}%¦Background opacity: {}%¦Opacidad del fondo: {}%¦Hintergrund-Deckkraft: {}%¦Opacité du fond : {}%¦Opacità dello sfondo: {}%
+Opacidade do fundo: geral¦Background opacity: overall¦Opacidad del fondo: general¦Hintergrund-Deckkraft: allgemein¦Opacité du fond : générale¦Opacità dello sfondo: generale
+Transparencia do fundo das janelas¦Window background transparency¦Transparencia del fondo de las ventanas¦Fenster-Hintergrundtransparenz¦Transparence du fond des fenêtres¦Trasparenza dello sfondo delle finestre
+Fundo {}% opaco¦Background {}% opaque¦Fondo {}% opaco¦Hintergrund {}% deckend¦Fond {}% opaque¦Sfondo {}% opaco
+Fundo {}% opaco  (padrao)¦Background {}% opaque  (default)¦Fondo {}% opaco  (predeterminado)¦Hintergrund {}% deckend  (Standard)¦Fond {}% opaque  (par défaut)¦Sfondo {}% opaco  (predefinito)
+Salvar backup da configuracao...¦Save configuration backup...¦Guardar copia de seguridad de la configuración...¦Konfigurationssicherung speichern...¦Enregistrer une sauvegarde de la configuration...¦Salva backup della configurazione...
+Restaurar backup da configuracao...¦Restore configuration backup...¦Restaurar copia de seguridad de la configuración...¦Konfigurationssicherung wiederherstellen...¦Restaurer une sauvegarde de la configuration...¦Ripristina backup della configurazione...
+Copiar resumo para suporte¦Copy summary for support¦Copiar resumen para soporte¦Zusammenfassung für den Support kopieren¦Copier le résumé pour le support¦Copia riepilogo per il supporto
+Configuracao: backup e suporte¦Configuration: backup and support¦Configuración: copia de seguridad y soporte¦Konfiguration: Sicherung und Support¦Configuration : sauvegarde et support¦Configurazione: backup e supporto
+Deuteranopia¦Deuteranopia¦Deuteranopía¦Deuteranopie¦Deutéranopie¦Deuteranopia
+Protanopia¦Protanopia¦Protanopía¦Protanopie¦Protanopie¦Protanopia
+Tritanopia¦Tritanopia¦Tritanopía¦Tritanopie¦Tritanopie¦Tritanopia
+Troca as cores de bom/ruim (verde e vermelho) das janelas do overlay por cores que o tipo escolhido distingue. É uma troca de paleta, não uma simulação médica.¦Swaps the good/bad colors (green and red) of the overlay windows for colors the chosen type can distinguish. It is a palette swap, not a medical simulation.¦Cambia los colores de bueno/malo (verde y rojo) de las ventanas del overlay por colores que el tipo elegido distingue. Es un cambio de paleta, no una simulación médica.¦Tauscht die Gut/Schlecht-Farben (Grün und Rot) der Overlay-Fenster gegen Farben, die der gewählte Typ unterscheiden kann. Es ist ein Palettenwechsel, keine medizinische Simulation.¦Remplace les couleurs bon/mauvais (vert et rouge) des fenêtres de l'overlay par des couleurs que le type choisi distingue. C'est un changement de palette, pas une simulation médicale.¦Sostituisce i colori buono/cattivo (verde e rosso) delle finestre dell'overlay con colori distinguibili dal tipo scelto. È un cambio di palette, non una simulazione medica.

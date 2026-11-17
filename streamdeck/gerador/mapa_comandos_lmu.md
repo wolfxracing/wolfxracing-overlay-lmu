@@ -66,3 +66,17 @@ Idêntico ao do iRacing: fibra de carbono grafite, âmbar (padrão), vermelho (p
 
 ## 8. Telas novas (build q)
 Pagina principal: `sup_telas_novas` em (3,2) abre a pasta **Telas novas**: `sup_voltar` (0,0), `janela_consumo` (1,0, Alt+F21), `janela_delta_trace` (2,0, Alt+F22), `janela_curvas` (3,0, Alt+F23).
+
+## 9. Paineis da 1.8 (build ae)
+Pasta **Telas novas** (abre por `sup_telas_novas` em (7,2)): alem de voltar e das 3 telas do item 8, tem os 8 paineis da 1.8.
+| Posicao | Icone | Atalho (LMU) |
+|---|---|---|
+| (4,0) | `janela_vazao` | Shift+F13 |
+| (5,0) | `janela_marcha` | Shift+F14 |
+| (6,0) | `janela_destino` | Shift+F15 |
+| (7,0) | `janela_digiflag` | Shift+F16 |
+| (0,1) | `janela_ultrapassagem` | Shift+F17 |
+| (1,1) | `janela_calendario` | Shift+F18 |
+| (2,1) | `janela_hibrido` | Shift+F19 |
+| (3,1) | `janela_sessao` | Shift+F20 |
+Gerar o perfil com a pasta de instalacao do seu PC: defina `WOLFX_BASE` (pasta do overlay) e, se quiser outro nome, `WOLFX_PERFIL` antes de rodar `gerar_perfil_lmu.py`.

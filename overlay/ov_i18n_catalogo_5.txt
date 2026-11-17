@@ -1,0 +1,175 @@
+ELEMENTOS: {}¦ELEMENTS: {}¦ELEMENTOS: {}¦ELEMENTE: {}¦ÉLÉMENTS : {}¦ELEMENTI: {}
+ALERTA DE ULTRAPASSAGEM¦OVERTAKE ALERT¦ALERTA DE ADELANTAMIENTO¦ÜBERHOLWARNUNG¦ALERTE DE DÉPASSEMENT¦AVVISO DI SORPASSO
+CALENDÁRIO DE CORRIDAS¦RACE CALENDAR¦CALENDARIO DE CARRERAS¦RENNKALENDER¦CALENDRIER DES COURSES¦CALENDARIO GARE
+CLIMA¦WEATHER¦CLIMA¦WETTER¦MÉTÉO¦METEO
+COACH AO VIVO¦LIVE COACH¦COACH EN VIVO¦LIVE-COACH¦COACH EN DIRECT¦COACH DAL VIVO
+CONSUMO POR TRECHO¦CONSUMPTION BY SECTION¦CONSUMO POR TRAMO¦VERBRAUCH PRO ABSCHNITT¦CONSOMMATION PAR SECTEUR¦CONSUMO PER TRATTO
+DELTA TRACE¦DELTA TRACE¦DELTA TRACE¦DELTA TRACE¦DELTA TRACE¦DELTA TRACE
+DIGIFLAG¦DIGIFLAG¦DIGIFLAG¦DIGIFLAG¦DIGIFLAG¦DIGIFLAG
+ENERGIA HÍBRIDA (BOOST)¦HYBRID ENERGY (BOOST)¦ENERGÍA HÍBRIDA (BOOST)¦HYBRIDENERGIE (BOOST)¦ÉNERGIE HYBRIDE (BOOST)¦ENERGIA IBRIDA (BOOST)
+MAPA DE VAZÃO¦FLOW MAP¦MAPA DE CAUDAL¦DURCHFLUSSKARTE¦CARTE DE DÉBIT¦MAPPA DI PORTATA
+PEDAIS DO COACH¦COACH PEDALS¦PEDALES DEL COACH¦COACH-PEDALE¦PÉDALES DU COACH¦PEDALI DEL COACH
+PNEUS¦TIRES¦NEUMÁTICOS¦REIFEN¦PNEUS¦PNEUMATICI
+RELATIVO¦RELATIVE¦RELATIVO¦RELATIV¦RELATIF¦RELATIVO
+SETORES¦SECTORS¦SECTORES¦SEKTOREN¦SECTEURS¦SETTORI
+TEMPO DA SESSÃO¦SESSION TIME¦TIEMPO DE LA SESIÓN¦SITZUNGSZEIT¦TEMPS DE SESSION¦TEMPO SESSIONE
+TENDÊNCIA DE RITMO¦PACE TREND¦TENDENCIA DE RITMO¦PACE-TREND¦TENDANCE DE RYTHME¦TENDENZA DEL RITMO
+VELOCIDADE NAS CURVAS¦CORNER SPEED¦VELOCIDAD EN CURVAS¦KURVENGESCHWINDIGKEIT¦VITESSE EN VIRAGE¦VELOCITÀ IN CURVA
+VOLTAS E COMBUSTÍVEL¦LAPS AND FUEL¦VUELTAS Y COMBUSTIBLE¦RUNDEN UND KRAFTSTOFF¦TOURS ET CARBURANT¦GIRI E CARBURANTE
+DESTINO DO COMBUSTÍVEL¦FUEL DESTINATION¦DESTINO DEL COMBUSTIBLE¦KRAFTSTOFFVERBRAUCH¦DESTINATION DU CARBURANT¦DESTINAZIONE DEL CARBURANTE
+Mostrar Bandeiras (so aparece com bandeira)¦Show Flags (only appears with a flag)¦Mostrar Banderas (solo aparece con bandera)¦Flaggen anzeigen (nur bei Flagge sichtbar)¦Afficher les Drapeaux (n'apparaît qu'avec un drapeau)¦Mostra Bandiere (appare solo con una bandiera)
+Mostrar Consumo por trecho (Burn Zones e Fuel Flow)¦Show Consumption by section (Burn Zones and Fuel Flow)¦Mostrar Consumo por tramo (Burn Zones y Fuel Flow)¦Verbrauch pro Abschnitt anzeigen (Burn Zones und Fuel Flow)¦Afficher Consommation par secteur (Burn Zones et Fuel Flow)¦Mostra Consumo per tratto (Burn Zones e Fuel Flow)
+Mostrar Curvas (velocidade minima x melhor passagem)¦Show Corners (minimum speed vs best pass)¦Mostrar Curvas (velocidad mínima vs mejor paso)¦Kurven anzeigen (Mindestgeschwindigkeit vs. beste Passage)¦Afficher Virages (vitesse minimale vs meilleur passage)¦Mostra Curve (velocità minima vs miglior passaggio)
+Mostrar Delta Trace (tempo ganho/perdido ao longo da volta)¦Show Delta Trace (time gained/lost along the lap)¦Mostrar Delta Trace (tiempo ganado/perdido a lo largo de la vuelta)¦Delta Trace anzeigen (gewonnene/verlorene Zeit über die Runde)¦Afficher Delta Trace (temps gagné/perdu sur le tour)¦Mostra Delta Trace (tempo guadagnato/perso lungo il giro)
+Mostrar Destino do combustível¦Show Fuel destination¦Mostrar Destino del combustible¦Kraftstoffverbrauch anzeigen¦Afficher Destination du carburant¦Mostra Destinazione del carburante
+Mostrar Digiflag (bandeira em painel colorido)¦Show Digiflag (flag on a colored panel)¦Mostrar Digiflag (bandera en panel de color)¦Digiflag anzeigen (Flagge auf farbigem Panel)¦Afficher Digiflag (drapeau sur panneau coloré)¦Mostra Digiflag (bandiera su pannello colorato)
+Mostrar Eficiência por marcha¦Show Efficiency by gear¦Mostrar Eficiencia por marcha¦Effizienz pro Gang anzeigen¦Afficher Efficacité par rapport¦Mostra Efficienza per marcia
+Mostrar Energia híbrida (Boost)¦Show Hybrid energy (Boost)¦Mostrar Energía híbrida (Boost)¦Hybridenergie anzeigen (Boost)¦Afficher Énergie hybride (Boost)¦Mostra Energia ibrida (Boost)
+Mostrar Estrategia de pneus (chuva x seco)¦Show Tire strategy (wet vs dry)¦Mostrar Estrategia de neumáticos (lluvia vs seco)¦Reifenstrategie anzeigen (Regen vs. trocken)¦Afficher Stratégie pneus (pluie vs sec)¦Mostra Strategia pneumatici (pioggia vs asciutto)
+Mostrar Luz do TC (perda de tracao, estimada)¦Show TC light (traction loss, estimated)¦Mostrar luz del TC (pérdida de tracción, estimada)¦TC-Leuchte anzeigen (Traktionsverlust, geschätzt)¦Afficher le voyant TC (perte de traction, estimée)¦Mostra spia TC (perdita di trazione, stimata)
+Mostrar Mapa de vazão (consumo por RPM x acelerador)¦Show Flow map (consumption by RPM vs throttle)¦Mostrar Mapa de caudal (consumo por RPM vs acelerador)¦Durchflusskarte anzeigen (Verbrauch nach Drehzahl vs. Gas)¦Afficher Carte de débit (consommation par régime vs accélérateur)¦Mostra Mappa di portata (consumo per giri vs acceleratore)
+Mostrar Tendencia de ritmo (ultimas voltas limpas)¦Show Pace trend (last clean laps)¦Mostrar Tendencia de ritmo (últimas vueltas limpias)¦Pace-Trend anzeigen (letzte saubere Runden)¦Afficher Tendance de rythme (derniers tours propres)¦Mostra Tendenza del ritmo (ultimi giri puliti)
+Mostrar Trafego de outras classes (so com carro por perto)¦Show Other-class traffic (only with a car nearby)¦Mostrar Tráfico de otras clases (solo con coche cerca)¦Verkehr anderer Klassen anzeigen (nur mit Auto in der Nähe)¦Afficher Trafic des autres classes (seulement avec une voiture proche)¦Mostra Traffico di altre classi (solo con un'auto vicina)
+Mostrar Ultimo contato (so depois de tocar em um carro)¦Show Last contact (only after touching a car)¦Mostrar Último contacto (solo tras tocar un coche)¦Letzten Kontakt anzeigen (nur nach Berührung eines Autos)¦Afficher Dernier contact (seulement après avoir touché une voiture)¦Mostra Ultimo contatto (solo dopo aver toccato un'auto)
+Mostrar alertas na pista (LMU)¦Show track alerts (LMU)¦Mostrar alertas en pista (LMU)¦Streckenwarnungen anzeigen (LMU)¦Afficher les alertes en piste (LMU)¦Mostra avvisi in pista (LMU)
+Alertas na pista (LMU)¦Track alerts (LMU)¦Alertas en pista (LMU)¦Streckenwarnungen (LMU)¦Alertes en piste (LMU)¦Avvisi in pista (LMU)
+ALERTAS NA PISTA¦TRACK ALERTS¦ALERTAS EN PISTA¦STRECKENWARNUNGEN¦ALERTES EN PISTE¦AVVISI IN PISTA
+SEM ALERTAS¦NO ALERTS¦SIN ALERTAS¦KEINE WARNUNGEN¦AUCUNE ALERTE¦NESSUN AVVISO
+Amarelas, limite dos boxes e classe rápida chegando.¦Yellows, pit limit and faster class approaching.¦Amarillas, límite de boxes y clase rápida acercándose.¦Gelb, Boxenlimit und schnellere Klasse im Anmarsch.¦Jaunes, limite des stands et classe rapide qui arrive.¦Gialle, limite dei box e classe veloce in arrivo.
+Mostrar tendencia de ritmo (LMU)¦Show pace trend (LMU)¦Mostrar tendencia de ritmo (LMU)¦Pace-Trend anzeigen (LMU)¦Afficher la tendance de rythme (LMU)¦Mostra tendenza del ritmo (LMU)
+Tendência de ritmo (LMU)¦Pace trend (LMU)¦Tendencia de ritmo (LMU)¦Pace-Trend (LMU)¦Tendance de rythme (LMU)¦Tendenza del ritmo (LMU)
+Stints (LMU)¦Stints (LMU)¦Stints (LMU)¦Stints (LMU)¦Relais (LMU)¦Stint (LMU)
+Mostrar sempre perto da entrada¦Always show near the entry¦Mostrar siempre cerca de la entrada¦Immer in der Nähe der Einfahrt anzeigen¦Toujours afficher près de l'entrée¦Mostra sempre vicino all'ingresso
+Pit: mostrar sempre perto da entrada (nao so com parada pedida)¦Pit: always show near the entry (not only with a stop requested)¦Pit: mostrar siempre cerca de la entrada (no solo con parada pedida)¦Pit: immer in der Nähe der Einfahrt anzeigen (nicht nur bei angeforderter Boxenstopp)¦Pit : toujours afficher près de l'entrée (pas seulement avec un arrêt demandé)¦Pit: mostra sempre vicino all'ingresso (non solo con sosta richiesta)
+Pit: mostrar sempre perto da entrada (nao so quando eu pedir)¦Pit: always show near the entry (not only when I ask)¦Pit: mostrar siempre cerca de la entrada (no solo cuando lo pida)¦Pit: immer in der Nähe der Einfahrt anzeigen (nicht nur auf Anforderung)¦Pit : toujours afficher près de l'entrée (pas seulement sur demande)¦Pit: mostra sempre vicino all'ingresso (non solo quando lo chiedo)
+Pit: pedir/cancelar a entrada (liga a janela do pit)¦Pit: request/cancel the entry (turns on the pit window)¦Pit: pedir/cancelar la entrada (activa la ventana del pit)¦Pit: Einfahrt anfordern/abbrechen (schaltet das Pit-Fenster ein)¦Pit : demander/annuler l'entrée (active la fenêtre des stands)¦Pit: richiedi/annulla l'ingresso (attiva la finestra pit)
+Estrategia: pulsar quando for hora de trocar¦Strategy: pulse when it is time to switch¦Estrategia: pulsar cuando sea hora de cambiar¦Strategie: pulsieren, wenn es Zeit zum Wechseln ist¦Stratégie : pulser quand il est temps de changer¦Strategia: pulsa quando è ora di cambiare
+Estrategia: mostrar quantos da sua classe ja trocaram¦Strategy: show how many in your class have switched¦Estrategia: mostrar cuántos de su clase ya cambiaron¦Strategie: anzeigen, wie viele Ihrer Klasse schon gewechselt haben¦Stratégie : afficher combien de votre classe ont déjà changé¦Strategia: mostra quanti della tua classe hanno già cambiato
+Estrategia: mostrar a vantagem em segundos por volta (estimada)¦Strategy: show the advantage in seconds per lap (estimated)¦Estrategia: mostrar la ventaja en segundos por vuelta (estimada)¦Strategie: Vorteil in Sekunden pro Runde anzeigen (geschätzt)¦Stratégie : afficher l'avantage en secondes par tour (estimé)¦Strategia: mostra il vantaggio in secondi per giro (stimato)
+Retorno: deixar sempre visivel enquanto piloto¦Rejoin: keep always visible while driving¦Retorno: dejar siempre visible mientras piloto¦Rückkehr: beim Fahren immer sichtbar lassen¦Retour : laisser toujours visible pendant que je pilote¦Rientro: lascia sempre visibile mentre guido
+Retorno: entre cedendo abaixo de (laranja)¦Rejoin: yield below (orange)¦Retorno: ceda por debajo de (naranja)¦Rückkehr: Vorfahrt gewähren unter (orange)¦Retour : cédez en dessous de (orange)¦Rientro: dai precedenza sotto (arancione)
+Retorno: nao entre abaixo de (vermelho)¦Rejoin: do not enter below (red)¦Retorno: no entre por debajo de (rojo)¦Rückkehr: nicht einfahren unter (rot)¦Retour : n'entrez pas en dessous de (rouge)¦Rientro: non entrare sotto (rosso)
+Luz do ABS: deixar visivel e apagada quando nao atua¦ABS light: keep visible and dark when not acting¦Luz del ABS: dejar visible y apagada cuando no actúa¦ABS-Leuchte: sichtbar und dunkel lassen, wenn inaktiv¦Voyant ABS : le laisser visible et éteint quand il n'agit pas¦Spia ABS: lascia visibile e spenta quando non interviene
+Luz do TC: deixar visivel e apagada quando nao atua¦TC light: keep visible and dark when not acting¦Luz del TC: dejar visible y apagada cuando no actúa¦TC-Leuchte: sichtbar und dunkel lassen, wenn inaktiv¦Voyant TC : le laisser visible et éteint quand il n'agit pas¦Spia TC: lascia visibile e spenta quando non interviene
+Piscada suave¦Soft blink¦Parpadeo suave¦Sanftes Blinken¦Clignotement doux¦Lampeggio soft
+Luz fixa¦Steady light¦Luz fija¦Dauerlicht¦Lumière fixe¦Luce fissa
+No ritmo do ABS (padrao)¦At the ABS rate (default)¦Al ritmo del ABS (predeterminado)¦Im ABS-Takt (Standard)¦Au rythme de l'ABS (par défaut)¦Al ritmo dell'ABS (predefinito)
+No ritmo do TC (padrao)¦At the TC rate (default)¦Al ritmo del TC (predeterminado)¦Im TC-Takt (Standard)¦Au rythme du TC (par défaut)¦Al ritmo del TC (predefinito)
+No ritmo da patinagem (padrao)¦At the wheelspin rate (default)¦Al ritmo del patinaje (predeterminado)¦Im Takt des Durchdrehens (Standard)¦Au rythme du patinage (par défaut)¦Al ritmo del pattinamento (predefinito)
+Azul (padrao)¦Blue (default)¦Azul (predeterminado)¦Blau (Standard)¦Bleu (par défaut)¦Blu (predefinito)
+Dourado (padrao)¦Gold (default)¦Dorado (predeterminado)¦Gold (Standard)¦Or (par défaut)¦Oro (predefinito)
+Dourado¦Gold¦Dorado¦Gold¦Or¦Oro
+Branco¦White¦Blanco¦Weiß¦Blanc¦Bianco
+Vermelho¦Red¦Rojo¦Rot¦Rouge¦Rosso
+Normal ({}%, padrao)¦Normal ({}%, default)¦Normal ({}%, predeterminado)¦Normal ({}%, Standard)¦Normal ({}%, par défaut)¦Normale ({}%, predefinito)
+Fina (a partir de {}%)¦Fine (from {}%)¦Fina (desde {}%)¦Fein (ab {}%)¦Fine (à partir de {}%)¦Fine (da {}%)
+Grossa ({}%)¦Coarse ({}%)¦Gruesa ({}%)¦Grob ({}%)¦Épaisse ({}%)¦Spessa ({}%)
+Clássico escuro¦Classic dark¦Clásico oscuro¦Klassisch dunkel¦Classique sombre¦Classico scuro
+Vidro gelo¦Ice glass¦Cristal hielo¦Eisglas¦Verre glacé¦Vetro ghiaccio
+Vidro grafite¦Graphite glass¦Cristal grafito¦Graphitglas¦Verre graphite¦Vetro grafite
+Vidro âmbar¦Amber glass¦Cristal ámbar¦Bernsteinglas¦Verre ambre¦Vetro ambra
+Visual moderno (desmarque para voltar ao visual classico)¦Modern look (uncheck to return to the classic look)¦Aspecto moderno (desmarque para volver al clásico)¦Modernes Design (abwählen für das klassische Design)¦Look moderne (décochez pour revenir au look classique)¦Aspetto moderno (deseleziona per tornare al classico)
+Estilo Glass Fume (vidro escuro translucido)¦Glass Fume style (translucent dark glass)¦Estilo Glass Fume (cristal oscuro translúcido)¦Glass-Fume-Stil (durchscheinendes dunkles Glas)¦Style Glass Fume (verre sombre translucide)¦Stile Glass Fume (vetro scuro traslucido)
+Estilo Sport (italico e detalhes vermelhos)¦Sport style (italics and red details)¦Estilo Sport (cursiva y detalles rojos)¦Sport-Stil (kursiv und rote Details)¦Style Sport (italique et détails rouges)¦Stile Sport (corsivo e dettagli rossi)
+Estilo RaceLab (número grande + barra)¦RaceLab style (large number + bar)¦Estilo RaceLab (número grande + barra)¦RaceLab-Stil (große Zahl + Balken)¦Style RaceLab (grand chiffre + barre)¦Stile RaceLab (numero grande + barra)
+Modo economia de CPU (metade das atualizacoes por segundo)¦CPU saving mode (half the updates per second)¦Modo ahorro de CPU (la mitad de las actualizaciones por segundo)¦CPU-Sparmodus (halb so viele Aktualisierungen pro Sekunde)¦Mode économie CPU (moitié des mises à jour par seconde)¦Modalità risparmio CPU (metà degli aggiornamenti al secondo)
+Manter o overlay por cima do jogo (reforcar)¦Keep the overlay on top of the game (reinforce)¦Mantener el overlay sobre el juego (reforzar)¦Overlay über dem Spiel halten (verstärken)¦Garder l'overlay au-dessus du jeu (renforcer)¦Mantieni l'overlay sopra il gioco (rinforza)
+Aparecer sozinho ao entrar no carro (so com as janelas travadas)¦Appear automatically when you get in the car (only with windows locked)¦Aparecer solo al entrar en el coche (solo con las ventanas bloqueadas)¦Automatisch beim Einsteigen anzeigen (nur bei gesperrten Fenstern)¦Apparaître seul en montant dans la voiture (seulement fenêtres verrouillées)¦Appari da solo salendo in auto (solo con le finestre bloccate)
+Travar posicao (cliques atravessam o overlay)¦Lock position (clicks pass through the overlay)¦Bloquear posición (los clics atraviesan el overlay)¦Position sperren (Klicks gehen durch das Overlay)¦Verrouiller la position (les clics traversent l'overlay)¦Blocca posizione (i clic attraversano l'overlay)
+Amigos: destacar pilotos na classificacao e no relativo...¦Friends: highlight drivers in standings and relative...¦Amigos: destacar pilotos en la clasificación y en el relativo...¦Freunde: Fahrer in Wertung und Relativ hervorheben...¦Amis : mettre en évidence des pilotes dans le classement et le relatif...¦Amici: evidenzia i piloti in classifica e nel relativo...
+Radar automatico (so aparece com carro por perto)¦Automatic radar (only appears with a car nearby)¦Radar automático (solo aparece con un coche cerca)¦Automatisches Radar (erscheint nur bei Auto in der Nähe)¦Radar automatique (n'apparaît qu'avec une voiture proche)¦Radar automatico (appare solo con un'auto vicina)
+Transparencia do fundo das janelas¦Window background transparency¦Transparencia del fondo de las ventanas¦Fenster-Hintergrundtransparenz¦Transparence du fond des fenêtres¦Trasparenza dello sfondo delle finestre
+Limpar as marcas de impacto do desenho do carro¦Clear the impact marks from the car drawing¦Borrar las marcas de impacto del dibujo del coche¦Einschlagmarkierungen von der Fahrzeugzeichnung löschen¦Effacer les marques d'impact du dessin de la voiture¦Cancella i segni di impatto dal disegno dell'auto
+Vento: inverter a direcao da seta (se estiver ao contrario)¦Wind: invert the arrow direction (if it is reversed)¦Viento: invertir la dirección de la flecha (si está al revés)¦Wind: Pfeilrichtung umkehren (falls verkehrt)¦Vent : inverser la direction de la flèche (si elle est inversée)¦Vento: inverti la direzione della freccia (se è al contrario)
+Alcance da forca G (aneis)¦G-force range (rings)¦Alcance de la fuerza G (anillos)¦G-Kraft-Bereich (Ringe)¦Plage de la force G (anneaux)¦Portata della forza G (anelli)
+Calculo de combustivel (na janela Voltas)¦Fuel calculation (in the Laps window)¦Cálculo de combustible (en la ventana Vueltas)¦Kraftstoffberechnung (im Fenster Runden)¦Calcul du carburant (dans la fenêtre Tours)¦Calcolo del carburante (nella finestra Giri)
+Projecao de iRating e SR (na janela Relativo)¦iRating and SR projection (in the Relative window)¦Proyección de iRating y SR (en la ventana Relativo)¦iRating- und SR-Prognose (im Fenster Relativ)¦Projection iRating et SR (dans la fenêtre Relatif)¦Proiezione iRating e SR (nella finestra Relativo)
+Auxiliar: tambem durante a sessao (tempo restante)¦Assistant: also during the session (time remaining)¦Asistente: también durante la sesión (tiempo restante)¦Assistent: auch während der Sitzung (verbleibende Zeit)¦Assistant : aussi pendant la session (temps restant)¦Assistente: anche durante la sessione (tempo rimanente)
+Agora, média e última volta¦Now, average and last lap¦Ahora, media y última vuelta¦Jetzt, Durchschnitt und letzte Runde¦Maintenant, moyenne et dernier tour¦Ora, media e ultimo giro
+AGORA¦NOW¦AHORA¦JETZT¦MAINTENANT¦ORA
+ULTIMA¦LAST¦ÚLTIMA¦LETZTE¦DERNIER¦ULTIMA
+MEDIA¦AVERAGE¦MEDIA¦DURCHSCHNITT¦MOYENNE¦MEDIA
+CONSUMO¦CONSUMPTION¦CONSUMO¦VERBRAUCH¦CONSOMMATION¦CONSUMO
+CONSISTÊNCIA¦CONSISTENCY¦CONSISTENCIA¦KONSISTENZ¦RÉGULARITÉ¦COSTANZA
+CURVA¦CORNER¦CURVA¦KURVE¦VIRAGE¦CURVA
+CURVAS¦CORNERS¦CURVAS¦KURVEN¦VIRAGES¦CURVE
+PROXIMA CURVA¦NEXT CORNER¦PRÓXIMA CURVA¦NÄCHSTE KURVE¦PROCHAIN VIRAGE¦PROSSIMA CURVA
+PISTA¦TRACK¦PISTA¦STRECKE¦PISTE¦PISTA
+PILOTO¦DRIVER¦PILOTO¦FAHRER¦PILOTE¦PILOTA
+CARRO¦CAR¦COCHE¦AUTO¦VOITURE¦AUTO
+PARADAS¦STOPS¦PARADAS¦STOPPS¦ARRÊTS¦SOSTE
+ENERGIA¦ENERGY¦ENERGÍA¦ENERGIE¦ÉNERGIE¦ENERGIA
+MOTOR¦ENGINE¦MOTOR¦MOTOR¦MOTEUR¦MOTORE
+PILOTAGEM¦DRIVING¦PILOTAJE¦FAHRTECHNIK¦PILOTAGE¦GUIDA
+BOX AGORA¦PIT NOW¦BOX AHORA¦JETZT BOX¦STAND MAINTENANT¦BOX ORA
+box AGORA¦pit NOW¦box AHORA¦jetzt Box¦stand MAINTENANT¦box ORA
+CHEGA AO FIM  (folga ~{} V)¦REACHES THE END  (margin ~{} L)¦LLEGA AL FINAL  (margen ~{} V)¦REICHT BIS ZUM ENDE  (Reserve ~{} R)¦ARRIVE À LA FIN  (marge ~{} T)¦ARRIVA ALLA FINE  (margine ~{} G)
+chega ao fim¦reaches the end¦llega al final¦reicht bis zum Ende¦arrive à la fin¦arriva alla fine
+tanque insuficiente¦insufficient tank¦depósito insuficiente¦Tank reicht nicht¦réservoir insuffisant¦serbatoio insufficiente
+não chega ao box¦does not reach the pits¦no llega a boxes¦erreicht die Box nicht¦n'atteint pas le stand¦non arriva ai box
+temperatura estimada¦estimated temperature¦temperatura estimada¦geschätzte Temperatur¦température estimée¦temperatura stimata
+leitura real¦real reading¦lectura real¦echter Messwert¦lecture réelle¦lettura reale
+em andamento¦in progress¦en curso¦läuft¦en cours¦in corso
+estavel →¦stable →¦estable →¦stabil →¦stable →¦stabile →
+subindo ↑¦rising ↑¦subiendo ↑¦steigend ↑¦en hausse ↑¦in aumento ↑
+sem avisos¦no alerts¦sin avisos¦keine Warnungen¦aucun avertissement¦nessun avviso
+sem prévia¦no preview¦sin vista previa¦keine Vorschau¦pas d'aperçu¦nessuna anteprima
+saida de pista¦off track¦salida de pista¦Streckenverlassen¦sortie de piste¦uscita di pista
+contato com carro¦car contact¦contacto con coche¦Autokontakt¦contact avec voiture¦contatto con auto
+Fora da pista¦Off track¦Fuera de pista¦Neben der Strecke¦Hors piste¦Fuori pista
+Pista livre¦Track clear¦Pista libre¦Strecke frei¦Piste libre¦Pista libera
+PECA SOLTA¦LOOSE PART¦PIEZA SUELTA¦LOSES TEIL¦PIÈCE DÉTACHÉE¦PEZZO STACCATO
+DETRITOS NA PISTA¦DEBRIS ON TRACK¦ESCOMBROS EN PISTA¦TRÜMMER AUF DER STRECKE¦DÉBRIS SUR LA PISTE¦DETRITI IN PISTA
+FURADO¦PUNCTURED¦PINCHADO¦PLATTFUSS¦CREVÉ¦FORATO
+RODAS FURADAS¦PUNCTURED WHEELS¦RUEDAS PINCHADAS¦PLATTE RÄDER¦ROUES CREVÉES¦RUOTE FORATE
+Pneus¦Tires¦Neumáticos¦Reifen¦Pneus¦Pneumatici
+Vida útil (barra e %)¦Tire life (bar and %)¦Vida útil (barra y %)¦Lebensdauer (Balken und %)¦Durée de vie (barre et %)¦Durata (barra e %)
+Temperatura total do pneu (destaque)¦Total tire temperature (highlight)¦Temperatura total del neumático (destacada)¦Gesamte Reifentemperatur (hervorgehoben)¦Température totale du pneu (mise en avant)¦Temperatura totale della gomma (evidenziata)
+Temperatura por zona (externa, meio, interna)¦Temperature by zone (outer, middle, inner)¦Temperatura por zona (exterior, centro, interior)¦Temperatur pro Zone (außen, Mitte, innen)¦Température par zone (extérieure, milieu, intérieure)¦Temperatura per zona (esterna, centro, interna)
+Desgaste por volta e idade do pneu¦Wear per lap and tire age¦Desgaste por vuelta y edad del neumático¦Verschleiß pro Runde und Reifenalter¦Usure par tour et âge du pneu¦Usura per giro ed età della gomma
+Fechamento do registro¦Record closing¦Cierre del registro¦Abschluss der Aufzeichnung¦Clôture de l'enregistrement¦Chiusura della registrazione
+Mapa de calor¦Heat map¦Mapa de calor¦Heatmap¦Carte thermique¦Mappa di calore
+Desenho da pista¦Track drawing¦Dibujo de la pista¦Streckenzeichnung¦Tracé du circuit¦Disegno della pista
+Blocos por curva¦Blocks per corner¦Bloques por curva¦Blöcke pro Kurve¦Blocs par virage¦Blocchi per curva
+Número da curva¦Corner number¦Número de la curva¦Kurvennummer¦Numéro du virage¦Numero della curva
+Cartão da última curva¦Last corner card¦Tarjeta de la última curva¦Karte der letzten Kurve¦Carte du dernier virage¦Scheda dell'ultima curva
+Lista das últimas curvas¦List of the last corners¦Lista de las últimas curvas¦Liste der letzten Kurven¦Liste des derniers virages¦Elenco delle ultime curve
+Gráfico ao longo da volta¦Graph along the lap¦Gráfico a lo largo de la vuelta¦Diagramm über die Runde¦Graphique sur le tour¦Grafico lungo il giro
+Gráfico / barra do delta¦Delta graph / bar¦Gráfico / barra del delta¦Delta-Diagramm / -Balken¦Graphique / barre du delta¦Grafico / barra del delta
+Como o delta é desenhado¦How the delta is drawn¦Cómo se dibuja el delta¦Wie das Delta gezeichnet wird¦Comment le delta est dessiné¦Come viene disegnato il delta
+Delta grande¦Large delta¦Delta grande¦Großes Delta¦Grand delta¦Delta grande
+Diferença em segundos¦Difference in seconds¦Diferencia en segundos¦Differenz in Sekunden¦Écart en secondes¦Differenza in secondi
+Distância em segundos¦Distance in seconds¦Distancia en segundos¦Abstand in Sekunden¦Distance en secondes¦Distanza in secondi
+Velocidade de aproximação¦Closing speed¦Velocidad de aproximación¦Annäherungsgeschwindigkeit¦Vitesse d'approche¦Velocità di avvicinamento
+Parcela do tempo em cada marcha¦Share of time in each gear¦Parte del tiempo en cada marcha¦Zeitanteil in jedem Gang¦Part du temps dans chaque rapport¦Quota di tempo in ogni marcia
+Destacar a marcha engatada¦Highlight the engaged gear¦Destacar la marcha engranada¦Eingelegten Gang hervorheben¦Mettre en évidence le rapport engagé¦Evidenzia la marcia inserita
+Onde mais gasta¦Where it burns the most¦Dónde más gasta¦Wo am meisten verbraucht wird¦Où ça consomme le plus¦Dove consuma di più
+Trechos de maior consumo¦Highest-consumption sections¦Tramos de mayor consumo¦Abschnitte mit höchstem Verbrauch¦Secteurs à plus forte consommation¦Tratti a maggior consumo
+Consumo uniforme: nenhum trecho se destaca¦Uniform consumption: no section stands out¦Consumo uniforme: ningún tramo destaca¦Gleichmäßiger Verbrauch: kein Abschnitt fällt auf¦Consommation uniforme : aucun secteur ne se démarque¦Consumo uniforme: nessun tratto spicca
+Medindo... dirija algumas voltas.¦Measuring... drive a few laps.¦Midiendo... conduzca algunas vueltas.¦Messe... fahren Sie einige Runden.¦Mesure en cours... faites quelques tours.¦Misurazione... guida qualche giro.
+Conclua uma volta limpa (sem box) para medir o consumo.¦Complete a clean lap (no pit stop) to measure consumption.¦Complete una vuelta limpia (sin box) para medir el consumo.¦Fahren Sie eine saubere Runde (ohne Box), um den Verbrauch zu messen.¦Faites un tour propre (sans stand) pour mesurer la consommation.¦Completa un giro pulito (senza box) per misurare il consumo.
+Dirija uma volta limpa (sem boxes¦Drive a clean lap (no pit stops¦Conduzca una vuelta limpia (sin boxes¦Fahren Sie eine saubere Runde (ohne Boxenstopp¦Faites un tour propre (sans stand¦Guida un giro pulito (senza box
+nem sair da pista) para mapear as curvas¦or leaving the track) to map the corners¦ni salir de la pista) para mapear las curvas¦und ohne die Strecke zu verlassen), um die Kurven zu erfassen¦ni sortie de piste) pour cartographier les virages¦né uscire di pista) per mappare le curve
+Dirija voltas limpas (sem box,¦Drive clean laps (no pit stops,¦Conduzca vueltas limpias (sin box,¦Fahren Sie saubere Runden (ohne Box,¦Faites des tours propres (sans stand,¦Guida giri puliti (senza box,
+sem reabastecer) para medir o consumo¦no refueling) to measure consumption¦sin repostar) para medir el consumo¦ohne Nachtanken), um den Verbrauch zu messen¦sans ravitaillement) pour mesurer la consommation¦senza rifornire) per misurare il consumo
+por trecho da pista¦per track section¦por tramo de la pista¦pro Streckenabschnitt¦par secteur du circuit¦per tratto di pista
+Dirija uma volta completa¦Drive a full lap¦Conduzca una vuelta completa¦Fahren Sie eine komplette Runde¦Faites un tour complet¦Guida un giro completo
+para aprender o traçado¦to learn the layout¦para aprender el trazado¦um den Streckenverlauf zu lernen¦pour apprendre le tracé¦per imparare il tracciato
+Aprendendo o traçado... {}%¦Learning the layout... {}%¦Aprendiendo el trazado... {}%¦Lerne den Streckenverlauf... {}%¦Apprentissage du tracé... {}%¦Apprendimento del tracciato... {}%
+(complete uma volta)¦(complete a lap)¦(complete una vuelta)¦(Runde abschließen)¦(terminez un tour)¦(completa un giro)
+Mapeando os trechos: {}/{} voltas limpas¦Mapping sections: {}/{} clean laps¦Mapeando los tramos: {}/{} vueltas limpias¦Abschnitte erfassen: {}/{} saubere Runden¦Cartographie des secteurs : {}/{} tours propres¦Mappatura dei tratti: {}/{} giri puliti
+complete {} volta limpa¦complete {} clean lap¦complete {} vuelta limpia¦schließen Sie {} saubere Runde ab¦terminez {} tour propre¦completa {} giro pulito
+complete {} voltas limpas¦complete {} clean laps¦complete {} vueltas limpias¦schließen Sie {} saubere Runden ab¦terminez {} tours propres¦completa {} giri puliti
+Voltas validas: {}¦Valid laps: {}¦Vueltas válidas: {}¦Gültige Runden: {}¦Tours valides : {}¦Giri validi: {}
+Compare com a sua melhor passagem a partir da {}a volta valida¦Compare with your best pass from valid lap {}¦Compare con su mejor paso a partir de la {}ª vuelta válida¦Vergleich mit Ihrer besten Passage ab der {}. gültigen Runde¦Comparez avec votre meilleur passage à partir du {}e tour valide¦Confronta con il tuo miglior passaggio dal {}° giro valido
+Maior zona: a fundo entre {}k e {}k rpm, {}% do combustível¦Biggest zone: full throttle between {}k and {}k rpm, {}% of the fuel¦Mayor zona: a fondo entre {}k y {}k rpm, {}% del combustible¦Größte Zone: Vollgas zwischen {}k und {}k U/min, {}% des Kraftstoffs¦Plus grande zone : plein gaz entre {}k et {}k tr/min, {}% du carburant¦Zona maggiore: a fondo tra {}k e {}k giri, {}% del carburante
+Vantagem: ~{} s/volta¦Advantage: ~{} s/lap¦Ventaja: ~{} s/vuelta¦Vorteil: ~{} s/Runde¦Avantage : ~{} s/tour¦Vantaggio: ~{} s/giro
+Vantagem: ~-- s/volta¦Advantage: ~-- s/lap¦Ventaja: ~-- s/vuelta¦Vorteil: ~-- s/Runde¦Avantage : ~-- s/tour¦Vantaggio: ~-- s/giro
+{} da sua classe ja trocaram¦{} of your class have already switched¦{} de su clase ya han cambiado¦{} Ihrer Klasse haben bereits gewechselt¦{} de votre classe ont déjà changé¦{} della tua classe hanno già cambiato
+{} da sua classe com esse pneu¦{} of your class on this tire¦{} de su clase con ese neumático¦{} Ihrer Klasse mit diesem Reifen¦{} de votre classe avec ce pneu¦{} della tua classe con questa gomma
+Os horários seguem o relógio deste computador: UTC{}:{} (hoje).¦Times follow this computer's clock: UTC{}:{} (today).¦Los horarios siguen el reloj de este ordenador: UTC{}:{} (hoy).¦Die Zeiten folgen der Uhr dieses Computers: UTC{}:{} (heute).¦Les horaires suivent l'horloge de cet ordinateur : UTC{}:{} (aujourd'hui).¦Gli orari seguono l'orologio di questo computer: UTC{}:{} (oggi).
+Fuso fixo (só sem o do Windows):¦Fixed time zone (only without the Windows one):¦Zona horaria fija (solo sin la de Windows):¦Feste Zeitzone (nur ohne die von Windows):¦Fuseau fixe (seulement sans celui de Windows) :¦Fuso fisso (solo senza quello di Windows):
+Fuso fixo: UTC{}:{}. Confira se bate com o seu Windows.¦Fixed time zone: UTC{}:{}. Check that it matches your Windows.¦Zona horaria fija: UTC{}:{}. Compruebe que coincide con su Windows.¦Feste Zeitzone: UTC{}:{}. Prüfen Sie, ob sie zu Windows passt.¦Fuseau fixe : UTC{}:{}. Vérifiez qu'il correspond à votre Windows.¦Fuso fisso: UTC{}:{}. Controlla che corrisponda a Windows.
+Horário de início¦Start time¦Hora de inicio¦Startzeit¦Heure de début¦Orario di inizio
+Avisar mais cedo ({} s em vez de {} s)¦Warn earlier ({} s instead of {} s)¦Avisar antes ({} s en vez de {} s)¦Früher warnen ({} s statt {} s)¦Prévenir plus tôt ({} s au lieu de {} s)¦Avvisa prima ({} s invece di {} s)
+Português (Brasil)¦Português (Brasil)¦Português (Brasil)¦Português (Brasil)¦Português (Brasil)¦Português (Brasil)

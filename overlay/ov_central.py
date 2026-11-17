@@ -10,10 +10,15 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt, QTimer
-from PySide6.QtGui import QColor, QFont, QIcon, QImage, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap
-from PySide6.QtWidgets import (QAbstractButton, QButtonGroup, QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
+from PySide6.QtGui import QColor, QFont, QIcon, QImage, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap, QRadialGradient
+from PySide6.QtWidgets import (QAbstractButton, QButtonGroup, QComboBox, QDoubleSpinBox, QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
                                QLineEdit, QMessageBox, QPushButton, QRadioButton, QScrollArea, QSizePolicy, QSlider,
                                QStackedWidget, QVBoxLayout, QWidget)
+
+try:
+    import ov_fov as _fov
+except Exception:                                           # sem o modulo, a Central segue sem a calculadora de FOV
+    _fov = None
 
 MARCA_DIR = (Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent) / "marca"      # logo e fundo da WolfxRacing (opcionais)
 ACENTO = "#ec1c24"                                         # vermelho da logo
@@ -22,13 +27,17 @@ MARCA = "#ec1c24"
 # CHAVE da janela -> (titulo, descricao, categoria, extras [(chave da acao no menu, rotulo)], dica)
 PAINEIS = {
     "principal": ("Telemetria", "Marcha, velocidade, volante e pedais; painel ou barra horizontal.", "Pilotagem",
-                  [("mostrar_grafico", "Gráfico de acelerador e freio"), ("telemetria_barra", "Layout em barra horizontal")], ""),
+                  [("mostrar_grafico", "Gráfico de acelerador e freio"), ("telemetria_barra", "Layout em barra horizontal"),
+                   ("telemetria_pisca_limitador", "Limitador de pit pisca o fundo"), ("telemetria_pisca_abs", "ABS pisca fundo e freio"),
+                   ("telemetria_pisca_tc", "TC pisca fundo e acelerador")], ""),
     "voltas": ("Voltas e combustível", "Delta, tempos de volta e cálculo de combustível.", "Pilotagem",
                [("mostrar_calc_combustivel", "Cálculo de combustível")], ""),
     "relativo": ("Relativo", "Os carros logo à frente e atrás de você na pista, com diferença de tempo.", "Corrida",
                  [("mostrar_projecao", "Projeção de iRating e SR")], ""),
     "classificacao": ("Classificação", "Todos os carros por posição e classe, com SR, iRating e posições ganhas.", "Corrida",
-                      [("classificacao_todas", "Mostrar todas as classes")], ""),
+                      [("classificacao_todas", "Mostrar todas as classes"),
+                       ("classif_bandeira_fundo", "Bandeira quadriculada no fundo ao encerrar a sessão"),
+                       ("classif_bandeira_coluna", "Bandeira quadriculada ao lado de quem terminou")], ""),
     "mapa": ("Mapa da pista", "Traçado da pista com todos os carros na cor da classe.", "Pista", [], ""),
     "radar": ("Radar", "Carros ao seu redor, com aviso de carro ao lado.", "Automáticos",
               [("radar_auto", "Só aparecer com carro por perto")], "Aparece sozinho quando há carro por perto."),
@@ -62,6 +71,29 @@ PAINEIS = {
                 "Precisa de 3 voltas limpas (sem box nem reabastecer) para mapear os trechos. É indicativo: não calcula economia em litros."),
     "delta_trace": ("Delta Trace", "Tempo ganho ou perdido ao longo da volta contra a melhor volta limpa da sessão.", "Pilotagem", [],
                     "Precisa de uma volta limpa completa (sem box) para criar a referência. Ganhar tempo sobe (verde); perder desce (vermelho)."),
+    "vazao": ("Mapa de vazão", "Consumo instantâneo (L/h) por faixa de RPM e abertura do acelerador, em mapa de calor.", "Carro",
+              [("vazao_valores", "Mostrar o número em cada célula")],
+              "O mapa se preenche conforme você dirige; células sem amostra ficam apagadas. Precisa do nível do tanque (igual ao Consumo por trecho)."),
+    "marcha_efic": ("Eficiência por marcha", "L/100 km a acelerador pleno em cada marcha e faixa de RPM, com a parcela do tempo em cada uma.", "Carro",
+                    [("marcha_destacar", "Destacar a marcha engatada")],
+                    "Só conta com acelerador a fundo e acima de 20 km/h; verde = menos combustível por distância."),
+    "destino": ("Destino do combustível", "Quanto do combustível foi gasto a fundo, alto, médio, baixo e solto, e em que faixa de RPM.", "Carro",
+                [("destino_litros", "Mostrar em litros (em vez de %)")], "É o gasto medido pelo nível do tanque, não uma estimativa de economia."),
+    "digiflag": ("Digiflag", "Painel colorido com a bandeira em vigor: verde, amarela, azul, branca, quadriculada...", "Pista",
+                 [("digiflag_piscar", "Piscar nas bandeiras de atenção")], "Usa a mesma detecção da janela Bandeiras."),
+    "ultrapassagem": ("Alerta de ultrapassagem", "Carros que se aproximam por trás, com diferença em segundos e velocidade de aproximação.", "Automáticos",
+                      [("ultrap_auto", "Só aparecer quando houver alerta"), ("ultrap_distante", "Avisar mais cedo (5 s em vez de 3 s)"),
+                       ("ultrap_so_outras", "Só carros de outras classes"), ("ultrap_so_mesma_volta", "Ignorar carros de outra volta")],
+                      "Precisa da janela de relativo do jogo ativa (iRacing) ou da classificação (LMU)."),
+    "calendario": ("Calendário de corridas", "Próximas corridas do cronograma do iRacing (com os seus filtros e aviso) ou do seu calendario_corridas.csv, com contagem regressiva.", "Corrida",
+                   [("calendario_24h", "Horário em 24 horas")],
+                   "Use o botão acima para escolher série, pista, carro, classe e horário e ser avisado. Sem filtros, vale o CSV (modelo: calendario_exemplo.csv)."),
+    "hibrido": ("Energia híbrida (Boost)", "Carga da bateria, uso do deploy e valores da volta anterior.", "Carro",
+                [("hibrido_alerta", "Piscar com a bateria abaixo de 15%")], "Só mostra dados quando o carro e o jogo informam o sistema híbrido."),
+    "coach_pedais": ("Pedais do Coach", "O que fazer agora com os pedais: freie (com % alvo), trail braking, solte o acelerador, acelere. Barras com a sua % ao vivo e a marca da referência.", "Pilotagem",
+                     [], "Arraste com a janela destravada ou use 'Centralizar' no menu da bandeja. Usa a mesma referência do Coach ao vivo."),
+    "sessao": ("Tempo da sessão", "Tempo ou voltas restantes com barra de progresso.", "Corrida",
+               [("sessao_hms", "Sempre em h:mm:ss")], ""),
     "lmu_energia": ("Energia e combustível (LMU)", "Energia virtual, consumo por volta e voltas até o fim.", "Carro", [], ""),
     "lmu_alertas": ("Alertas na pista (LMU)", "Amarelas, limite dos boxes e classe rápida chegando.", "Automáticos", [], ""),
     "lmu_stints": ("Stints (LMU)", "Histórico de stints: voltas, energia e combustível.", "Corrida", [], ""),
@@ -69,29 +101,64 @@ PAINEIS = {
 }
 CATEGORIAS = ("Todos", "Pilotagem", "Corrida", "Carro", "Pista", "Automáticos")
 
-QSS = f"""
-QWidget#central {{ background: #09090b; color: #f2f2f4; font-family: 'Segoe UI', 'Inter', sans-serif; }}
-QFrame#lateral {{ background: rgba(0,0,0,215); border-right: 2px solid {ACENTO}; }}
+TEMAS_CENTRAL = {
+    "classico": {"nome": "Clássico escuro", "acento": "#ec1c24", "rgb": (236, 28, 36), "base": "#09090b", "fundo": None, "veu": 222,
+                 "cartao": "rgba(16,16,19,225)", "borda": "#2c2c33", "lateral": "rgba(0,0,0,215)", "ligado_borda": "#b3141b",
+                 "chip": "rgba(14,14,17,200)", "campo": "rgba(12,12,15,225)", "brilho": 0},
+    "grafite": {"nome": "Vidro grafite", "acento": "#ec1c24", "rgb": (236, 28, 36), "base": "#0c0d11", "fundo": ((30, 33, 42), (11, 12, 16), (36, 17, 21)), "veu": 120,
+                "cartao": "rgba(255,255,255,17)", "borda": "rgba(255,255,255,46)", "lateral": "rgba(255,255,255,12)", "ligado_borda": "rgba(236,28,36,200)",
+                "chip": "rgba(255,255,255,14)", "campo": "rgba(0,0,0,90)", "brilho": 40},
+    "gelo": {"nome": "Vidro gelo", "acento": "#3fb6ff", "rgb": (63, 182, 255), "base": "#08121c", "fundo": ((24, 58, 86), (8, 18, 30), (22, 52, 78)), "veu": 90,
+             "cartao": "rgba(190,225,255,24)", "borda": "rgba(190,225,255,72)", "lateral": "rgba(190,225,255,16)", "ligado_borda": "rgba(63,182,255,210)",
+             "chip": "rgba(190,225,255,18)", "campo": "rgba(0,12,24,110)", "brilho": 56},
+    "ambar": {"nome": "Vidro âmbar", "acento": "#ffb020", "rgb": (255, 176, 32), "base": "#100b07", "fundo": ((52, 32, 14), (16, 11, 8), (58, 24, 12)), "veu": 100,
+              "cartao": "rgba(255,205,140,21)", "borda": "rgba(255,205,130,64)", "lateral": "rgba(255,205,140,14)", "ligado_borda": "rgba(255,176,32,210)",
+              "chip": "rgba(255,205,140,16)", "campo": "rgba(20,10,0,110)", "brilho": 44},
+}
+
+
+def gerar_qss(t):
+    ACENTO = t["acento"]
+    R, G, Bz = t["rgb"]
+    base, lateral, cartao, borda = t["base"], t["lateral"], t["cartao"], t["borda"]
+    ligado_borda, chip, campo = t["ligado_borda"], t["chip"], t["campo"]
+    return f"""
+QWidget#central {{ background: {base}; color: #f2f2f4; font-family: 'Segoe UI', 'Inter', sans-serif; }}
+QFrame#lateral {{ background: {lateral}; border-right: 2px solid {ACENTO}; }}
 QLabel {{ color: #f2f2f4; background: transparent; }}
-QLabel#h1 {{ font-size: 25px; font-weight: 800; font-style: italic; }}
+QLabel#h1 {{ font-size: 26px; font-weight: 800; letter-spacing: 0.5px; }}
 QLabel#h2 {{ font-size: 11px; font-weight: 800; color: {ACENTO}; letter-spacing: 2px; }}
 QLabel#mudo {{ color: #9a9aa6; font-size: 12px; }}
-QLabel#marca {{ font-size: 17px; font-weight: 800; font-style: italic; color: #ffffff; }}
-QPushButton#nav {{ text-align: left; padding: 11px 14px; border: none; border-radius: 4px; color: #c9c9d1; font-size: 14px; font-weight: 600; font-style: italic; background: transparent; }}
-QPushButton#nav:hover {{ background: rgba(236,28,36,40); color: #fff; }}
-QPushButton#nav:checked {{ background: rgba(236,28,36,70); color: #fff; border-left: 4px solid {ACENTO}; }}
-QPushButton#chip {{ padding: 6px 16px; border: 1px solid #34343c; border-radius: 3px; color: #c9c9d1; background: rgba(14,14,17,200); font-weight: 600; font-style: italic; }}
+QLabel#marca {{ font-size: 17px; font-weight: 800; letter-spacing: 1px; color: #ffffff; }}
+QPushButton#nav {{ text-align: left; padding: 11px 16px; border: 1px solid transparent; border-radius: 12px; color: #b9bccb; font-size: 14px; font-weight: 600; background: transparent; }}
+QPushButton#nav:hover {{ background: rgba(255,255,255,16); color: #fff; }}
+QPushButton#nav:checked {{ background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 rgba({R},{G},{Bz},110), stop:1 rgba({R},{G},{Bz},18)); color: #fff; border: 1px solid rgba({R},{G},{Bz},150); }}
+QPushButton#chip {{ padding: 6px 16px; border: 1px solid rgba(255,255,255,40); border-radius: 15px; color: #c9c9d1; background: {chip}; font-weight: 600; }}
 QPushButton#chip:hover {{ border-color: {ACENTO}; }}
 QPushButton#chip:checked {{ background: {ACENTO}; color: #ffffff; border-color: {ACENTO}; font-weight: 800; }}
 QPushButton#link {{ border: none; color: {ACENTO}; text-align: right; background: transparent; font-size: 12px; font-weight: 700; }}
 QPushButton#link:hover {{ color: #fff; }}
-QPushButton#acao {{ padding: 9px 16px; border: 1px solid {ACENTO}; border-radius: 3px; background: rgba(236,28,36,35); color: #fff; font-weight: 700; }}
+QPushButton#acao {{ padding: 9px 18px; border: 1px solid {ACENTO}; border-radius: 12px; background: rgba({R},{G},{Bz},35); color: #fff; font-weight: 700; }}
 QPushButton#acao:hover {{ background: {ACENTO}; }}
-QFrame#cartao {{ background: rgba(16,16,19,225); border: 1px solid #2c2c33; border-radius: 6px; }}
-QFrame#cartao[ligado="true"] {{ border: 1px solid #b3141b; }}
-QFrame#bloco {{ background: rgba(16,16,19,225); border: 1px solid #2c2c33; border-radius: 6px; }}
-QLineEdit {{ background: rgba(12,12,15,225); border: 1px solid #34343c; border-radius: 4px; padding: 9px 12px; color: #f2f2f4; }}
+QFrame#cartao {{ background: {cartao}; border: 1px solid {borda}; border-radius: 14px; }}
+QFrame#cartao[ligado="true"] {{ border: 1px solid {ligado_borda}; }}
+QFrame#bloco {{ background: {cartao}; border: 1px solid {borda}; border-radius: 14px; }}
+QLineEdit {{ background: {campo}; border: 1px solid rgba(255,255,255,36); border-radius: 14px; padding: 10px 16px; color: #f2f2f4; }}
 QLineEdit:focus {{ border: 1px solid {ACENTO}; }}
+QComboBox, QDoubleSpinBox {{ background: {campo}; border: 1px solid #34343c; border-radius: 4px; padding: 6px 10px; color: #f2f2f4; min-height: 20px; }}
+QComboBox:focus, QDoubleSpinBox:focus {{ border: 1px solid {ACENTO}; }}
+QComboBox QAbstractItemView {{ background: #14141a; color: #f2f2f4; selection-background-color: {ACENTO}; border: 1px solid #34343c; }}
+QLabel#numero {{ font-size: 20px; font-weight: 800; }}
+QLabel#numero_g {{ font-size: 30px; font-weight: 800; color: {ACENTO}; }}
+QPushButton#pilula {{ padding: 6px 16px; border: 1px solid rgba(255,255,255,38); border-radius: 12px; background: rgba(255,255,255,10); color: #c4c7d4; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; }}
+QPushButton#pilula:hover {{ border: 1px solid rgba({R},{G},{Bz},170); color: #fff; }}
+QPushButton#pilula[ativo="true"] {{ background: qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 rgba({R},{G},{Bz},235), stop:1 rgba({R},{G},{Bz},120)); border: 1px solid {ACENTO}; color: #ffffff; }}
+QFrame#cartao_g {{ background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 rgba(255,255,255,26), stop:1 rgba(255,255,255,8)); border: 1px solid rgba(255,255,255,34); border-radius: 18px; }}
+QFrame#cartao_g:hover {{ border: 1px solid rgba({R},{G},{Bz},150); }}
+QFrame#cartao_g[ligado="true"] {{ background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 rgba({R},{G},{Bz},64), stop:0.55 rgba(255,255,255,12), stop:1 rgba(255,255,255,8)); border: 1px solid {ACENTO}; }}
+QLabel#etiqueta {{ color: #7f8499; font-size: 10px; font-weight: 800; letter-spacing: 2px; }}
+QPushButton#fantasma {{ padding: 6px 14px; border: 1px solid rgba({R},{G},{Bz},130); border-radius: 13px; background: rgba({R},{G},{Bz},26); color: #ffffff; font-size: 12px; font-weight: 700; }}
+QPushButton#fantasma:hover {{ background: {ACENTO}; border: 1px solid {ACENTO}; }}
 QSlider::groove:horizontal {{ height: 4px; background: #34343c; border-radius: 2px; }}
 QSlider::sub-page:horizontal {{ background: {ACENTO}; border-radius: 2px; }}
 QSlider::handle:horizontal {{ background: #fff; border: 3px solid {ACENTO}; width: 12px; height: 12px; margin: -8px 0; border-radius: 9px; }}
@@ -99,10 +166,24 @@ QRadioButton {{ color: #f2f2f4; spacing: 10px; padding: 6px 0; font-size: 14px; 
 QScrollArea {{ border: none; background: transparent; }}
 QScrollArea > QWidget > QWidget {{ background: transparent; }}
 QScrollBar:vertical {{ background: transparent; width: 10px; }}
-QScrollBar::handle:vertical {{ background: #3a3a42; border-radius: 5px; min-height: 30px; }}
+QScrollBar::handle:vertical {{ background: rgba(255,255,255,48); border-radius: 5px; min-height: 30px; }}
 QScrollBar::handle:vertical:hover {{ background: {ACENTO}; }}
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
 """
+
+
+_TEMA = TEMAS_CENTRAL["classico"]
+QSS = gerar_qss(_TEMA)
+
+
+def definir_tema_central(nome):
+    """Troca o tema visual da Central (globais lidas na hora de pintar). Nome desconhecido = classico."""
+    global ACENTO, QSS, _TEMA
+    _TEMA = TEMAS_CENTRAL.get(nome) or TEMAS_CENTRAL["classico"]
+    ACENTO = _TEMA["acento"]
+    QSS = gerar_qss(_TEMA)
+    return QSS
+
 
 
 class Interruptor(QAbstractButton):
@@ -136,10 +217,14 @@ class Interruptor(QAbstractButton):
 class Miniatura(QLabel):
     """Imagem da janela (prévia) sobre fundo xadrez escuro."""
 
-    def __init__(self, largura, altura, parent=None, flexivel=False):
+    def __init__(self, largura, altura, parent=None, flexivel=False, galeria=False):
         super().__init__(parent)
         self._lw, self._lh = largura, altura
-        if flexivel:                                  # build l: a previa ocupa o espaco que a janela der (nao corta nem sobra)
+        self._galeria = galeria
+        if galeria:                                   # build ac: cartao de galeria (foto de fundo, previa centrada, texto por cima)
+            self.setMinimumSize(10, 172)
+            self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        elif flexivel:                                  # build l: a previa ocupa o espaco que a janela der (nao corta nem sobra)
             self.setMinimumSize(360, 260)
             self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         else:
@@ -151,7 +236,40 @@ class Miniatura(QLabel):
         self._pix = pix
         self.update()
 
+    def _pintar_galeria(self):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        p.setRenderHint(QPainter.SmoothPixmapTransform)
+        w, h = self.width(), self.height()
+        R, G, Bz = _TEMA["rgb"]
+        caminho = QPainterPath()
+        caminho.addRoundedRect(QRectF(0.5, 0.5, w - 1, h - 1), 14, 14)
+        p.setClipPath(caminho)
+        fundo = QLinearGradient(0, 0, 0, h)
+        fundo.setColorAt(0.0, QColor(8, 10, 16))
+        fundo.setColorAt(1.0, QColor(18 + R // 18, 14 + G // 24, 24 + Bz // 24))
+        p.fillRect(0, 0, w, h, fundo)
+        brilho = QRadialGradient(w / 2, h * 0.55, max(w, h) * 0.55)
+        brilho.setColorAt(0.0, QColor(R, G, Bz, 46))
+        brilho.setColorAt(1.0, QColor(R, G, Bz, 0))
+        p.fillRect(0, 0, w, h, brilho)
+        p.setPen(QColor(255, 255, 255, 14))
+        for x in range(10, w, 16):
+            for y in range(10, h, 16):
+                p.drawPoint(x, y)
+        if self._pix is None or self._pix.isNull():
+            p.setPen(QColor("#6f7690"))
+            p.drawText(QRectF(0, 0, w, h), Qt.AlignCenter, "sem prévia")
+            return
+        alvo = self._pix.size().scaled(max(10, w - 28), max(10, h - 44), Qt.KeepAspectRatio)
+        if alvo.width() > self._pix.width():
+            alvo = self._pix.size()
+        p.drawPixmap((w - alvo.width()) // 2, (h - alvo.height()) // 2 + 8, alvo.width(), alvo.height(), self._pix)
+
     def paintEvent(self, _e):
+        if self._galeria:
+            self._pintar_galeria()
+            return
         p = QPainter(self)
         p.setRenderHint(QPainter.SmoothPixmapTransform)
         p.setPen(Qt.NoPen)
@@ -226,8 +344,9 @@ class Central(QWidget):
         self._nome_jogo, self._versao = nome_jogo, versao
         self.setObjectName("central")
         self.setWindowTitle(f"WolfxRacing · Configurações do overlay ({nome_jogo})")
-        self.resize(1120, 720)
+        self.resize(1280, 780)
         self.setMinimumSize(900, 560)
+        definir_tema_central(config.get("central_tema", "classico"))
         self.setStyleSheet(QSS)
         self._fundo = QPixmap(str(MARCA_DIR / "fundo.jpg"))
         if (MARCA_DIR / "logo_wxr.png").exists():
@@ -260,7 +379,8 @@ class Central(QWidget):
         self.p_inicio, self.p_paineis = self._pagina_inicio(), self._pagina_paineis()
         self.p_detalhe, self.p_aparencia = self._pagina_detalhe(), self._pagina_aparencia()
         self.p_perfis = self._pagina_perfis()
-        for pg in (self.p_inicio, self.p_paineis, self.p_detalhe, self.p_aparencia, self.p_perfis):
+        self.p_fov = self._pagina_fov()
+        for pg in (self.p_inicio, self.p_paineis, self.p_detalhe, self.p_aparencia, self.p_perfis, self.p_fov):
             self.paginas.addWidget(pg)
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._ciclo)
@@ -268,13 +388,32 @@ class Central(QWidget):
         self._timer_previa.timeout.connect(self._ciclo_previa)
         self.ir_para("inicio")
 
+    def resizeEvent(self, e):
+        super().resizeEvent(e)
+        if hasattr(self, "_rolagem_paineis") and self.paginas.currentIndex() == 1:
+            QTimer.singleShot(0, self._filtrar)               # numero de colunas da galeria acompanha a largura
+
     def paintEvent(self, _e):
         p = QPainter(self)
-        p.fillRect(self.rect(), QColor("#09090b"))
+        t = _TEMA
+        p.fillRect(self.rect(), QColor(t["base"]))
+        if t["fundo"]:                                          # tema de vidro: gradiente diagonal + brilho no topo (sem depender de imagem)
+            g = QLinearGradient(0, 0, self.width(), self.height())
+            g.setColorAt(0.0, QColor(*t["fundo"][0]))
+            g.setColorAt(0.55, QColor(*t["fundo"][1]))
+            g.setColorAt(1.0, QColor(*t["fundo"][2]))
+            p.fillRect(self.rect(), g)
         if not self._fundo.isNull():
             alvo = self._fundo.scaled(self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+            p.setOpacity(1.0 if not t["fundo"] else 0.35)
             p.drawPixmap((self.width() - alvo.width()) // 2, (self.height() - alvo.height()) // 2, alvo)
-        p.fillRect(self.rect(), QColor(5, 5, 7, 222))
+            p.setOpacity(1.0)
+        p.fillRect(self.rect(), QColor(5, 5, 7, t["veu"]))
+        if t["brilho"]:
+            r = QLinearGradient(0, 0, 0, self.height() * 0.45)
+            r.setColorAt(0.0, QColor(255, 255, 255, t["brilho"]))
+            r.setColorAt(1.0, QColor(255, 255, 255, 0))
+            p.fillRect(0, 0, self.width(), int(self.height() * 0.45), r)
 
     # ---------------------------------------------------------------- estrutura
     def _montar_lateral(self, nome_jogo, versao):
@@ -302,8 +441,10 @@ class Central(QWidget):
         self._nav = {}
         grupo = QButtonGroup(self)
         for chave, texto in (("inicio", "Início"), ("paineis", "Painéis"), ("aparencia", "Aparência e sistema"),
-                             ("perfis", "Perfis")):
+                             ("fov", "Calculadora de FOV"), ("perfis", "Perfis")):
             if chave == "perfis" and not self.g.get("modo_perfil"):
+                continue
+            if chave == "fov" and _fov is None:
                 continue
             b = QPushButton(texto)
             b.setObjectName("nav")
@@ -343,7 +484,7 @@ class Central(QWidget):
         return r
 
     def ir_para(self, chave):
-        mapa = {"inicio": 0, "paineis": 1, "detalhe": 2, "aparencia": 3, "perfis": 4}
+        mapa = {"inicio": 0, "paineis": 1, "detalhe": 2, "aparencia": 3, "perfis": 4, "fov": 5}
         self.paginas.setCurrentIndex(mapa[chave])
         if chave in self._nav:
             self._nav[chave].setChecked(True)
@@ -378,11 +519,20 @@ class Central(QWidget):
             j = self._janela(chave)
             lig = self._ligado(j)
             c["interruptor"].definir(lig)
-            c["status"].setText(("<span style='color:#ec1c24'>●</span> Ligado" if lig else "○ Desligado"))
-            c["status"].setStyleSheet(f"color: {'#ffffff' if lig else '#8b8b96'}; font-size: 12px; font-weight: 700;")
+            _R, _G, _B = _TEMA["rgb"]
+            c["status"].setText("●  LIGADO" if lig else "○  DESLIGADO")
+            if c["quadro"].objectName() == "cartao_g":
+                c["status"].setStyleSheet(
+                    f"color: {ACENTO if lig else '#9096aa'}; font-size: 10px; font-weight: 800; letter-spacing: 1px; padding: 4px 10px; border-radius: 11px;"
+                    f"background: rgba({_R},{_G},{_B},{50 if lig else 0}); border: 1px solid {ACENTO if lig else 'rgba(255,255,255,40)'};")
+            else:
+                c["status"].setStyleSheet(f"color: {'#ffffff' if lig else '#8b8b96'}; font-size: 12px; font-weight: 700;")
             c["quadro"].setProperty("ligado", "true" if lig else "false")
             c["quadro"].style().unpolish(c["quadro"])
             c["quadro"].style().polish(c["quadro"])
+            it = getattr(self, "_itens_lista", {}).get(chave)
+            if it is not None:
+                it["ponto"].setText("<span style='color:%s'>●</span>" % ACENTO if lig else "")
         for interruptor, getter in self._sync:
             try:
                 interruptor.definir(getter())
@@ -479,31 +629,95 @@ class Central(QWidget):
 
     def _pagina_paineis(self):
         w, lay = self._pagina("Painéis", "Ligue um painel aqui; abra \"Personalizar\" para tamanho e opções com a prévia ao lado.")
-        chips = QHBoxLayout()
-        grupo = QButtonGroup(self)
+        # filtros por categoria em pilulas (clique filtra; "Todos" limpa)
+        self._cab_categoria, self._itens_lista = {}, {}
+        faixa = QHBoxLayout()
+        faixa.setSpacing(8)
         for cat in CATEGORIAS:
-            b = QPushButton(cat)
-            b.setObjectName("chip")
-            b.setCheckable(True)
-            b.setChecked(cat == "Todos")
-            b.setCursor(Qt.PointingHandCursor)
-            b.clicked.connect(lambda _c=False, c=cat: self._ao_categoria(c))
-            grupo.addButton(b)
-            chips.addWidget(b)
-        chips.addStretch(1)
-        lay.addLayout(chips)
+            n = len(self.janelas) if cat == "Todos" else sum(1 for j in self.janelas if PAINEIS[j.CHAVE][2] == cat)
+            if cat != "Todos" and n == 0:
+                continue
+            cab = QPushButton(("TODOS" if cat == "Todos" else cat.upper()) + f"  {n}")
+            cab.setObjectName("pilula")
+            cab.setCursor(Qt.PointingHandCursor)
+            cab.setProperty("ativo", "true" if cat == "Todos" else "false")
+            cab.clicked.connect(lambda _c=False, k=cat: self._ao_categoria(k))
+            self._cab_categoria[cat] = cab
+            faixa.addWidget(cab)
+        faixa.addStretch(1)
+        lay.addLayout(faixa)
+        corpo = QHBoxLayout()
+        corpo.setSpacing(14)
         self._grade = QGridLayout()
         self._grade.setSpacing(14)
         self._grade.setAlignment(Qt.AlignTop)
         cont = QWidget()
         cont.setLayout(self._grade)
-        lay.addWidget(self._rolagem(cont), 1)
+        self._rolagem_paineis = self._rolagem(cont)
+        corpo.addWidget(self._rolagem_paineis, 1)
+        lay.addLayout(corpo, 1)
         for j in self.janelas:
-            self._cartoes[j.CHAVE] = self._criar_cartao(j)
+            self._cartoes[j.CHAVE] = self._criar_cartao(j, 236, galeria=True)
         self._filtrar()
         return w
 
-    def _criar_cartao(self, j, miniatura_largura=236):
+    def _criar_cartao_galeria(self, j):
+        """Cartao moderno: poco escuro com a previa, pilula de estado e chave no topo, titulo, descricao e acao."""
+        titulo, desc, cat, extras, dica = PAINEIS[j.CHAVE]
+        q = QFrame()
+        q.setObjectName("cartao_g")
+        q.setProperty("ligado", "false")
+        q.setMinimumWidth(250)
+        v = QVBoxLayout(q)
+        v.setContentsMargins(10, 10, 10, 12)
+        v.setSpacing(8)
+        mini = Miniatura(0, 0, galeria=True)
+        topo_g = QGridLayout()
+        topo_g.setContentsMargins(0, 0, 0, 0)
+        topo_g.addWidget(mini, 0, 0)
+        sobre = QWidget()
+        sobre.setAttribute(Qt.WA_TranslucentBackground)
+        sv = QHBoxLayout(sobre)
+        sv.setContentsMargins(10, 10, 10, 0)
+        st = QLabel("")
+        sv.addWidget(st, 0, Qt.AlignTop)
+        sv.addStretch(1)
+        sw = Interruptor(self._ligado(j))
+        sw.toggled.connect(lambda val, jj=j: self._definir_ligado(jj, val))
+        sv.addWidget(sw, 0, Qt.AlignTop)
+        topo_g.addWidget(sobre, 0, 0)
+        v.addLayout(topo_g)
+        txt = QVBoxLayout()
+        txt.setContentsMargins(6, 2, 6, 0)
+        txt.setSpacing(3)
+        et = QLabel(cat.upper())
+        et.setObjectName("etiqueta")
+        txt.addWidget(et)
+        t = QLabel(titulo)
+        t.setStyleSheet("font-size: 16px; font-weight: 700; color: #ffffff;")
+        txt.addWidget(t)
+        d = QLabel(desc if len(desc) <= 84 else desc[:81].rstrip() + "…")
+        d.setToolTip(desc)
+        d.setWordWrap(True)
+        d.setMinimumHeight(self.fontMetrics().lineSpacing() * 2 + 6)
+        d.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        d.setStyleSheet("color: #aab0c2; font-size: 11px;")
+        txt.addWidget(d)
+        v.addLayout(txt, 1)
+        rod = QHBoxLayout()
+        rod.setContentsMargins(6, 0, 4, 0)
+        rod.addStretch(1)
+        b = QPushButton("Personalizar  ›")
+        b.setObjectName("fantasma")
+        b.setCursor(Qt.PointingHandCursor)
+        b.clicked.connect(lambda _c=False, c=j.CHAVE: self.abrir_detalhe(c))
+        rod.addWidget(b)
+        v.addLayout(rod)
+        return {"quadro": q, "mini": mini, "interruptor": sw, "status": st, "chave": j.CHAVE, "cat": cat, "titulo": titulo, "desc": desc}
+
+    def _criar_cartao(self, j, miniatura_largura=236, galeria=False):
+        if galeria:
+            return self._criar_cartao_galeria(j)
         titulo, desc, cat, extras, dica = PAINEIS[j.CHAVE]
         q = QFrame()
         q.setObjectName("cartao")
@@ -634,8 +848,11 @@ class Central(QWidget):
                 it.widget().hide()                             # some na hora; o deleteLater so roda no proximo ciclo de eventos
                 it.widget().deleteLater()
         self._sync = [(i, g) for (i, g) in self._sync if getattr(i, "_fixo", False)]
+        lmu = "lmu" in self._nome_jogo.lower() or "mans" in self._nome_jogo.lower()
         for chave_acao, rotulo in extras:
             if self._acao(chave_acao) is None and chave_acao not in self.config:
+                continue
+            if lmu and chave_acao in ("classif_bandeira_fundo", "classif_bandeira_coluna"):      # build am: so a classificacao do iRacing tem a bandeira
                 continue
             i = self._interruptor_acao(chave_acao)
             self.det_extras.addWidget(self._linha_opcao(rotulo, i))
@@ -645,6 +862,16 @@ class Central(QWidget):
             b.clicked.connect(lambda: (self.g["alcance_minimapa"](), b.setText(
                 f"Alcance do minimapa: {int(self.config.get('minimapa_raio', 260))} m (clique para trocar)")))
             self.det_extras.addWidget(b)
+        if chave == "calendario" and self.g.get("cronograma_filtros"):
+            b = QPushButton("Cronograma do iRacing: filtros e avisos…")
+            b.setObjectName("acao")
+            b.clicked.connect(lambda: self.g["cronograma_filtros"]())
+            self.det_extras.addWidget(b)
+            if self.g.get("cronograma_importar"):
+                b2 = QPushButton("Importar novo cronograma (PDF)…")
+                b2.setObjectName("acao")
+                b2.clicked.connect(lambda: self.g["cronograma_importar"]())
+                self.det_extras.addWidget(b2)
         self._opcoes_painel(chave, j)
         self._atual = chave
         self.ir_para("detalhe")
@@ -899,7 +1126,7 @@ class Central(QWidget):
         lay = QVBoxLayout(quadro)
         lay.setContentsMargins(14, 10, 14, 12)
         lay.addWidget(QLabel("Como o delta é desenhado"))
-        linha = QHBoxLayout()
+        linha = QVBoxLayout()                                 # build w: um chip embaixo do outro (lado a lado passavam da coluna de 404 px)
         atual = str(self.config.get("delta_trace_layout", "grafico")).lower()
         atual = atual if atual in ("grafico", "racelab") else "grafico"
         grupo = QButtonGroup(quadro)
@@ -1083,6 +1310,65 @@ class Central(QWidget):
         if self.g.get("salvar") and not self.det_op.isSliderDown():
             self.g["salvar"]()
 
+    def _bloco_chips(self, atual, opcoes, ao_escolher, dica=""):
+        quadro = QFrame()
+        quadro.setObjectName("bloco")
+        lay = QVBoxLayout(quadro)
+        lay.setContentsMargins(14, 10, 14, 12)
+        linha = QHBoxLayout()
+        grupo = QButtonGroup(quadro)
+        grupo.setExclusive(True)
+        for valor, rotulo in opcoes:
+            b = QPushButton(rotulo)
+            b.setObjectName("chip")
+            b.setCheckable(True)
+            b.setChecked(valor == atual)
+            grupo.addButton(b)
+            b.clicked.connect(lambda _=False, v=valor: ao_escolher(v))
+            linha.addWidget(b)
+        linha.addStretch(1)
+        lay.addLayout(linha)
+        if dica:
+            d = QLabel(dica)
+            d.setObjectName("mudo")
+            d.setWordWrap(True)
+            lay.addWidget(d)
+        quadro._grupo = grupo
+        return quadro
+
+    def _ao_tema_central(self, nome):
+        self.config["central_tema"] = nome
+        definir_tema_central(nome)
+        self.setStyleSheet(QSS)
+        for w in self.findChildren(QWidget):
+            w.update()
+        self.update()
+        if self.g.get("salvar"):
+            self.g["salvar"]()
+
+    def _ao_idioma(self, codigo):
+        import ov_i18n as _i18n
+        self.config["idioma"] = codigo
+        _i18n.definir_idioma(codigo)
+        if self.g.get("salvar"):
+            self.g["salvar"]()
+        try:
+            QMessageBox.information(self, "Idioma / Language",
+                                    _i18n.AVISO_REINICIAR.get(_i18n.idioma(), _i18n.AVISO_REINICIAR["en"]))
+        except Exception:
+            self._registrar_erro("Central: aviso de idioma")
+
+    def _ao_daltonismo(self, modo):
+        self.config["daltonismo"] = modo
+        f = self.g.get("daltonismo")
+        if f is not None:
+            try:
+                f(modo)
+            except Exception:
+                self._registrar_erro("Central: modo daltônico")
+        if self.g.get("salvar"):
+            self.g["salvar"]()
+
     def _pagina_aparencia(self):
         w, lay = self._pagina("Aparência e sistema", "Estilo das janelas e comportamento do overlay.")
         blocos = QVBoxLayout()
@@ -1107,6 +1393,30 @@ class Central(QWidget):
                                     ("tema_sport", "Estilo Sport", "Itálico e detalhes vermelhos.")):
             if self._acao(chave) is not None:
                 blocos.addWidget(self._linha_opcao(rotulo, self._interruptor_acao(chave, True), dica))
+        h3 = QLabel("APARÊNCIA DA CENTRAL")
+        h3.setObjectName("h2")
+        blocos.addSpacing(8)
+        blocos.addWidget(h3)
+        blocos.addWidget(self._bloco_chips(self.config.get("central_tema", "classico"), [(k, v["nome"]) for k, v in TEMAS_CENTRAL.items()],
+                                           self._ao_tema_central, "Só muda esta janela de configurações; o overlay no jogo não é afetado."))
+        h4 = QLabel("MODO DALTÔNICO")
+        h4.setObjectName("h2")
+        blocos.addSpacing(8)
+        blocos.addWidget(h4)
+        blocos.addWidget(self._bloco_chips(self.config.get("daltonismo", "padrao"),
+                                           [("padrao", "Padrão"), ("deuteranopia", "Deuteranopia"), ("protanopia", "Protanopia"), ("tritanopia", "Tritanopia")],
+                                           self._ao_daltonismo, "Troca as cores de bom/ruim (verde e vermelho) das janelas do overlay por cores que o tipo escolhido distingue. É uma troca de paleta, não uma simulação médica."))
+        try:
+            import ov_i18n as _i18n
+            h5 = QLabel("IDIOMA / LANGUAGE")
+            h5.setObjectName("h2")
+            blocos.addSpacing(8)
+            blocos.addWidget(h5)
+            blocos.addWidget(self._bloco_chips(str(self.config.get("idioma", "auto")),
+                                               [("auto", "Automático (Windows)")] + [(c, n) for c, n in _i18n.IDIOMAS],
+                                               self._ao_idioma, "Os painéis mudam na hora; reinicie o overlay para traduzir também esta janela e os menus."))
+        except Exception:
+            pass
         h2 = QLabel("POSIÇÃO E SISTEMA")
         h2.setObjectName("h2")
         blocos.addSpacing(8)
@@ -1161,9 +1471,328 @@ class Central(QWidget):
         lay.addStretch(1)
         return w
 
+    # ---------------------------------------------------------------- calculadora de FOV (build ab)
+    FOV_PADRAO = {"dist": 70.0, "dist_un": "cm", "diag": 27.0, "diag_un": "pol", "aspecto": "16:9", "asp_w": 16.0, "asp_h": 9.0, "curva_on": False,
+                  "curva_r": 1800, "triplo": False, "bezel": 15.0, "lat_on": False, "lat_diag": 27.0, "lat_aspecto": "16:9"}
+
+    def _fov_estado(self):
+        est = dict(self.FOV_PADRAO)
+        salvo = self.config.get("fov_calc")
+        if isinstance(salvo, dict):
+            for k, v0 in self.FOV_PADRAO.items():
+                ok_tipo = k in salvo and (type(salvo[k]) is type(v0) or (isinstance(v0, float) and type(salvo[k]) is int))
+                if ok_tipo:
+                    est[k] = salvo[k]
+        return est
+
+    def _fov_para_cm(self, valor, unidade):
+        return valor * 2.54 if unidade == "pol" else valor
+
+    def _fov_entrada(self):
+        """Estado da pagina -> entrada de ov_fov.calcular()."""
+        e = self._fov_est
+        asp = _fov.aspecto_de(e["aspecto"], (e["asp_w"], e["asp_h"]) if e["aspecto"] == "custom" else None)
+        curva = int(e["curva_r"]) if e["curva_on"] else None
+        ent = {"dist": self._fov_para_cm(e["dist"], e["dist_un"]), "diag": self._fov_para_cm(e["diag"], e["diag_un"]), "aspecto": asp, "curva": curva,
+               "triplo": bool(e["triplo"]), "bezel_mm": e["bezel"]}
+        if e["triplo"] and e["lat_on"]:
+            asp_l = _fov.aspecto_de(e["lat_aspecto"], (e["asp_w"], e["asp_h"]) if e["lat_aspecto"] == "custom" else None)
+            ent["lateral"] = {"diag": self._fov_para_cm(e["lat_diag"], e["diag_un"]), "aspecto": asp_l, "curva": curva}
+        return ent
+
+    def _fov_bloco(self, titulo, dica=""):
+        quadro = QFrame()
+        quadro.setObjectName("bloco")
+        lay = QVBoxLayout(quadro)
+        lay.setContentsMargins(14, 10, 14, 12)
+        t = QLabel(titulo)
+        t.setObjectName("h2")
+        lay.addWidget(t)
+        if dica:
+            d = QLabel(dica)
+            d.setObjectName("mudo")
+            d.setWordWrap(True)
+            lay.addWidget(d)
+        return quadro, lay
+
+    def _fov_spin(self, chave, minimo, maximo, passo, sufixo=""):
+        sp = QDoubleSpinBox()
+        sp.setRange(minimo, maximo)
+        sp.setDecimals(1)
+        sp.setSingleStep(passo)
+        sp.setSuffix(sufixo)
+        sp.setValue(float(self._fov_est[chave]))
+        sp.valueChanged.connect(lambda v, k=chave: self._fov_mudou(k, float(v)))
+        self._fov_widgets[chave] = sp
+        return sp
+
+    def _fov_chips(self, chave, opcoes):
+        linha = QHBoxLayout()
+        grupo = QButtonGroup(self)
+        grupo.setExclusive(True)
+        botoes = {}
+        for valor, rotulo in opcoes:
+            b = QPushButton(rotulo)
+            b.setObjectName("chip")
+            b.setCheckable(True)
+            b.setChecked(self._fov_est[chave] == valor)
+            grupo.addButton(b)
+            b.clicked.connect(lambda _=False, k=chave, v=valor: self._fov_mudou(k, v))
+            linha.addWidget(b)
+            botoes[valor] = b
+        linha.addStretch(1)
+        self._fov_widgets[chave] = (grupo, botoes)
+        return linha
+
+    def _fov_combo(self, chave, opcoes):
+        cb = QComboBox()
+        for valor, rotulo in opcoes:
+            cb.addItem(rotulo, valor)
+        i = max(0, cb.findData(self._fov_est[chave]))
+        cb.setCurrentIndex(i)
+        cb.currentIndexChanged.connect(lambda _i, k=chave, c=cb: self._fov_mudou(k, c.currentData()))
+        self._fov_widgets[chave] = cb
+        return cb
+
+    def _fov_interruptor(self, chave):
+        it = Interruptor(bool(self._fov_est[chave]))
+        it.clicked.connect(lambda _=False, k=chave, i=it: self._fov_mudou(k, bool(i.isChecked())))
+        self._fov_widgets[chave] = it
+        return it
+
+    def _pagina_fov(self):
+        if _fov is None:
+            return QWidget()
+        self._fov_est = self._fov_estado()
+        self._fov_widgets, self._fov_trava = {}, False
+        w, lay = self._pagina("Calculadora de FOV", "Campo de visão (FOV) a partir da geometria da sua tela ou triplo. O resultado é um ponto de partida: ajuste cerca de ±10 % ao gosto.")
+        corpo = QHBoxLayout()
+        corpo.setSpacing(16)
+        esq = QVBoxLayout()
+        # exemplos
+        q, v = self._fov_bloco("EXEMPLOS", "Preenche os campos com uma configuração comum; depois ajuste às suas medidas.")
+        self._fov_ex = QComboBox()
+        self._fov_ex.addItem("Escolha um exemplo...", None)
+        for nome, ent in _fov.EXEMPLOS:
+            self._fov_ex.addItem(nome, ent)
+        self._fov_ex.currentIndexChanged.connect(self._fov_exemplo)
+        v.addWidget(self._fov_ex)
+        esq.addWidget(q)
+        # distancia
+        q, v = self._fov_bloco("DISTÂNCIA ATÉ A TELA", "Dos olhos até o centro da tela (a tela central, no triplo).")
+        h = QHBoxLayout()
+        h.addWidget(self._fov_spin("dist", 10.0, 400.0, 1.0), 1)
+        h.addLayout(self._fov_chips("dist_un", (("cm", "cm"), ("pol", "pol"))))
+        v.addLayout(h)
+        esq.addWidget(q)
+        # tela
+        q, v = self._fov_bloco("TELA")
+        h = QHBoxLayout()
+        h.addWidget(QLabel("Diagonal"))
+        h.addWidget(self._fov_spin("diag", 10.0, 120.0, 0.5), 1)
+        h.addLayout(self._fov_chips("diag_un", (("pol", "pol"), ("cm", "cm"))))
+        v.addLayout(h)
+        h = QHBoxLayout()
+        h.addWidget(QLabel("Proporção"))
+        h.addWidget(self._fov_combo("aspecto", (("16:9", "16:9"), ("21:9", "21:9"), ("32:9", "32:9"), ("custom", "Personalizada"))), 1)
+        h.addWidget(self._fov_spin("asp_w", 1.0, 64.0, 1.0), 1)
+        h.addWidget(QLabel(":"))
+        h.addWidget(self._fov_spin("asp_h", 1.0, 64.0, 1.0), 1)
+        v.addLayout(h)
+        h = QHBoxLayout()
+        h.addWidget(QLabel("Tela curva"))
+        h.addWidget(self._fov_interruptor("curva_on"))
+        h.addWidget(QLabel("Raio"))
+        h.addWidget(self._fov_combo("curva_r", tuple((r, f"{r}R") for r in _fov.CURVATURAS_MM)), 1)
+        v.addLayout(h)
+        esq.addWidget(q)
+        # triplo
+        q, v = self._fov_bloco("TELAS", "No triplo, as laterais ficam à mesma distância dos olhos, viradas para você.")
+        v.addLayout(self._fov_chips("triplo", ((False, "Uma tela"), (True, "Três telas"))))
+        h = QHBoxLayout()
+        h.addWidget(QLabel("Moldura por emenda (mm)"))
+        h.addWidget(self._fov_spin("bezel", -60.0, 120.0, 1.0), 1)
+        v.addLayout(h)
+        d = QLabel("Negativo = telas sobrepostas (kit sem moldura).")
+        d.setObjectName("mudo")
+        v.addWidget(d)
+        h = QHBoxLayout()
+        h.addWidget(QLabel("Laterais diferentes da central"))
+        h.addWidget(self._fov_interruptor("lat_on"))
+        v.addLayout(h)
+        h = QHBoxLayout()
+        h.addWidget(QLabel("Diagonal lateral"))
+        h.addWidget(self._fov_spin("lat_diag", 10.0, 120.0, 0.5), 1)
+        h.addWidget(self._fov_combo("lat_aspecto", (("16:9", "16:9"), ("21:9", "21:9"), ("32:9", "32:9"), ("custom", "Personalizada"))), 1)
+        v.addLayout(h)
+        esq.addWidget(q)
+        esq.addStretch(1)
+        # resultado
+        dir_ = QVBoxLayout()
+        self.fov_res = QFrame()
+        self.fov_res.setObjectName("bloco")
+        self.fov_res_lay = QVBoxLayout(self.fov_res)
+        self.fov_res_lay.setContentsMargins(16, 12, 16, 14)
+        dir_.addWidget(self.fov_res)
+        dir_.addStretch(1)
+        ce, cd = QWidget(), QWidget()
+        ce.setLayout(esq)
+        cd.setLayout(dir_)
+        corpo.addWidget(ce, 5)
+        corpo.addWidget(cd, 6)
+        cont = QWidget()
+        cont.setLayout(corpo)
+        lay.addWidget(self._rolagem(cont), 1)
+        self._fov_visibilidade()
+        self._fov_recalcular()
+        return w
+
+    def _fov_exemplo(self, _i):
+        ent = self._fov_ex.currentData()
+        if not ent:
+            return
+        e = self._fov_est
+        e.update({"dist": ent["dist"], "dist_un": "cm", "diag": round(ent["diag"] / 2.54, 1), "diag_un": "pol", "aspecto": ent["aspecto"], "curva_on": bool(ent["curva"]),
+                  "triplo": bool(ent["triplo"]), "bezel": float(ent["bezel_mm"]), "lat_on": False})
+        if ent["curva"]:
+            e["curva_r"] = int(ent["curva"])
+        self._fov_sincronizar()
+        self._fov_salvar()
+        self._fov_visibilidade()
+        self._fov_recalcular()
+
+    def _fov_sincronizar(self):
+        """Estado -> widgets (sem disparar recalculo em cadeia)."""
+        self._fov_trava = True
+        try:
+            for k, wdg in self._fov_widgets.items():
+                v = self._fov_est[k]
+                if isinstance(wdg, QDoubleSpinBox):
+                    wdg.setValue(float(v))
+                elif isinstance(wdg, QComboBox):
+                    wdg.setCurrentIndex(max(0, wdg.findData(v)))
+                elif isinstance(wdg, Interruptor):
+                    wdg.definir(bool(v))
+                elif isinstance(wdg, tuple):
+                    for val, b in wdg[1].items():
+                        b.setChecked(val == v)
+        finally:
+            self._fov_trava = False
+
+    def _fov_mudou(self, chave, valor):
+        if self._fov_trava:
+            return
+        self._fov_est[chave] = valor
+        self._fov_salvar()
+        self._fov_visibilidade()
+        self._fov_recalcular()
+
+    def _fov_salvar(self):
+        try:
+            self.config["fov_calc"] = dict(self._fov_est)
+            if self.g.get("salvar"):
+                self.g["salvar"]()
+        except Exception:
+            self._registrar_erro("Central: nao salvou a calculadora de FOV")
+
+    def _fov_visibilidade(self):
+        e, wd = self._fov_est, self._fov_widgets
+        custom = e["aspecto"] == "custom" or (e["triplo"] and e["lat_on"] and e["lat_aspecto"] == "custom")
+        for k in ("asp_w", "asp_h"):
+            wd[k].setEnabled(custom)
+        wd["curva_r"].setEnabled(bool(e["curva_on"]))
+        for k in ("bezel", "lat_on"):
+            wd[k].setEnabled(bool(e["triplo"]))
+        for k in ("lat_diag", "lat_aspecto"):
+            wd[k].setEnabled(bool(e["triplo"] and e["lat_on"]))
+
+    def _fov_linha(self, rotulo, texto, grande=False):
+        h = QHBoxLayout()
+        a = QLabel(rotulo)
+        a.setObjectName("mudo")
+        b = QLabel(texto)
+        b.setObjectName("numero_g" if grande else "numero")
+        h.addWidget(a, 1)
+        h.addWidget(b)
+        return h
+
+    def _fov_recalcular(self):
+        lay = self.fov_res_lay
+        def limpar(layout):
+            while layout.count():
+                it = layout.takeAt(0)
+                wd = it.widget()
+                if wd is not None:
+                    wd.hide()
+                    wd.setParent(None)                       # sai da tela na hora (deleteLater sozinho deixa o desenho antigo por baixo)
+                    wd.deleteLater()
+                elif it.layout() is not None:
+                    limpar(it.layout())
+        limpar(lay)
+        t = QLabel("RESULTADO")
+        t.setObjectName("h2")
+        lay.addWidget(t)
+        try:
+            res = _fov.calcular(self._fov_entrada())
+        except ValueError as ex:
+            m = QLabel("Confira os dados: " + str(ex))
+            m.setWordWrap(True)
+            lay.addWidget(m)
+            self.fov_resultado = None
+            return
+        except Exception:
+            self._registrar_erro("Central: calculadora de FOV falhou")
+            self.fov_resultado = None
+            return
+        self.fov_resultado = res
+        lay.addLayout(self._fov_linha("FOV vertical", f"{res['vfov']:.1f}°", True))
+        lay.addLayout(self._fov_linha("FOV horizontal" + (" (tela central)" if res["triplo"] else ""), f"{res['hfov']:.1f}°", True))
+        if res["triplo"]:
+            lay.addLayout(self._fov_linha("FOV horizontal total (3 telas)", f"{res['hfov_total']:.1f}°"))
+            lay.addLayout(self._fov_linha("Ângulo das laterais", f"{res['lateral_angulo']:.1f}°"))
+        lay.addLayout(self._fov_linha("Largura (X)", f"{res['largura_x']:.0f} cm"))
+        lay.addLayout(self._fov_linha("Profundidade (Y)", f"{res['profundidade_y']:.0f} cm"))
+        nota = QLabel("Largura: de ponta a ponta das telas, com cerca de 2 cm de estrutura. Profundidade: da frente das laterais ao fundo do painel central (8 cm de espessura); "
+                      "some cerca de 4,5 cm se usar suporte para triplo.")
+        nota.setObjectName("mudo")
+        nota.setWordWrap(True)
+        lay.addWidget(nota)
+        if res["triplo"]:
+            t2 = QLabel("MEDIDAS COM FITA (para conferir o ângulo)")
+            t2.setObjectName("h2")
+            lay.addSpacing(6)
+            lay.addWidget(t2)
+            lay.addLayout(self._fov_linha("Entre os cantos externos das laterais", f"{res['fita_externa']:.1f} cm"))
+            lay.addLayout(self._fov_linha("Entre os cantos internos das laterais", f"{res['fita_interna']:.1f} cm"))
+        t3 = QLabel("O QUE DIGITAR NO JOGO")
+        t3.setObjectName("h2")
+        lay.addSpacing(6)
+        lay.addWidget(t3)
+        for nome, tipo in _fov.JOGOS:
+            valor, conj = _fov.para_jogo(res, tipo)
+            texto = f"{valor:.0f}° {tipo}" + (f"  (conjunto: {conj:.0f}°)" if conj else "")
+            lo, hi = _fov.faixa(valor)
+            l = QLabel(f"{nome}: {texto}  ·  ajuste fino {lo:.0f}° a {hi:.0f}°")
+            l.setWordWrap(True)
+            lay.addWidget(l)
+        for av in res["avisos"]:
+            a = QLabel("Atenção: " + av)
+            a.setWordWrap(True)
+            lay.addWidget(a)
+        rod = QLabel("Cada jogo define se o número vale para uma tela ou para o conjunto no modo triplo: confirme no menu do jogo. "
+                     "Os números por jogo seguem a referência da calculadora de Dan Suzuki; não alteram arquivos do jogo.")
+        rod.setObjectName("mudo")
+        rod.setWordWrap(True)
+        lay.addSpacing(6)
+        lay.addWidget(rod)
+
     # ---------------------------------------------------------------- busca / filtro
     def _ao_categoria(self, cat):
         self._categoria = cat
+        for k, cab in getattr(self, "_cab_categoria", {}).items():
+            cab.setProperty("ativo", "true" if k == cat else "false")
+            cab.style().unpolish(cab)
+            cab.style().polish(cab)
         self._filtrar()
 
     def _ao_buscar(self, texto):
@@ -1183,8 +1812,10 @@ class Central(QWidget):
                 visiveis.append(c)
         while self._grade.count():
             self._grade.takeAt(0)
+        largura = self._rolagem_paineis.viewport().width() if hasattr(self, "_rolagem_paineis") else 0
+        cols = max(1, min(4, (largura if largura > 100 else 900) // 290))
         for k, c in enumerate(visiveis):
-            self._grade.addWidget(c["quadro"], k // 3, k % 3)
+            self._grade.addWidget(c["quadro"], k // cols, k % cols)
         # inicio: so os ligados (cartoes proprios, sem interruptor duplicado -> reusa a miniatura)
         if hasattr(self, "_grade_inicio"):
             while self._grade_inicio.count():
@@ -1268,11 +1899,37 @@ class Central(QWidget):
             self.lb_ligadas.setText(f"{n} de {len(self.janelas)} ligados")
             self.lb_travado.setText("Travadas" if self._get_acao("travado", True) else "Destravadas (modo mover)")
 
+    def _sincronizar_previa(self, chave, p):
+        """Build w: a previa trabalha numa COPIA do config (feita ao criar). Opcoes ligadas por interruptores de acao
+        (ex.: Telemetria > barra horizontal / grafico) mudavam so o config real e a janela real, e a previa ficava parada.
+        Antes de cada desenho, os valores do config real passam para a copia; se algo mudou, a previa reaplica o layout."""
+        j = self._janela(chave)
+        ignorar = {getattr(j, "CHAVE_ATIVO", None), "travado"}
+        mudou = False
+        for k, v in list(self.config.items()):
+            if k in ignorar:
+                continue
+            try:
+                if k not in p.config or p.config[k] is not v and p.config[k] != v:
+                    p.config[k] = v
+                    mudou = True
+            except Exception:
+                continue
+        if mudou:
+            for nome in ("reconfigurar", "opcoes_mudaram", "aplicar_tamanho"):
+                f = getattr(p, nome, None)
+                if f is not None:
+                    try:
+                        f()
+                    except Exception:
+                        self._registrar_erro("Central: a previa do painel '%s' falhou em %s()" % (chave, nome))
+
     def _grab(self, chave):
         p = self._previa(chave)
         if p is None or self._dados_demo is None:
             return None
         try:
+            self._sincronizar_previa(chave, p)
             p.atualizar(self._dados_demo)
             return p.grab()
         except Exception:

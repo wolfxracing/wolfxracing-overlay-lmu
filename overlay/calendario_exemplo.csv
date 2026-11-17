@@ -1,0 +1,9 @@
+# Calendario de corridas (modelo) - salve como calendario_corridas.csv na pasta do overlay (ao lado do config.json)
+# Colunas: nome, classe, inicio, duracao_min, registro_min (opcional), repete_min (opcional)
+#   inicio  = HH:MM (repete todo dia) ou AAAA-MM-DD HH:MM (uma vez, ou repete a cada 'repete_min' minutos)
+#   registro_min = quantos minutos depois do inicio o registro fecha (aparece como 'registro aberto: ...')
+# Linhas que comecam com # e linhas vazias sao ignoradas. Separador: virgula ou ponto e virgula.
+nome,classe,inicio,duracao_min,registro_min,repete_min
+GT3 Sprint,B,20:15,45,15
+Formula 4 Series,D,2026-11-10 18:00,35,10,60
+Endurance noturna,A,2026-11-14 22:00,120

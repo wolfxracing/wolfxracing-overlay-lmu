@@ -45,6 +45,14 @@
   "0,0": "sup_voltar",
   "1,0": "janela_consumo",
   "2,0": "janela_delta_trace",
-  "3,0": "janela_curvas"
+  "3,0": "janela_curvas",
+  "4,0": "janela_vazao",
+  "5,0": "janela_marcha",
+  "6,0": "janela_destino",
+  "7,0": "janela_digiflag",
+  "0,1": "janela_ultrapassagem",
+  "1,1": "janela_calendario",
+  "2,1": "janela_hibrido",
+  "3,1": "janela_sessao"
  }
 }

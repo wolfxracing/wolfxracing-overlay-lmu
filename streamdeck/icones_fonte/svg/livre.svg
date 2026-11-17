@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144" viewBox="0 0 144 144"><defs>
+<linearGradient id="amb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF4560"/><stop offset="1" stop-color="#D91236"/></linearGradient>
+<linearGradient id="amb2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C41635"/><stop offset="1" stop-color="#7C0B20"/></linearGradient>
+<linearGradient id="red" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF6A5C"/><stop offset="1" stop-color="#D1262B"/></linearGradient>
+<linearGradient id="grn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7CE38B"/><stop offset="1" stop-color="#2E9E4C"/></linearGradient>
+<linearGradient id="gry" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E6E8EC"/><stop offset="1" stop-color="#8C919A"/></linearGradient>
+<linearGradient id="pur" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C77DFF"/><stop offset="1" stop-color="#8A35D6"/></linearGradient>
+<pattern id="hex" width="12.124" height="21" patternUnits="userSpaceOnUse">
+<path d="M6.062 0 L12.124 3.5 L12.124 10.5 L6.062 14 L0 10.5 L0 3.5 Z M0 14 L6.062 17.5 L6.062 24.5 M12.124 14 L6.062 17.5" fill="none" stroke="#222226" stroke-width="1"/>
+</pattern>
+<radialGradient id="vig" cx="50%" cy="42%" r="75%"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".62"/></radialGradient>
+</defs><rect width="144" height="144" fill="#0C0C0F"/><rect width="144" height="144" fill="url(#hex)"/><rect width="144" height="144" fill="url(#vig)"/></svg>

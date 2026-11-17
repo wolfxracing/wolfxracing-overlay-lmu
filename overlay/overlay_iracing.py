@@ -66,6 +66,12 @@ except ImportError:                       # pacote incompleto: avisa em vez de f
         print(_msg)
     sys.exit(1)
 
+try:                                      # v1.8: se faltar, o overlay segue sem as 8 janelas novas (nao e fatal)
+    import ov_v18
+    import ov_v18_janelas as v18_janelas
+except ImportError:
+    ov_v18 = v18_janelas = None
+
 try:
     import ov_curvas as curvas_mod        # v1.4.0: velocidade minima por curva (sem Qt e sem SDK)
     import ov_onda1 as ons1               # build o: consumo por trecho (Burn Zones / Fuel Flow) e Delta Trace (logica pura)
@@ -152,10 +158,15 @@ from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt, QTimer
 from PySide6.QtGui import (QAction, QBrush, QColor, QFont, QFontMetrics, QIcon, QLinearGradient,
                            QActionGroup, QImage, QPainter, QPainterPath, QPen, QPixmap, QPolygonF, QRadialGradient, QTransform)
 from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon, QWidget
+try:
+    import ov_i18n                                 # build aq: multi-idioma (texto-fonte em portugues; traduz na saida do Qt)
+    ov_i18n.instalar()
+except Exception:
+    ov_i18n = None
 
 PASTA = _PASTA_BASE
-VERSAO_PRODUTO = "1.7.0"                      # versao do produto (ainda nao publicada); as correcoes da auditoria entram como BUILD
-BUILD = "v"                                    # identificacao da entrega dentro da 1.7.0 (aparece no cabecalho do log)
+VERSAO_PRODUTO = "1.8.0"                      # versao do produto (ainda nao publicada); as correcoes da auditoria entram como BUILD
+BUILD = "ar"                                    # identificacao da entrega dentro da 1.8.0 (aparece no cabecalho do log)
 ARQ_CONFIG = PASTA / "config.json"
 ARQ_LOG = PASTA / "overlay_log.txt"
 ARQ_MAPAS = PASTA / "mapas_pistas.json"
@@ -235,6 +246,7 @@ _PERFIS = nucleo.GerenciadorPerfis()           # perfis Treino / Classificacao /
 def carregar_config():
     padrao = {
         "perfis": {}, "perfil_modo": "auto", "perfil_ativo": "Corrida",   # Fase 20: layout por perfil
+        "fov_calc": {},                                                    # build ab: ultimas entradas da calculadora de FOV (Central)
         "economia_cpu": False, "prioridade_baixa": True,                   # Fase 20: desempenho
         "teclas_globais": True,                                            # Fase 20.2.2: atalhos para o Stream Deck
 
@@ -246,6 +258,7 @@ def carregar_config():
         "x_relativo": 640, "y_relativo": 60, "mostrar_relativo": True,
         "x_classificacao": 1060, "y_classificacao": 60, "mostrar_classificacao": True,
         "classificacao_todas": True,
+        "classif_bandeira_fundo": True, "classif_bandeira_coluna": True,   # build am: bandeira quadriculada ao encerrar a sessao (fundo e ao lado de quem terminou)
         "classificacao_layout": "foto",                # v1.6.1: "foto" (tabela estilo transmissao) ou "classico" (a janela antiga)
         "classificacao_idioma": "en",                  # v1.6.1: rotulos da janela "foto": "en" (como na foto) ou "pt"
         "x_mapa": 270, "y_mapa": 420, "mostrar_mapa": True,
@@ -271,6 +284,7 @@ def carregar_config():
         "inputs_origem": "carro",
         "x_luz_abs": 800, "y_luz_abs": 900, "mostrar_luz_abs": True, "escala_luz_abs": 1.0,
         "luz_abs_cor": "dourado", "luz_abs_modo": "ritmo", "luz_abs_apagada": False,
+        "telemetria_pisca_limitador": True, "telemetria_pisca_tc": True, "telemetria_pisca_abs": True,   # build aj: fundo e pedais piscam
         "x_luz_tc": 910, "y_luz_tc": 900, "mostrar_luz_tc": True, "escala_luz_tc": 1.0,
         "luz_tc_cor": "azul", "luz_tc_modo": "ritmo", "luz_tc_apagada": False, "luz_tc_sens": "normal",
         "luz_opacidade": 1.0,
@@ -305,15 +319,36 @@ def carregar_config():
         "volante_imagem": "",            # build l: PNG do volante escolhido pelo piloto (vazio = volante desenhado)
         "volante_imagem_giro": True,     # build l: a imagem gira com o volante real
         "volante_imagem_tamanho": 100,   # build l: tamanho da imagem em % (50..200)
+        # ---- v1.8 (janelas novas: desligadas por padrao; o piloto liga na Central) ----
+        "x_vazao": 1440, "y_vazao": 60, "mostrar_vazao": False, "escala_vazao": 1.0, "vazao_valores": True,
+        "x_marcha_efic": 1440, "y_marcha_efic": 380, "mostrar_marcha_efic": False, "escala_marcha_efic": 1.0, "marcha_destacar": True,
+        "x_destino": 1440, "y_destino": 640, "mostrar_destino": False, "escala_destino": 1.0, "destino_litros": False,
+        "x_digiflag": 700, "y_digiflag": 20, "mostrar_digiflag": False, "escala_digiflag": 1.0, "digiflag_piscar": True,
+        "x_ultrapassagem": 60, "y_ultrapassagem": 700, "mostrar_ultrapassagem": False, "escala_ultrapassagem": 1.0,
+        "ultrap_auto": True, "ultrap_distante": False, "ultrap_so_outras": False, "ultrap_so_mesma_volta": True,
+        "x_calendario": 60, "y_calendario": 400, "mostrar_calendario": False, "escala_calendario": 1.0, "calendario_24h": True, "calendario_arquivo": "",
+        "cronograma_ativo": False, "cronograma_filtros": {},   # v1.8 build ah: cronograma do iRacing (PDF) com filtros e aviso no painel Calendario
+        "x_hibrido": 400, "y_hibrido": 700, "mostrar_hibrido": False, "escala_hibrido": 1.0, "hibrido_alerta": True,
+        "x_sessao": 700, "y_sessao": 140, "mostrar_sessao": False, "escala_sessao": 1.0, "sessao_hms": False,
+        "x_coach_pedais": 760, "y_coach_pedais": 760, "mostrar_coach_pedais": False, "escala_coach_pedais": 1.0,   # build ap
+        "daltonismo": "padrao",          # v1.8: "padrao" | "deuteranopia" | "protanopia" | "tritanopia"
+        "idioma": "auto",                # build aq: "auto" (segue o Windows) | "pt" | "en" | "es" | "de" | "fr" | "it"
+        "central_tema": "classico",      # v1.8: aparencia da Central: "classico" | "grafite" | "gelo" | "ambar"
     }
     # escala por eixo (largura / altura) de cada janela; None = acompanha a escala unica
     for sufixo in ("", "_voltas", "_relativo", "_classificacao", "_mapa", "_radar", "_pneus", "_setores", "_clima", "_danos", "_combustivel", "_forca_g",
-                   "_luz_abs", "_luz_tc", "_retorno", "_estrategia", "_curvas", "_bandeiras", "_trafego", "_minimapa", "_auxiliar", "_contato", "_pit", "_tendencia", "_coach", "_consumo", "_delta_trace"):
+                   "_luz_abs", "_luz_tc", "_retorno", "_estrategia", "_curvas", "_bandeiras", "_trafego", "_minimapa", "_auxiliar", "_contato", "_pit", "_tendencia", "_coach", "_consumo", "_delta_trace",
+                   "_vazao", "_marcha_efic", "_destino", "_digiflag", "_ultrapassagem", "_calendario", "_hibrido", "_sessao", "_coach_pedais"):
         padrao["escala_x" + sufixo] = None
         padrao["escala_y" + sufixo] = None
     try:
         dados = json.loads(ARQ_CONFIG.read_text(encoding="utf-8"))
         padrao.update({k: dados[k] for k in padrao if k in dados})
+        if not isinstance(padrao.get("fov_calc"), dict):
+            padrao["fov_calc"] = {}
+        for k_el, v_el in dados.items():          # build x: os elementos liga/desliga de cada painel ('elementos_<painel>') sobrevivem ao reiniciar
+            if str(k_el).startswith("elementos_") and isinstance(v_el, dict):
+                padrao[k_el] = v_el
         # Migracao de versoes anteriores: o painel extra virou a janela "Voltas"
         if "mostrar_voltas" not in dados and "painel_extra" in dados:
             padrao["mostrar_voltas"] = bool(dados["painel_extra"])
@@ -2516,6 +2551,9 @@ class DetectorImpactos:
 
     G = 9.81
     LIMIAR_PANCADA = 6.0 * 9.81     # pico acima da base, m/s2 (acelerar/frear/curvar forte fica abaixo)
+    LIMIAR_SALTO = 2.5 * 9.81       # salto de aceleracao entre amostras: so colisao muda tao rapido (frear/curvar sobe devagar)
+    JANELA_FINAL = 2.0              # s para o registro de uma pancada ficar completo (refino + contador de incidentes)
+    REFINO = 0.25                   # s apos o gatilho para pegar o pico real (zona e g)
     JANELA = 1.5                    # s de amostras guardadas para achar o pico de um incidente
     MAX_EVENTOS = 6
 
@@ -2532,6 +2570,9 @@ class DetectorImpactos:
         self.eventos = []                # mais recente por ultimo
         self._ult_pancada = -99.0
         self._tinha_reparo = False
+        self._reparo_ant = None
+        self._ult_a = None
+        self._refino = None
         self.total = 0                   # impactos registrados na sessao
 
     def limpar_marcas(self):
@@ -2568,9 +2609,10 @@ class DetectorImpactos:
         zona = self._zona(ax, ay)
         sev = self._severidade(g, delta)
         self.zonas[zona] = max(self.zonas[zona], sev)
-        self.eventos.append({"t": agora, "zona": zona, "sev": sev, "g": g, "delta": delta, "tipo": tipo})
-        del self.eventos[:-self.MAX_EVENTOS]
         self.total += 1
+        self.eventos.append({"t": agora, "zona": zona, "sev": sev, "g": g, "delta": delta, "tipo": tipo, "n": self.total,
+                             "final": False, "logado": False})
+        del self.eventos[:-self.MAX_EVENTOS]
 
     # ---- ciclo ----
     def atualizar(self, agora, ax, ay, incidentes, ativo=True, reparo=0.0):
@@ -2586,10 +2628,26 @@ class DetectorImpactos:
             while self.amostras and agora - self.amostras[0][0] > self.JANELA + 0.5:
                 self.amostras.popleft()
             mag = math.hypot(dx, dy)
-            if mag >= self.LIMIAR_PANCADA and agora - self._ult_pancada > 1.0:
+            salto = 0.0 if self._ult_a is None else math.hypot(ax - self._ult_a[0], ay - self._ult_a[1])
+            self._ult_a = (ax, ay)
+            if (mag >= self.LIMIAR_PANCADA or (salto >= self.LIMIAR_SALTO and mag >= 2.0 * self.G)) \
+                    and agora - self._ult_pancada > 1.0:
                 self._ult_pancada = agora
                 self._registrar(agora, dx, dy, mag / self.G, 0, "pancada")
+                self._refino = (self.eventos[-1], agora)
                 novo = True
+            elif self._refino is not None:
+                ev, t0 = self._refino
+                if agora - t0 > self.REFINO:
+                    self._refino = None
+                elif mag / self.G > ev["g"] and ev.get("zona"):
+                    ev["g"] = mag / self.G
+                    nz = self._zona(dx, dy)
+                    if nz != ev["zona"]:
+                        self.zonas[ev["zona"]] = 0 if not any(e is not ev and e.get("zona") == ev["zona"] for e in self.eventos) else self.zonas[ev["zona"]]
+                        ev["zona"] = nz
+                    ev["sev"] = max(ev["sev"], self._severidade(ev["g"], ev["delta"]))
+                    self.zonas[ev["zona"]] = max(self.zonas[ev["zona"]], ev["sev"])
         self._t = agora
         if incidentes is not None:
             if self.incidentes is not None and incidentes > self.incidentes:
@@ -2602,16 +2660,38 @@ class DetectorImpactos:
                     self.zonas[recente["zona"]] = max(self.zonas[recente["zona"]], recente["sev"])
                 else:
                     pico = self._pico(agora)
-                    if pico and pico[0] / self.G >= 2.0:
+                    if pico and pico[0] / self.G >= (2.0 if delta == 1 else 1.0):
                         m, ax_p, ay_p = pico
                         self._registrar(agora, ax_p, ay_p, m / self.G, delta,
                                         "contato" if delta >= 4 else ("batida" if delta == 2 else "saida"))
                     else:
+                        self.total += 1
                         self.eventos.append({"t": agora, "zona": None, "sev": 1, "g": 0.0, "delta": delta,
-                                             "tipo": "saida" if delta == 1 else "batida"})
+                                             "tipo": "saida" if delta == 1 else "batida", "n": self.total,
+                                             "final": True, "logado": False})
                         del self.eventos[:-self.MAX_EVENTOS]
                 novo = True
             self.incidentes = incidentes
+        # tempo de reparo subiu sem impacto proprio: o iRacing confirmou o dano (contato leve, objeto, etc.)
+        total_rep = float(reparo or 0.0)
+        if self._reparo_ant is not None and total_rep - self._reparo_ant >= 1.0:
+            subiu = total_rep - self._reparo_ant
+            sev_r = 3 if total_rep >= 45 else (2 if total_rep >= 15 else 1)
+            recente = next((e for e in reversed(self.eventos) if agora - e["t"] <= 6.0), None)
+            if recente is not None and recente.get("zona"):
+                recente["sev"] = max(recente["sev"], sev_r)
+                recente["reparo"] = total_rep
+                self.zonas[recente["zona"]] = max(self.zonas[recente["zona"]], recente["sev"])
+            else:
+                self.total += 1
+                self.eventos.append({"t": agora, "zona": None, "sev": sev_r, "g": 0.0, "delta": 0,
+                                     "tipo": "dano", "reparo": total_rep, "n": self.total, "final": True, "logado": False})
+                del self.eventos[:-self.MAX_EVENTOS]
+                novo = True
+        self._reparo_ant = total_rep
+        for e in self.eventos:                          # pancada so fecha apos o refino e a janela do incidente (2 s)
+            if not e.get("final") and agora - e["t"] >= self.JANELA_FINAL:
+                e["final"] = True
         # reparo concluido (tempo de reparo caiu a zero depois de ter existido): limpa as marcas
         if reparo and reparo > 0:
             self._tinha_reparo = True
@@ -2817,6 +2897,7 @@ class Telemetria:
             "contato": None,       # v1.6.0: ultimo carro tocado ({"numero","nome","pontos","volta","ha_s","gap_s"...})
             "consumo": None,       # build o: consumo por trecho / vazao ({"estado","inst_lh","medio_lv","zonas",...})
             "delta_trace": None,   # build o: delta x distancia da volta atual contra a melhor da sessao
+            "v18": None,           # v1.8: vazao, eficiencia por marcha, destino, ultrapassagem, hibrido, sessao e calendario (ov_v18)
             "tendencia": None,     # v1.6.0: tendencia de ritmo ({"voltas","ritmo5","inclinacao","previsao","consistencia"...})
             "pit": None,           # v1.6.0: entrada do pit / pit lane ({"fase","dist","luz","vel","limite"...})
             "auxiliar": None,      # v1.5.0: etapa da sessao, tempo/voltas restantes ({"titulo", "valor", "sub", "modo"})
@@ -2832,6 +2913,7 @@ class Telemetria:
             "freio": 0.0,
             "embreagem": 0.0,
             "abs": False,
+            "limitador": False,
             "tc": None,            # ajuste do controle de tracao: {"nivel", "nivel2", "ligado"}
             "abs_nivel": None,     # ajuste do ABS (dcABS), se o carro tiver
             "bias": None,          # balanco de freio (dcBrakeBias), se ajustavel
@@ -2984,6 +3066,9 @@ class Telemetria:
         classif = montar_classificacao(pilotos, meu, posc, ultimas, melhores, box, base=base)
         classif["tipo_sessao"] = "CORRIDA"
         classif["volta"] = 1 + volta
+        if classif_foto is not None:
+            encerrada = bool(getattr(self, "modo_previa", False)) or (t % 40.0) > 30.0      # demo: mostra a bandeira quadriculada (previa sempre; demo no fim do ciclo)
+            classif_foto.marcar_encerramento(classif, 5 if encerrada else 4, None, [1 if i % 3 != 2 else 0 for i in range(len(pilotos) + 1)] if encerrada else None)
         if classif_foto is not None:
             try:
                 prog, par, comp, pneus, cab = classif_foto.entradas_demo(classif, volta, t)
@@ -3159,6 +3244,7 @@ class Telemetria:
         previa = bool(getattr(self, "modo_previa", False))       # build t: na previa da Central os paineis de evento ficam sempre ativos
         if previa:
             abs_ativo = True
+            ace, fre = max(ace, 0.6), max(fre, 0.6)       # build aj: pedais pressionados para a previa mostrar o piscar do ABS/TC
         volta_idx = int(t // 12.0)
         consumo = 2.4
         nivel = 40.0 - ((t / 12.0) % 15.0) * consumo
@@ -3185,6 +3271,8 @@ class Telemetria:
             "freio": fre,
             "embreagem": 1.0 if pos > 0.96 else 0.0,
             "abs": abs_ativo,
+            "limitador": previa or (t % 24.0) > 21.0,
+            "previa": previa,
             "tc": {"nivel": 3.0, "nivel2": None, "ligado": True},
             "abs_nivel": 4.0,
             "bias": 54.5 + 0.5 * math.sin(t / 5.0),
@@ -3218,6 +3306,7 @@ class Telemetria:
             "tendencia": self._demo_tendencia(t),
             "consumo": JanelaConsumo._exemplo(),
             "delta_trace": JanelaDeltaTrace._exemplo(),
+            "v18": ov_v18.exemplo(t) if ov_v18 is not None else None,
             "forca_g": {"lat": 2.4 * math.sin(t * 0.9), "lon": -1.6 * math.cos(t * 1.8) + 0.4,
                         "total": math.hypot(2.4 * math.sin(t * 0.9), -1.6 * math.cos(t * 1.8) + 0.4),
                         "pico": 3.1, "pista": "Road America", "temp": 24.0},
@@ -3230,6 +3319,29 @@ class Telemetria:
             "projecao": self._demo_projecao(t),
             "setores": self._demo_setores(t),
         }
+
+    def _extra_v18(self):
+        """v1.8: o que so o iRacing informa (tempo/voltas da sessao e, nos carros hibridos, a bateria). Ausente = None."""
+        def num(nome, limite=1.0e7):
+            try:
+                v = float(self._var(nome, None))
+            except (TypeError, ValueError):
+                return None
+            return v if 0 <= v < limite else None
+        restante, total = num("SessionTimeRemain"), num("SessionTimeTotal")
+        extra = {"restante": restante, "decorrido": (total - restante) if (restante is not None and total) else None}
+        vr, vt = self._var("SessionLapsRemainEx", None), self._var("SessionLapsTotal", None)
+        extra["voltas_rest"] = int(vr) if vr is not None and 0 <= int(vr) < 30000 else None
+        extra["voltas_total"] = int(vt) if vt is not None and 0 < int(vt) < 30000 else None
+        carga = num("EnergyERSBatteryPct", 1000.0)                   # carros GTP/LMDh; ausente nos demais
+        if carga is not None:
+            potencia = self._var("PowerMGU_K", None)
+            extra["hibrido"] = {"carga": carga / 100.0 if carga > 1.5 else carga, "deploy": num("EnergyMGU_KLapDeployPct", 1000.0),
+                                "ativo": bool(potencia is not None and float(potencia) > 1000.0)}
+            d = extra["hibrido"]["deploy"]
+            if d is not None and d > 1.5:
+                extra["hibrido"]["deploy"] = d / 100.0
+        return extra
 
     # -- leitura real -----------------------------------------------------------
     def _var(self, nome, padrao=0.0):
@@ -3810,12 +3922,22 @@ class Telemetria:
     def zerar_pico_g(self):
         self._pico_g = 0.0
 
+    def _log_impactos(self, reparo, opcional, incidentes, forcar=False):
+        """Um registro por impacto, so com o evento FINAL (zona, g e tipo definitivos). 'forcar' fecha os pendentes (troca de sessao)."""
+        for ev in self.impactos.eventos:
+            if (ev.get("final") or forcar) and not ev.get("logado"):
+                ev["logado"] = True
+                registrar_aviso(f"Danos: impacto #{ev.get('n')} zona={ev.get('zona')} tipo={ev.get('tipo')} "
+                                f"g={ev.get('g', 0.0):.1f} sev={ev.get('sev')} reparo={reparo:.0f}s opc={opcional:.0f}s "
+                                f"inc={incidentes}" + ("" if ev.get("final") else " (sessao encerrada)"))
+
     def _montar_danos(self):
         """Danos: tempo de reparo (do iRacing), avisos do motor, incidentes e impactos detectados."""
         agora = time.monotonic()
         chave = (self._var("SessionNum", 0), self._var("SessionUniqueID", 0))
         if self._sessao_danos != chave:
             if self._sessao_danos is not None:
+                self._log_impactos(0.0, 0.0, None, forcar=True)       # nao perde o registro dos impactos pendentes
                 self.impactos.resetar()
             self._sessao_danos = chave
         reparo = float(self._var("PitRepairLeft", 0.0) or 0.0)
@@ -3826,11 +3948,12 @@ class Telemetria:
         self.impactos.inverter = self.estimador_pneus.inverter
         self.impactos.atualizar(
             agora, float(self._var("LongAccel", 0.0) or 0.0), float(self._var("LatAccel", 0.0) or 0.0),
-            incidentes, ativo, reparo)
+            incidentes, ativo, reparo + opcional)
         bits = int(self._var("EngineWarnings", 0) or 0)
         avisos = [nome for bit, nome in self.AVISOS_MOTOR if bits & bit]
         reboque = float(self._var("PlayerCarTowTime", 0.0) or 0.0)
         res = self.impactos.exibicao(agora)
+        self._log_impactos(reparo, opcional, incidentes)
         res.update({"reparo": reparo, "reparo_opc": opcional, "avisos": avisos, "incidentes": incidentes,
                     "limite": self._limite_inc, "reboque": reboque,
                     "rapidos": int(self._var("FastRepairAvailable", 0) or 0)})
@@ -4338,6 +4461,15 @@ class Telemetria:
             classif["volta"] = max(0, int(self._var("Lap", 0)))
             if classif_foto is not None:
                 try:
+                    enc, n_fin = classif_foto.marcar_encerramento(classif, self._var("SessionState", None), self._var("SessionFlags", None),
+                                                                  self._var("CarIdxSessionFlags", None))
+                    if enc:
+                        registrar_calculo("classificacao: sessao encerrada (calibracao da bandeira quadriculada)", 30.0, estado=self._var("SessionState", None),
+                                          flags=self._var("SessionFlags", None), carros_com_bandeira=n_fin, tem_flags_por_carro=self._var("CarIdxSessionFlags", None) is not None)
+                except Exception:
+                    registrar_erro("classificacao: encerramento da sessao")
+            if classif_foto is not None:
+                try:
                     self._enriquecer_classificacao(classif)
                 except Exception:
                     registrar_erro("classificacao: campos extras (gap, pit, stint)")
@@ -4552,6 +4684,7 @@ class Telemetria:
             # No iRacing, Clutch = 1.0 significa pedal solto; invertemos para exibir
             dados["embreagem"] = 1.0 - float(self._var("Clutch", 1.0))
             dados["abs"] = bool(self._var("BrakeABSactive", False))
+            dados["limitador"] = bool(int(self._var("EngineWarnings", 0) or 0) & 0x10)     # limitador de velocidade dos boxes
             dados["tc"] = self._ler_tc()
             nivel_abs = self._var("dcABS", None)
             dados["abs_nivel"] = float(nivel_abs) if nivel_abs is not None else None
@@ -5248,10 +5381,10 @@ class JanelaBase(QWidget):
         return True
 
 
-def desenhar_grafico_inputs(p, ret, hist, c, marchas_max, cor_ace=None, cor_fre=None):
+def desenhar_grafico_inputs(p, ret, hist, c, marchas_max, cor_ace=None, cor_fre=None, fundo=None):
     """Grafico rolante de pedais (acelerador verde, freio vermelho), degraus da marcha e marcas de ABS/TC."""
     p.setPen(QPen(QColor(255, 255, 255, 40), 1))
-    p.setBrush(QColor(0, 0, 0, 90))
+    p.setBrush(fundo if fundo is not None else QColor(0, 0, 0, 90))
     p.drawRoundedRect(ret, 6, 6)
     seg = hist.segundos
     p.setPen(QPen(QColor(255, 255, 255, 28), 1))
@@ -5375,6 +5508,42 @@ class JanelaTelemetria(JanelaBase):
             self._marchas_max = max(self._marchas_max, int(dados["marcha"] or 0))
         self._repintar()
 
+    # ---- build aj: alertas piscantes (limitador de pit, TC e ABS) no fundo do grafico e nos pedais
+    COR_ALERTA_LIMITADOR = (255, 140, 30)
+    COR_ALERTA_ABS = (250, 205, 40)
+    COR_ALERTA_TC = (60, 150, 255)
+
+    def _alertas(self, d):
+        c = self.config
+        return {"limitador": bool(d.get("limitador")) and bool(c.get("telemetria_pisca_limitador", True)),
+                "abs": bool(d.get("abs")) and bool(c.get("telemetria_pisca_abs", True)),
+                "tc": bool((d.get("luz_tc") or {}).get("ativa")) and bool(c.get("telemetria_pisca_tc", True))}
+
+    @staticmethod
+    def _fase_pisca(d=None):
+        if d is not None and d.get("previa"):
+            return True                                        # previa da Central: fixa no estado aceso (comparavel nas opcoes)
+        return int(time.monotonic() * 8.0) % 2 == 0          # ~4 piscadas por segundo
+
+    def _fundo_alerta(self, d):
+        """Cor de fundo do grafico: pisca em laranja (limitador de pit), amarelo (ABS) ou azul (TC); None = fundo normal."""
+        a = self._alertas(d)
+        cor = self.COR_ALERTA_LIMITADOR if a["limitador"] else (self.COR_ALERTA_ABS if a["abs"] else (self.COR_ALERTA_TC if a["tc"] else None))
+        if cor is None or not self._fase_pisca(d):
+            return None
+        return QColor(cor[0], cor[1], cor[2], 170)
+
+    def _cor_pedal(self, nome, cor, valor, d):
+        """Barra do freio pisca com o ABS atuando; barra do acelerador pisca com o TC atuando (so com o pedal pressionado)."""
+        if (valor or 0.0) < 0.02 or not self._fase_pisca(d):
+            return cor
+        a = self._alertas(d)
+        if nome == "FRE" and a["abs"]:
+            return QColor(*self.COR_ALERTA_ABS)
+        if nome == "ACE" and a["tc"]:
+            return QColor(*self.COR_ALERTA_TC)
+        return cor
+
     def reconfigurar(self):
         self.hist.definir_segundos(self.config.get("inputs_segundos", 12))
         self.update()
@@ -5387,6 +5556,12 @@ class JanelaTelemetria(JanelaBase):
         if self.config.get("telemetria_barra", False):
             self._desenhar_barra(p, d)
             return
+        if not self.config.get("mostrar_grafico", True):
+            fa = self._fundo_alerta(d)
+            if fa is not None:
+                p.setPen(Qt.NoPen)
+                p.setBrush(QColor(fa.red(), fa.green(), fa.blue(), 90))
+                p.drawRoundedRect(QRectF(4, 4, LARGURA - 8, ALTURA - 8), 10, 10)
         self._desenhar_principal(p, d)
         if self.config.get("mostrar_grafico", True):
             p.save()
@@ -5443,7 +5618,7 @@ class JanelaTelemetria(JanelaBase):
             p.setBrush(COR_FUNDO_BARRA)
             p.drawRoundedRect(x, 40, 24, 70, 5, 5)
             altura = int(70 * valor)
-            p.setBrush(cor)
+            p.setBrush(self._cor_pedal(nome, cor, valor, d))
             p.drawRoundedRect(x, 40 + 70 - altura, 24, altura, 5, 5)
             p.setPen(COR_CINZA)
             p.setFont(fonte(8))
@@ -5480,14 +5655,15 @@ class JanelaTelemetria(JanelaBase):
         v_fre = cru.get("freio") if usar_cru and cru.get("freio") is not None else d["freio"]
         v_ace = cru.get("acelerador") if usar_cru and cru.get("acelerador") is not None else d["acelerador"]
         x = 204
-        for valor, cor in ((d["embreagem"], self.COR_BARRA_EMB), (v_fre, self.COR_BARRA_FRE), (v_ace, self.COR_BARRA_ACE)):
+        for nome_p, valor, cor in (("EMB", d["embreagem"], self.COR_BARRA_EMB), ("FRE", v_fre, self.COR_BARRA_FRE), ("ACE", v_ace, self.COR_BARRA_ACE)):
             valor = max(0.0, min(1.0, valor or 0.0))
+            cor_barra = self._cor_pedal(nome_p, cor, valor, d)
             p.setPen(Qt.NoPen)
             p.setBrush(COR_FUNDO_BARRA)
             p.drawRoundedRect(x, 10, 16, 52, 4, 4)
             altura = int(round(52 * valor))
             if altura > 0:
-                p.setBrush(cor)
+                p.setBrush(cor_barra)
                 p.drawRoundedRect(x, 10 + 52 - altura, 16, altura, 4, 4)
             p.setPen(cor)
             p.setFont(fonte(10, QFont.Bold))
@@ -5495,7 +5671,7 @@ class JanelaTelemetria(JanelaBase):
             x += 28
         if self.config.get("mostrar_grafico", True):
             desenhar_grafico_inputs(p, QRectF(294, 8, LARGURA_BARRA - 294 - 10, ALTURA_BARRA - 16), self.hist, self.config,
-                                    self._marchas_max, self.COR_BARRA_ACE, self.COR_BARRA_FRE)
+                                    self._marchas_max, self.COR_BARRA_ACE, self.COR_BARRA_FRE, fundo=self._fundo_alerta(d))
 
     def _volante(self, p, cx, cy, r, graus, espessura=8):
         """Build l: volante com a imagem escolhida pelo piloto (PNG), se houver; senao o volante desenhado."""
@@ -5615,7 +5791,8 @@ class JanelaTelemetria(JanelaBase):
         p.setPen(COR_VERMELHO)
         p.drawText(x1 - 75, 8, 75, 18, Qt.AlignRight | Qt.AlignVCenter, f"{d['freio'] * 100:.0f}%")
 
-        desenhar_grafico_inputs(p, QRectF(x0, y_topo, x1 - x0, y_base - y_topo), self.hist, self.config, self._marchas_max)
+        desenhar_grafico_inputs(p, QRectF(x0, y_topo, x1 - x0, y_base - y_topo), self.hist, self.config, self._marchas_max,
+                                fundo=self._fundo_alerta(d))
 
 
 # ---- Janela 2: delta, voltas e combustivel ----------------------------------------------
@@ -5807,12 +5984,22 @@ class JanelaRelativo(JanelaBase):
     CHAVE = "relativo"
     CHAVE_ATIVO = "mostrar_relativo"
     TAXA_HZ = 10.0
+    # build w: elementos liga/desliga. Cabecalho e rodape sao secoes (a janela encolhe); as colunas das linhas apenas deixam
+    # de ser desenhadas (sem compactacao horizontal, como em Voltas). A projecao de iRating/SR segue no interruptor proprio.
+    ELEMENTOS = (("cabecalho", "Cabeçalho (pista, SOF e incidentes)"), ("rodape", "Rodapé (volta e tempo restante)"),
+                 ("posicao", "Posição na classe e faixa da classe"), ("numero", "Número do carro"),
+                 ("pneu", "Pneu e voltas do pneu"), ("licenca", "Licença"), ("irating", "iRating"), ("gap", "Distância em segundos"))
+    SECOES = (("cabecalho", 0, ALTURA_CAB), ("rodape", ALTURA_CAB + ALTURA_LINHA * (SLOTS_FRENTE + 1 + SLOTS_TRAS), ALTURA_RODAPE))
 
     def _com_projecao(self):
         return bool(self.config.get("mostrar_projecao", True))
 
     def tamanho(self):
-        return (LARGURA_REL, ALTURA_REL + (ALTURA_PROJECAO if self._com_projecao() else 0))
+        return (LARGURA_REL, self._alt_util(ALTURA_REL + (ALTURA_PROJECAO if self._com_projecao() else 0)))
+
+    def _desloc_linhas(self):
+        """Quanto as linhas (e a projecao) sobem quando o cabecalho esta desligado."""
+        return 0.0 if self.visivel("cabecalho") else float(ALTURA_CAB)
 
     def definir_projecao(self, ativo):
         self.config["mostrar_projecao"] = bool(ativo)
@@ -5828,13 +6015,17 @@ class JanelaRelativo(JanelaBase):
         if not rel:
             p.setPen(COR_CINZA)
             p.setFont(fonte(12))
-            p.drawText(self._retangulo_base(), Qt.AlignCenter, "Sem dados dos outros carros")
+            p.drawText(self._rect_espera(QRectF(self._retangulo_base())), Qt.AlignCenter, "Sem dados dos outros carros")
             return
 
-        self._cabecalho(p, rel)
+        if self._abre(p, "cabecalho"):
+            self._cabecalho(p, rel)
+            self._fecha(p)
 
         n_frente = rel["n_frente"]
         frente = rel["frente"]
+        p.save()
+        p.translate(0.0, -self._desloc_linhas())
         # Carros a frente ficam encostados na sua linha; os espacos vazios ficam no topo
         for k, linha in enumerate(frente):
             self._linha(p, ALTURA_CAB + (n_frente - len(frente) + k) * ALTURA_LINHA, linha)
@@ -5844,7 +6035,10 @@ class JanelaRelativo(JanelaBase):
 
         if self._com_projecao():
             self._projecao(p, d.get("projecao"))
-        self._rodape(p, rel)
+        p.restore()
+        if self._abre(p, "rodape"):
+            self._rodape(p, rel)
+            self._fecha(p)
 
     # ---- faixa de projecao de iRating e SR (estimativas) ----------------------------------
     @staticmethod
@@ -5970,22 +6164,26 @@ class JanelaRelativo(JanelaBase):
 
         # Faixa com a cor da classe
         cor_classe = QColor(*d["classe_cor"])
-        p.setPen(Qt.NoPen)
-        p.setBrush(cor_classe)
-        p.drawRect(12, y + 4, 4, h - 8)
+        if self.visivel("posicao"):
+            p.setPen(Qt.NoPen)
+            p.setBrush(cor_classe)
+            p.drawRect(12, y + 4, 4, h - 8)
 
-        # Posicao na classe
-        p.setFont(fonte(10, QFont.Bold))
-        p.setPen(COR_TEXTO)
-        p.drawText(20, y, 24, h, Qt.AlignRight | Qt.AlignVCenter,
-                   str(d["pos_classe"]) if d["pos_classe"] else "-")
+            # Posicao na classe
+            p.setFont(fonte(10, QFont.Bold))
+            p.setPen(COR_TEXTO)
+            p.drawText(20, y, 24, h, Qt.AlignRight | Qt.AlignVCenter,
+                       str(d["pos_classe"]) if d["pos_classe"] else "-")
 
         # Numero do carro (na cor da classe)
-        p.setPen(cor_classe.lighter(120))
-        p.drawText(48, y, 40, h, Qt.AlignLeft | Qt.AlignVCenter, f"#{d['numero']}")
+        p.setFont(fonte(10, QFont.Bold))
+        if self.visivel("numero"):
+            p.setPen(cor_classe.lighter(120))
+            p.drawText(48, y, 40, h, Qt.AlignLeft | Qt.AlignVCenter, f"#{d['numero']}")
 
         # Pneu: tipo (barra inclinada na cor do composto) e voltas desde a ultima parada
-        self._pneu(p, 90, y, d)
+        if self.visivel("pneu"):
+            self._pneu(p, 90, y, d)
 
         # Nome (vermelho: uma volta a frente de voce; azul: uma volta atras de voce)
         fonte_nome = fonte(10, QFont.Bold)
@@ -6004,18 +6202,21 @@ class JanelaRelativo(JanelaBase):
         p.drawText(134, y, 118, h, Qt.AlignLeft | Qt.AlignVCenter, nome)
 
         # Licenca e iRating
-        self._selo(p, 256, y, 46, d["lic"], QColor(*d["lic_cor"]))
-        self._selo(p, 306, y, 44, fmt_irating(d["irating"]), QColor(255, 255, 255))
+        if self.visivel("licenca"):
+            self._selo(p, 256, y, 46, d["lic"], QColor(*d["lic_cor"]))
+        if self.visivel("irating"):
+            self._selo(p, 306, y, 44, fmt_irating(d["irating"]), QColor(255, 255, 255))
 
         # Distancia em segundos (ou BOX)
-        p.setFont(fonte(10, QFont.Bold))
-        if d["na_box"]:
-            p.setPen(COR_LARANJA)
-            texto = "BOX"
-        else:
-            p.setPen(COR_TEXTO)
-            texto = f"{abs(d['gap']):.1f}"
-        p.drawText(LARGURA_REL - 88, y, 76, h, Qt.AlignRight | Qt.AlignVCenter, texto)
+        if self.visivel("gap"):
+            p.setFont(fonte(10, QFont.Bold))
+            if d["na_box"]:
+                p.setPen(COR_LARANJA)
+                texto = "BOX"
+            else:
+                p.setPen(COR_TEXTO)
+                texto = f"{abs(d['gap']):.1f}"
+            p.drawText(LARGURA_REL - 88, y, 76, h, Qt.AlignRight | Qt.AlignVCenter, texto)
         p.setOpacity(1.0)
 
     @staticmethod
@@ -6825,9 +7026,14 @@ class JanelaPneus(JanelaBase):
     TAXA_HZ = 2.0
     LARG_CARTAO, ALT_CARTAO = 170, 112
     NOMES = {"LF": "DIANTEIRO ESQ.", "RF": "DIANTEIRO DIR.", "LR": "TRASEIRO ESQ.", "RR": "TRASEIRO DIR."}
+    # build w: elementos liga/desliga; o rodape e uma secao (a janela encolhe), o resto so deixa de ser desenhado no cartao
+    ELEMENTOS = (("temp_total", "Temperatura total do pneu (destaque)"), ("zonas", "Temperatura por zona (externa, meio, interna)"),
+                 ("vida", "Vida útil (barra e %)"), ("detalhes", "Desgaste por volta e idade do pneu"),
+                 ("rodape", "Rodapé (pior pneu e origem dos dados)"))
+    SECOES = (("rodape", ALTURA_PNEUS - 40, 40),)
 
     def tamanho(self):
-        return (LARGURA_PNEUS, ALTURA_PNEUS)
+        return (LARGURA_PNEUS, self._alt_util(ALTURA_PNEUS))
 
     @staticmethod
     def _cantos(pneus):
@@ -6862,6 +7068,8 @@ class JanelaPneus(JanelaBase):
                          est is not None and est.get("pior") == canto, ultima)
 
         # rodape: resumo do pior pneu e origem dos dados
+        if not self.visivel("rodape"):
+            return
         p.setPen(COR_TEXTO)
         p.setFont(fonte(8, QFont.DemiBold))
         y_rod = ALTURA_PNEUS - 40
@@ -6905,18 +7113,22 @@ class JanelaPneus(JanelaBase):
         if not temp_real and ultima and ultima.get("temp"):
             antiga = ultima["temp"]
         orig = nucleo.origem_pneu(temp_real, ultima, t_est, info)     # regra unica real x estimado (testada)
-        if orig["temp_cabecalho"] == "real":
-            p.setPen(QColor(*cor_temperatura(media, ideal_min, ideal_max)))
-            p.setFont(fonte(10, QFont.Bold))
-            p.drawText(x + w - 78, y + 3, 68, 18, Qt.AlignRight | Qt.AlignVCenter, f"{media:.0f}\u00b0C")
-        elif orig["temp_cabecalho"] == "estimada":            # cabecalho: estimativa ao vivo, com "~"
-            p.setPen(QColor(*cor_temperatura(t_est, ideal_min, ideal_max)))
-            p.setFont(fonte(10, QFont.Bold))
-            p.drawText(x + w - 78, y + 3, 68, 18, Qt.AlignRight | Qt.AlignVCenter, f"~{t_est:.0f}\u00b0C")
+        # build w: a temperatura total do pneu ganhou destaque (fonte 10 -> 16, em caixa maior)
+        if self.visivel("temp_total"):
+            if orig["temp_cabecalho"] == "real":
+                p.setPen(QColor(*cor_temperatura(media, ideal_min, ideal_max)))
+                p.setFont(fonte(16, QFont.Bold))
+                p.drawText(x + w - 90, y + 1, 80, 24, Qt.AlignRight | Qt.AlignVCenter, f"{media:.0f}\u00b0C")
+            elif orig["temp_cabecalho"] == "estimada":            # cabecalho: estimativa ao vivo, com "~"
+                p.setPen(QColor(*cor_temperatura(t_est, ideal_min, ideal_max)))
+                p.setFont(fonte(16, QFont.Bold))
+                p.drawText(x + w - 90, y + 1, 80, 24, Qt.AlignRight | Qt.AlignVCenter, f"~{t_est:.0f}\u00b0C")
 
         # zonas da banda de rodagem (so quando o iRacing informa as 3 zonas); senao, bloco estimado
         faixa_l = (w - 20 - 8) / 3.0
-        if orig["temp_corpo"] in ("real_ao_vivo", "real_antiga"):
+        if not self.visivel("zonas"):
+            pass
+        elif orig["temp_corpo"] in ("real_ao_vivo", "real_antiga"):
             valores = temp_real or antiga
             rotulos = ("E", "M", "I") if canto in ("LF", "LR") else ("I", "M", "E")  # externa / meio / interna
             for i in range(3):
@@ -6959,6 +7171,8 @@ class JanelaPneus(JanelaBase):
             p.drawText(x + 10, y + 63, bw, 11, Qt.AlignCenter, "temperatura estimada")
 
         # vida util
+        if not self.visivel("vida"):
+            return
         yb = y + 82
         vida = info.get("vida") if info else None
         est_tag = orig["vida"] == "estimada"
@@ -6987,9 +7201,10 @@ class JanelaPneus(JanelaBase):
                 idade_v = (ultima or {}).get("vida_idade")
                 partes.append("real, h\u00e1 " + nucleo.fmt_idade_medicao(idade_v) if idade_v is not None
                               else "leitura real")
-            p.setPen(COR_CINZA)
-            p.setFont(fonte(7))
-            p.drawText(x + 10, y + 94, w - 20, 12, Qt.AlignLeft | Qt.AlignVCenter, "  |  ".join(partes))
+            if self.visivel("detalhes"):
+                p.setPen(COR_CINZA)
+                p.setFont(fonte(7))
+                p.drawText(x + 10, y + 94, w - 20, 12, Qt.AlignLeft | Qt.AlignVCenter, "  |  ".join(partes))
         else:
             p.setPen(COR_CINZA)
             p.setFont(fonte(10, QFont.Bold))
@@ -7012,8 +7227,13 @@ class JanelaClima(JanelaBase):
     TAXA_HZ = 2.0
     COR_CIANO = QColor(70, 200, 235)
 
+    # build w: elementos liga/desliga (cada cartao e uma secao: o que for desligado some e a janela encolhe)
+    ELEMENTOS = (("pista", "Temperatura da pista"), ("ar", "Temperatura do ar"), ("neblina", "Neblina"),
+                 ("chuva", "Chuva e estado da pista"), ("vento", "Vento (bússola e velocidade)"))
+    SECOES = (("pista", 10, 66), ("ar", 76, 66), ("neblina", 142, 66), ("chuva", 208, 74), ("vento", 282, 234))
+
     def tamanho(self):
-        return (LARGURA_CLIMA, ALTURA_CLIMA)
+        return (LARGURA_CLIMA, self._alt_util(ALTURA_CLIMA))
 
     # --- icones simples desenhados em vetor ---
     @staticmethod
@@ -7083,16 +7303,26 @@ class JanelaClima(JanelaBase):
             return
         c = d.get("clima") or {}
         fmt = lambda v, suf: f"{v:.0f}{suf}" if v is not None else "--"
-        self._cartao(p, 10, 58, "TEMP. DA PISTA")
-        self._valor(p, 10, self._icone_pista, fmt(c.get("pista"), "\u00baC"))
-        self._cartao(p, 76, 58, "TEMP. DO AR")
-        self._valor(p, 76, self._icone_sol, fmt(c.get("ar"), "\u00baC"))
-        self._cartao(p, 142, 58, "NEBLINA")
-        self._valor(p, 142, self._icone_neblina, fmt(c.get("neblina"), "%"))
-        self._cartao_chuva(p, 208, c)
-        self._cartao(p, 282, 234, "VENTO (VISTO DO CARRO)")
-        self._bussola(p, 110, 282 + 22 + 66, 62, c)
-        self._rodape_vento(p, 282 + 158, c)
+        if self._abre(p, "pista"):
+            self._cartao(p, 10, 58, "TEMP. DA PISTA")
+            self._valor(p, 10, self._icone_pista, fmt(c.get("pista"), "\u00baC"))
+            self._fecha(p)
+        if self._abre(p, "ar"):
+            self._cartao(p, 76, 58, "TEMP. DO AR")
+            self._valor(p, 76, self._icone_sol, fmt(c.get("ar"), "\u00baC"))
+            self._fecha(p)
+        if self._abre(p, "neblina"):
+            self._cartao(p, 142, 58, "NEBLINA")
+            self._valor(p, 142, self._icone_neblina, fmt(c.get("neblina"), "%"))
+            self._fecha(p)
+        if self._abre(p, "chuva"):
+            self._cartao_chuva(p, 208, c)
+            self._fecha(p)
+        if self._abre(p, "vento"):
+            self._cartao(p, 282, 234, "VENTO (VISTO DO CARRO)")
+            self._bussola(p, 110, 282 + 22 + 66, 62, c)
+            self._rodape_vento(p, 282 + 158, c)
+            self._fecha(p)
 
     NIVEIS_PISTA = {1: "seca", 2: "quase seca", 3: "umida leve", 4: "umida", 5: "molhada",
                     6: "muito molhada", 7: "encharcada"}
@@ -7222,9 +7452,9 @@ class JanelaDanos(JanelaBase):
     CHAVE = "danos"
     CHAVE_ATIVO = "mostrar_danos"
     TAXA_HZ = 4.0
-    NOMES_ZONA = {"F": "Frente", "T": "Traseira", "E": "Lado esquerdo", "D": "Lado direito", None: "Fora da pista"}
+    NOMES_ZONA = {"F": "Frente", "T": "Traseira", "E": "Lado esquerdo", "D": "Lado direito", None: "Local indefinido"}
     NOMES_TIPO = {"contato": "contato com carro", "batida": "batida", "saida": "saida de pista",
-                  "pancada": "pancada"}
+                  "pancada": "pancada", "dano": "dano confirmado pelo reparo"}
 
     def tamanho(self):
         return (LARGURA_DANOS, ALTURA_DANOS)
@@ -7349,7 +7579,7 @@ class JanelaDanos(JanelaBase):
             p.drawText(16, y, 56, 24, Qt.AlignLeft | Qt.AlignVCenter, fmt_idade(e.get("idade", 0.0)))
             p.setPen(COR_TEXTO)
             p.setFont(fonte(9, QFont.DemiBold))
-            p.drawText(74, y, 110, 14, Qt.AlignLeft | Qt.AlignBottom, self.NOMES_ZONA.get(e.get("zona"), "--"))
+            p.drawText(74, y, 110, 14, Qt.AlignLeft | Qt.AlignBottom, "Fora da pista" if (e.get("zona") is None and e.get("tipo") == "saida") else self.NOMES_ZONA.get(e.get("zona"), "--"))
             p.setPen(COR_CINZA)
             p.setFont(fonte(7))
             p.drawText(74, y + 13, 120, 11, Qt.AlignLeft | Qt.AlignTop, self.NOMES_TIPO.get(e.get("tipo"), ""))
@@ -7361,7 +7591,7 @@ class JanelaDanos(JanelaBase):
         p.setPen(COR_CINZA)
         p.setFont(fonte(7))
         p.drawText(16, ALTURA_DANOS - 24, LARGURA_DANOS - 32, 16, Qt.AlignLeft | Qt.AlignVCenter,
-                   "Estimado; o iRacing nao informa dano por peca")
+                   "Estimado (aceleracao + reparo); sem dano por peca")
 
 
 # ---- Janela 11: painel de combustivel e pit -----------------------------------------------------
@@ -9470,7 +9700,11 @@ class JanelaCoach(JanelaBase):
                 p.drawText(QRectF(14, 28, 196, 56), Qt.AlignLeft | Qt.AlignVCenter, grande)
                 p.setPen(COR_CINZA)
                 p.setFont(fonte(10, QFont.DemiBold))
-                p.drawText(QRectF(14, 84, 190, 14), Qt.AlignLeft | Qt.AlignVCenter, f"C{pr['n']} de {pr['total']}  |  {'tirada' if pr.get('tipo') == 'tirada' else 'freada'} em {pr['dist_m']:.0f} m")
+                p.drawText(QRectF(14, 84, 190, 14), Qt.AlignLeft | Qt.AlignVCenter, QFontMetrics(p.font()).elidedText(
+                                   f"C{pr['n']} de {pr['total']} | {'tirada' if pr.get('tipo') == 'tirada' else 'freada'} {pr['dist_m']:.0f} m"
+                                   + (f" | F{pr['plano']['pico_pct']}%" + (" trail" if pr['plano'].get('trail') else "")
+                                     + (f" A{pr['plano']['acel_saida_pct']}%" if pr['plano'].get('acel_saida_pct') is not None else "") if pr.get("plano") else ""),
+                                   Qt.ElideRight, 192))
                 p.setPen(QColor(255, 255, 255))
                 p.setFont(fonte(10, QFont.DemiBold))
                 p.setPen(COR_CINZA)
@@ -9748,6 +9982,25 @@ def criar_icone():
     return QIcon(pix)
 
 
+def definir_icone_app(app, id_app):
+    """Build an: o botao do overlay na barra de tarefas do Windows aparecia com o icone do Python. Define um identificador proprio do
+    programa (o Windows deixa de agrupar com o Python) e o icone WolfxRacing (wolfxracing.ico; sem ele, a logo ou o icone padrao)."""
+    try:
+        if sys.platform.startswith("win"):
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(id_app)
+    except Exception:
+        registrar_erro("icone da barra de tarefas (identificador do programa)")
+    try:
+        ico = PASTA / "wolfxracing.ico"
+        icone = QIcon(str(ico)) if ico.is_file() else QIcon()
+        if icone.isNull():
+            icone = criar_icone()
+        app.setWindowIcon(icone)
+    except Exception:
+        registrar_erro("icone da barra de tarefas")
+
+
 def definir_prioridade_baixa(ativa):
     """Windows: prioridade ABAIXO DO NORMAL para o overlay (o iRacing tem preferencia na CPU).
     Opera so sobre o proprio processo do overlay; nao toca no jogo. Retorna True se aplicou."""
@@ -9911,6 +10164,59 @@ def montar_menu_amigos(menu, config):
     a = QAction("Amigos: destacar pilotos na classificacao e no relativo...", menu)
     a.triggered.connect(lambda _=False: editar())
     menu.addAction(a)
+
+
+def montar_menu_idioma(menu, config):
+    """Build aq: submenu Idioma (Automatico pelo Windows ou escolha manual). Vale ja nos paineis; menus e Central mudam ao reiniciar."""
+    if ov_i18n is None:
+        return
+    sub = menu.addMenu("Idioma / Language")
+    grupo = QActionGroup(sub)
+    grupo.setExclusive(True)
+    atual = str(config.get("idioma", "auto"))
+
+    def escolher(codigo):
+        config["idioma"] = codigo
+        ov_i18n.definir_idioma(codigo)
+        salvar_config(config)
+        registrar_info(f"idioma: {codigo} (efetivo: {ov_i18n.idioma()})")
+        try:
+            QMessageBox.information(None, "Idioma / Language", ov_i18n.AVISO_REINICIAR.get(ov_i18n.idioma(), ov_i18n.AVISO_REINICIAR["en"]))
+        except Exception:
+            pass
+    for codigo, nome in (("auto", None),) + tuple(ov_i18n.IDIOMAS):
+        a = QAction(nome or "Automático (Windows) / Automatic", sub)
+        a.setCheckable(True)
+        a.setChecked(codigo == atual)
+        a.triggered.connect(lambda _=False, c=codigo: escolher(c))
+        grupo.addAction(a)
+        sub.addAction(a)
+
+
+def montar_menu_cronograma(menu, config, pasta, aplicar):
+    """Build ah: filtros do cronograma de corridas do iRacing (cronograma.json na pasta do overlay)."""
+    def abrir():
+        try:
+            import ov_cronograma, ov_cronograma_ui
+            dados, _ = ov_cronograma.carregar(Path(pasta) / "cronograma.json")
+            ov_cronograma_ui.abrir_dialogo(config, dados, salvar_config, aplicar, pasta=pasta)
+        except Exception:
+            registrar_erro("cronograma (filtros)")
+
+    def importar():
+        try:
+            import ov_cronograma_ui
+            res = ov_cronograma_ui.importar_com_dialogo(pasta)
+            if res is not None:
+                QMessageBox.information(None, "Cronograma de corridas", res["msg"])
+        except Exception:
+            registrar_erro("cronograma (importar)")
+    a = QAction("Cronograma de corridas: filtros e avisos...", menu)
+    a.triggered.connect(lambda _=False: abrir())
+    menu.addAction(a)
+    a2 = QAction("Cronograma de corridas: importar novo PDF...", menu)
+    a2.triggered.connect(lambda _=False: importar())
+    menu.addAction(a2)
 
 
 def montar_menu_backup(menu, config, jogo, versao, aplicar):
@@ -10167,6 +10473,7 @@ def principal():
 
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
+    definir_icone_app(app, "WolfxRacing.Overlay.iRacing")
     trava = trava_instancia_unica()
     if trava is None:
         QMessageBox.information(None, "Overlay iRacing",
@@ -10175,11 +10482,21 @@ def principal():
         return 0
 
     config = carregar_config()
+    if ov_i18n is not None:
+        try:
+            ov_i18n.definir_idioma(config.get("idioma", "auto"))
+        except Exception:
+            registrar_erro("idioma")
     registrar_cabecalho()
     limpar_emblemas_faltando()
     if config.get("tema_vidro", True) and config.get("tema_sport", False):
         config["tema_sport"] = False                  # Glass Fume e Sport sao excludentes (config antigo: vence o Glass Fume)
     definir_tema(config.get("tema_moderno", True), config.get("opacidade_fundo", 0.80), config.get("tema_sport", False), config.get("tema_vidro", True))
+    if ov_v18 is not None:
+        try:
+            ov_v18.aplicar_daltonismo(sys.modules[__name__], config.get("daltonismo", "padrao"))
+        except Exception:
+            registrar_erro("modo daltonico")
     JanelaBase.MULT_TAXA = 0.5 if config.get("economia_cpu") else 1.0
     if config.get("prioridade_baixa", True) and not DEMO and definir_prioridade_baixa(True):
         registrar_info("prioridade do processo do overlay: abaixo do normal")
@@ -10218,12 +10535,22 @@ def principal():
     janela_tendencia = JanelaTendencia(config)
     janela_consumo = JanelaConsumo(config)
     janela_delta_trace = JanelaDeltaTrace(config)
+    classes_v18 = {}
+    if v18_janelas is not None:
+        try:
+            classes_v18 = v18_janelas.construir(sys.modules[__name__])
+        except Exception:
+            registrar_erro("v1.8 (janelas novas)")
+    janelas_v18 = [K(config) for K in classes_v18.values()]
+    servico_v18 = ov_v18.Servico(PASTA) if janelas_v18 else None
+    if ov_v18 is not None:
+        ov_v18.definir_fonte_cronograma(config, PASTA)       # build al: a previa da Central mostra o cronograma real com os seus filtros
     visib = VisibilidadeAuto(bool(config.get("auto_modo", True)) and not DEMO)
     janelas = [janela_telemetria, janela_voltas, janela_relativo, janela_classificacao,
                janela_mapa, janela_radar, janela_pneus, janela_setores, janela_clima, janela_danos, janela_combustivel, janela_forca_g,
                janela_luz_abs, janela_luz_tc, janela_retorno, janela_estrategia, janela_curvas, janela_coach,
                janela_bandeiras, janela_trafego, janela_minimapa, janela_auxiliar, janela_contato, janela_pit, janela_tendencia,
-               janela_consumo, janela_delta_trace]
+               janela_consumo, janela_delta_trace] + janelas_v18
     if not config["travado"]:
         visib.visivel = True               # destravado = posicionando: tudo visivel
     for j in janelas:
@@ -10346,6 +10673,15 @@ def principal():
             config["tema_vidro"] = False
         definir_tema(sport=marcado)
         _sincronizar_estilo()
+        for j in janelas:
+            j.update()
+        salvar_config(config)
+
+    def ao_daltonismo(modo):
+        if ov_v18 is None:
+            return
+        ov_v18.aplicar_daltonismo(sys.modules[__name__], modo)
+        config["daltonismo"] = modo
         for j in janelas:
             j.update()
         salvar_config(config)
@@ -10736,6 +11072,13 @@ def principal():
               lambda m: janela_consumo.definir_ativo(m), chave="mostrar_consumo")
     adicionar("Mostrar Delta Trace (tempo ganho/perdido ao longo da volta)", config["mostrar_delta_trace"],
               lambda m: janela_delta_trace.definir_ativo(m), chave="mostrar_delta_trace")
+    for _j18 in janelas_v18:                                    # v1.8: um item de menu por janela nova
+        adicionar(getattr(_j18, "ROTULO_MENU", "Mostrar " + _j18.CHAVE), config[_j18.CHAVE_ATIVO],
+                  lambda m, j=_j18: (j.definir_ativo(m), salvar_config(config)), chave=_j18.CHAVE_ATIVO)
+        if hasattr(_j18, "centralizar"):                          # build ap: Pedais do Coach pode ser centralizada na tela com um clique
+            _a_cent = QAction("   Centralizar na tela (horizontal)", menu)
+            _a_cent.triggered.connect(lambda _c=False, j=_j18: (j.centralizar(True, False), salvar_config(config)))
+            menu.addAction(_a_cent)
     adicionar("Mostrar Tendencia de ritmo (ultimas voltas limpas)", config["mostrar_tendencia"],
               lambda m: janela_tendencia.definir_ativo(m), chave="mostrar_tendencia")
     adicionar("Mostrar Entrada do pit (distancia, freio e limite)", config["mostrar_pit"],
@@ -10754,6 +11097,8 @@ def principal():
             fn()
     montar_menu_backup(menu, config, "iracing", VERSAO_PRODUTO, aplicar_backup)
     montar_menu_amigos(menu, config)
+    montar_menu_cronograma(menu, config, PASTA, aplicar_backup)
+    montar_menu_idioma(menu, config)
     menu.addSeparator()
     adicionar("Visual moderno (desmarque para voltar ao visual classico)", config["tema_moderno"], ao_tema, chave="tema_moderno")
     adicionar("   Estilo Glass Fume (vidro escuro translucido)", config["tema_vidro"], ao_vidro, chave="tema_vidro")
@@ -10855,14 +11200,30 @@ def principal():
     timer_teclas.start(40)
     app.aboutToQuit.connect(parar_teclas)
 
+    def ao_cronograma_filtros():
+        try:
+            import ov_cronograma, ov_cronograma_ui
+            dados, _ = ov_cronograma.carregar(Path(PASTA) / "cronograma.json")
+            ov_cronograma_ui.abrir_dialogo(config, dados, salvar_config, aplicar_backup, pasta=Path(PASTA))
+        except Exception:
+            registrar_erro("cronograma (filtros)")
+
+    def ao_cronograma_importar():
+        try:
+            import ov_cronograma_ui
+            res = ov_cronograma_ui.importar_com_dialogo(Path(PASTA))
+            if res is not None:
+                QMessageBox.information(None, "Cronograma de corridas", res["msg"])
+        except Exception:
+            registrar_erro("cronograma (importar)")
     bandeja.setContextMenu(menu)
     central = montar_central(app, bandeja, menu, janelas, acao_por_chave, config, acao_sair, "iRacing",
                              lambda: Telemetria(demo=True), {
                                  "modo_perfil": ao_modo_perfil, "copiar_layout": ao_copiar_layout,
                                  "opacidade": ao_opacidade, "restaurar": ao_restaurar_tamanhos,
-                                 "salvar": lambda: salvar_config(config), "alcance_minimapa": trocar_raio,
+                                 "salvar": lambda: salvar_config(config), "alcance_minimapa": trocar_raio, "cronograma_filtros": ao_cronograma_filtros, "cronograma_importar": ao_cronograma_importar,
                                  "importar_volante": importar_imagem_volante, "remover_volante": remover_imagem_volante,
-                                 "registrar_erro": registrar_erro})
+                                 "registrar_erro": registrar_erro, "daltonismo": ao_daltonismo})
     bandeja.show()
     if config.get("teclas_globais", True):
         iniciar_teclas()
@@ -10873,6 +11234,8 @@ def principal():
     def ciclo():
         try:
             dados = telemetria.ler()
+            if servico_v18 is not None:
+                ov_v18.alimentar(servico_v18, telemetria, dados, config, time.monotonic(), registrar_erro)
             novo_perfil = seletor_perfil.decidir(config, dados.get("tipo_sessao"), time.monotonic(),
                                                  editando=not config["travado"])
             if novo_perfil:

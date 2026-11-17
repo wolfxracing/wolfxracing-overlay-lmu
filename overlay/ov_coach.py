@@ -247,6 +247,96 @@ def todas_as_zonas(ref):
 
 
 # --------------------------------------------------------------------------
+# Pedais do Coach (1.8.0 build ap): % de freio, trail braking, soltar e acelerar. So le a referencia (nao mexe nas zonas)
+# --------------------------------------------------------------------------
+TRAIL_MIN_M = 15.0            # freio ainda aplicado por mais que isto DEPOIS do pico, descendo aos poucos = trail braking
+TRAIL_MEIO_MIN = 0.15         # e o freio no meio dessa descida ainda precisa estar acima disto
+ANTECIPA_PEDAL_S = 0.35       # a instrucao olha este tempo a frente (o piloto precisa de tempo para reagir)
+ACEL_SAIDA_M = 20.0          # acelerador de saida: o que a referencia faz este tanto depois do fim da freada
+PICO_PERTO = 0.90             # freio acima desta fracao do pico = ainda "freie" (fase de pico)
+
+
+def _pct(v):
+    return None if not _finito(v) else int(round(max(0.0, min(1.0, float(v))) * 100))
+
+
+def plano_freio(ref, z):
+    """Plano de freio de uma zona da referencia: {pico_pct, trail, trail_m, freio_apice_pct, solta_m}.
+    trail = depois do pico o freio desce aos poucos por TRAIL_MIN_M ou mais (continua freando enquanto vira). None para tirada."""
+    if z.get("tipo") == "tirada":
+        return None
+    cache = ref.setdefault("_planos", {})
+    if z["ini"] in cache:
+        return cache[z["ini"]]
+    freio = ref["freio"]
+    n = len(freio)
+    comp = float(ref["comprimento"])
+    ini, fim = z["ini"], min(z["fim"], n - 1)
+    pico = max(freio[ini:fim + 1])
+    ipico = max(j for j in range(ini, fim + 1) if freio[j] >= PICO_PERTO * pico)       # FIM do patamar do pico: dali em diante e "soltar"
+    solta_m = (fim - ipico) / float(n) * comp
+    meio = ipico + (fim - ipico) // 2
+    trail = solta_m >= TRAIL_MIN_M and freio[meio] >= TRAIL_MEIO_MIN
+    apice = z["apice"]
+    acel = ref.get("acel")
+    i_saida = min(n - 1, fim + max(1, int(round(ACEL_SAIDA_M / comp * n))))
+    acel_saida = _pct(acel[i_saida]) if acel and len(acel) == n and _finito(acel[i_saida]) else None
+    plano = {"acel_saida_pct": acel_saida, "pico_pct": _pct(pico), "trail": bool(trail), "trail_m": round(solta_m, 1) if trail else 0.0,
+             "freio_apice_pct": _pct(freio[apice]) if apice <= fim else 0, "solta_m": round(solta_m, 1), "i_pico": ipico}
+    cache[z["ini"]] = plano
+    return plano
+
+
+def fase_pedais(ref, b, vel_kmh=None):
+    """O que fazer com os pedais neste ponto da pista (olha ANTECIPA_PEDAL_S a frente, pela referencia):
+    fase = frear | trail | soltar_freio | soltar | acelerar | fundo. Devolve tambem o alvo de freio/acelerador em %
+    e o que a referencia fazia EXATAMENTE aqui (freio_ref_pct/acel_ref_pct) para comparar com o pedal ao vivo."""
+    freio, acel = ref["freio"], ref.get("acel")
+    n = len(freio)
+    comp = float(ref["comprimento"])
+    la = 0
+    if _finito(vel_kmh) and vel_kmh >= VEL_MIN_CONTAGEM and comp > 0:
+        la = int(round(vel_kmh / 3.6 * ANTECIPA_PEDAL_S / comp * n))
+    i = (b + la) % n
+    tem_acel = bool(acel) and len(acel) == n
+    a_i = acel[i] if tem_acel else None
+    fase, alvo_f, alvo_a, plano = "fundo", None, None, None
+    if freio[i] >= LIM_FREIO:
+        zona = next((z for z in zonas_de_frenagem(ref) if z["ini"] <= i <= z["fim"]), None)
+        if zona is not None:
+            plano = plano_freio(ref, dict(zona, tipo="freio"))
+            ip = plano["i_pico"]
+            if i < ip or freio[i] >= PICO_PERTO * freio[ip]:
+                fase = "frear"
+            else:
+                fase = "trail" if plano["trail"] else "soltar_freio"
+        else:
+            fase = "frear"
+        alvo_f = _pct(freio[i])
+    elif tem_acel and _finito(a_i):
+        alvo_a = _pct(a_i)
+        fase = "soltar" if a_i < ACEL_TIRADA else ("acelerar" if a_i < ACEL_PLENA else "fundo")
+    return {"fase": fase, "alvo_freio_pct": alvo_f, "alvo_acel_pct": alvo_a, "freio_ref_pct": _pct(freio[b]),
+            "acel_ref_pct": _pct(acel[b]) if tem_acel and _finito(acel[b]) else None,
+            "pico_pct": None if plano is None else plano["pico_pct"], "trail": bool(plano and plano["trail"])}
+
+
+def freio_da_passagem(rec, z, comp, n, ini_busca, fim_busca):
+    """Seu freio nesta zona: pico (%) e metros de 'trail' (freio ainda aplicado depois do pico, descendo). None se nao freou."""
+    vals = [(rec.freio[i] or 0.0, i) for i in range(ini_busca, fim_busca + 1)]
+    if not vals:
+        return None
+    pico, ip = max(vals)
+    if pico < LIM_FREIO:
+        return None
+    ult = ip
+    for v, i in vals:
+        if i > ip and v >= LIM_FREIO:
+            ult = i
+    return {"pico_pct": _pct(pico), "trail_m": round((ult - ip) / float(n) * comp, 1)}
+
+
+# --------------------------------------------------------------------------
 # Gravacao em segundo plano (1.7.0): nenhuma escrita em disco na thread que atualiza o Coach / a interface
 # --------------------------------------------------------------------------
 registrar_log = None            # o overlay liga isto ao log: registrar_log("aviso" | "info", texto)
@@ -682,6 +772,7 @@ class Coach:
         self.rec = RegistradorVolta(bins)
         self.voltas_gravadas = 0
         self.aviso_ref = None              # ex.: "referencia de outro carro"
+        self._pedais = None                # build ap: fase dos pedais (ver fase_pedais)
         self.resumo_volta = None
         self.ultimo_feedback = None
         self._feitos = set()
@@ -811,9 +902,20 @@ class Coach:
             self._volta_fechada(fechada, ultima_volta)
         ref = self.referencia_ativa()
         guia, delta = None, None
+        self._pedais = None
         if ref is not None and self.comprimento:
             self._avaliar_zonas_passadas(ref, b)
             guia = self._guia(ref, b, vel_kmh)
+            try:
+                self._pedais = fase_pedais(ref, b, vel_kmh)
+                self._pedais["freio_pct"], self._pedais["acel_pct"] = _pct(freio), _pct(acel)
+                if guia is not None:
+                    alvo = next((z for z in todas_as_zonas(ref) if z["n"] == guia["n"]), None)
+                    plano = plano_freio(ref, alvo) if alvo is not None else None
+                    if plano is not None:
+                        guia["plano"] = {k: v for k, v in plano.items() if k != "i_pico"}
+            except Exception:
+                self._pedais = None
             if guia is not None:
                 d = self._dicas_atuais(ref).get(guia["n"])
                 if d:
@@ -1102,7 +1204,20 @@ class Coach:
         else:
             gravidade += 30.0 if tirada else 100.0          # sem tirada pode ser ate mais rapido: pesa pouco
         gravidade += max(0.0, -dif_vel) * 2.0
-        return {"n": z["n"], "freada_m": None if dif_m is None else round(dif_m, 1), "nota": nota,
+        freio_txt, f_pico, f_trail = None, None, None
+        if not tirada:
+            try:
+                meu = freio_da_passagem(rec, z, comp, n, ini_busca, fim_busca)
+                plano = plano_freio(self.referencia_ativa(), dict(z, tipo="freio")) if self.referencia_ativa() else None
+                if meu and plano:
+                    f_pico, f_trail = meu["pico_pct"], meu["trail_m"]
+                    freio_txt = f"Freio {f_pico}% (ref {plano['pico_pct']}%)"
+                    if plano["trail"] or f_trail >= TRAIL_MIN_M:
+                        freio_txt += f" | trail {f_trail:.0f} m (ref {plano['trail_m']:.0f} m)"
+            except Exception:
+                freio_txt = None
+        return {"freio_txt": freio_txt, "freio_pico_pct": f_pico, "trail_m": f_trail,
+                "n": z["n"], "freada_m": None if dif_m is None else round(dif_m, 1), "nota": nota,
                 "vel_apice": round(v_min, 1), "dif_vel": round(dif_vel, 1), "marcha": marcha_viva,
                 "marcha_ref": z["marcha_apice"], "dif_marcha": dif_marcha, "gravidade": round(gravidade, 1),
                 "tipo": "tirada" if tirada else "freio",
@@ -1123,7 +1238,8 @@ class Coach:
                 "tempo_ref": None if ref is None else ref["tempo"], "proxima": guia, "delta": delta,
                 "feedback": self.ultimo_feedback, "resumo_volta": self.resumo_volta,
                 "voltas_gravadas": self.voltas_gravadas, "aviso": aviso, "modo": self.modo,
-                "tem_propria": self.ref_propria is not None, "tem_importada": self.ref_importada is not None}
+                "tem_propria": self.ref_propria is not None, "tem_importada": self.ref_importada is not None,
+                "pedais": self._pedais}
 
 
 def nota_da_freada(dif_m):

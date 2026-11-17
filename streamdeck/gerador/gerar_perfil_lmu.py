@@ -9,9 +9,9 @@ import ov_nucleo as nu
 import ov_atalhos_lmu as at
 
 DEVICE_UUID, MODEL = "@(1)[4057/143/A00NA6053I6336]", "20GAT9902"       # Stream Deck XL (copiado do perfil exportado do usuario)
-BASE = r"C:\WolfxRacing\wolfxracing-overlay-lmu\overlay"
+BASE = os.environ.get("WOLFX_BASE") or r"C:\WolfxRacing\wolfxracing-overlay-lmu\overlay"      # WOLFX_BASE: pasta de instalacao deste PC
 LAY = json.load(open(f"{BIB}/layout_lmu.json"))
-NOME = "Overlay LMU"
+NOME = os.environ.get("WOLFX_PERFIL") or "Overlay LMU"
 
 # icone -> (tipo, alvo)
 ACAO = {
@@ -27,7 +27,8 @@ ACAO = {
     "sup_diagnostico": ("abrir", "diagnostico_lmu.bat"), "sup_ver_diagnostico": ("abrir", "diagnostico_lmu.txt"),
 }
 for n in ("telemetria", "voltas", "classificacao", "clima", "combustivel", "forca_g", "energia", "pneus", "danos", "alertas", "stints", "tendencia",
-          "luz_abs", "luz_tc", "retorno", "estrategia", "consumo", "delta_trace", "curvas"):
+          "luz_abs", "luz_tc", "retorno", "estrategia", "consumo", "delta_trace", "curvas",
+          "vazao", "marcha", "destino", "digiflag", "ultrapassagem", "calendario", "hibrido", "sessao"):
     ACAO[f"janela_{n}"] = ("tecla", f"janela_{n}")
 
 

@@ -224,6 +224,25 @@ Mostra, para cada curva da pista, a **menor velocidade** que você fez e compara
 
 Destravadas (modo mover), as janelas automáticas mostram um exemplo para você posicionar. Os segundos do Tráfego são calculados (velocidade e distância na pista); o traçado do Minimapa é aprendido na primeira volta.
 
+### Janelas da 1.8 (todas desligadas por padrão; ligue em Central > Painéis)
+
+| Janela | O que mostra | Opções (Central > painel) |
+|---|---|---|
+| **Mapa de vazão** | consumo instantâneo (L/h) por RPM x acelerador, em mapa de calor | números nas células (ligado por padrão); elementos: título, resumo no topo (agora, última volta, média, mapa do motor se o jogo informar), mapa, marcador da posição atual, trilha dos últimos 4 s, legenda |
+| **Eficiência por marcha** | L/100 km a acelerador pleno por marcha e RPM, parcela do tempo, RPM máximo observado (maior RPM visto a acelerador pleno, não indica troca de marcha); consumo de agora e selo da marcha no cabeçalho, marcador do RPM atual e linha tracejada "MÁX" na marcha engatada; a média geral é consumo total ÷ distância total | destacar a marcha engatada; elementos: marcador do RPM atual, legenda inferior |
+| **Destino do combustível** | % do gasto a fundo/alto/médio/baixo/solto e por faixa de RPM; litros do stint | mostrar em litros |
+| **Digiflag** | a bandeira em vigor em painel colorido | pulsar nas bandeiras de atenção |
+| **Alerta de ultrapassagem** | carros que se aproximam por trás, com segundos e velocidade de aproximação | só com alerta, 5 s em vez de 3 s, só outras classes, ignorar outra volta |
+| **Calendário de corridas** | próximas corridas do seu `calendario_corridas.csv`, contagem e registro | horário em 24 h |
+| **Energia híbrida (Boost)** | carga da bateria, deploy na volta e volta anterior | piscar abaixo de 15 % |
+| **Tempo da sessão** | tempo ou voltas restantes com barra | sempre h:mm:ss |
+
+- **Calendário:** crie `calendario_corridas.csv` na pasta do overlay (modelo: `calendario_exemplo.csv`). O iRacing só entrega a agenda com login na conta, por isso o overlay lê um arquivo seu. O arquivo é relido sozinho quando muda; linha com erro é ignorada e o aviso aparece na janela.
+- **Híbrido:** só mostra o que o jogo informa; carros sem sistema híbrido mostram o aviso. Uso do deploy é a fração do tempo da volta com o motor elétrico entregando quando o jogo não informa o valor.
+- **Vazão, marcha e destino** usam o nível do tanque (o mesmo do *Consumo por trecho*) e recomeçam se você trocar de carro. São medidas do que aconteceu, não estimativas de economia.
+- **Modo daltônico** (Central > Aparência): Deuteranopia, Protanopia, Tritanopia. Troca de paleta das cores bom/ruim das janelas; não é simulação clínica.
+- **Aparência da Central:** Clássico escuro, Vidro grafite, Vidro gelo e Vidro âmbar.
+
 ### Central de configurações (1.6.0)
 
 Duplo clique no ícone da bandeja (ou "Abrir configurações…"):
@@ -231,6 +250,7 @@ Duplo clique no ícone da bandeja (ou "Abrir configurações…"):
 ![Central de configurações: painéis](imagens/central_paineis.png)
 
 - **Elementos (build u):** os painéis *Curvas, Setores, Coach, Consumo, Tendência* e *Voltas* têm, em *Personalizar > ELEMENTOS*, um interruptor por parte da janela. Desligar uma parte encolhe a janela e sobe as partes de baixo; "Mostrar todos" restaura. A prévia ao lado mostra o resultado na hora. Em *Voltas*, as colunas desligadas ficam vazias (sem reaproveitar o espaço).
+- **Elementos em mais painéis (build w):** *Relativo* (cabeçalho, rodapé, posição, número, pneu, licença, iRating e distância), *Clima* (cartões de pista, ar, neblina, chuva e vento) e *Pneus* (temperatura total, zonas, vida, detalhes e rodapé) também têm interruptores em *Central > painel > ELEMENTOS*. Cabeçalho/rodapé do Relativo, cartões do Clima e rodapé dos Pneus encolhem a janela; as demais partes só deixam de ser desenhadas. Nos *Pneus* a temperatura total de cada pneu agora aparece maior.
 - **Painéis:** um cartão por janela com prévia, liga/desliga e "Personalizar"; busca e filtros por categoria.
 - **Personalizar:** tamanho, opções do painel e prévia ao vivo.
 
@@ -257,7 +277,7 @@ O menu da bandeja ficou curto; todas as opções antigas estão em "Todas as op�
 - A **vida do pneu** vem de `mWear` (100% = novo). Quando o jogo entrega exatamente **0,0** numa roda, o overlay trata como *sem leitura* e mostra "--" em vez de "0%".
 - "Pista molhada" (1 a 7) e "céu" são **escalas do overlay** a partir de números do jogo: apoio visual, não medida oficial.
 
-## 7. Dash e Stream Deck
+| **Destino do combustível** | Tabela por faixa de acelerador × RPM (% por célula, célula atual em destaque), barra a fundo/parcial/solto e litros do stint | mostrar em litros |
 
 - **Dash MagicDash 4 Glass Fumê ou Sport** (3 telas): veja [DASH.md](DASH.md).
 - **Perfil de Stream Deck XL** (janelas, controles, iniciar/fechar, pasta Suporte): veja [STREAMDECK.md](STREAMDECK.md).
@@ -278,7 +298,7 @@ O menu da bandeja ficou curto; todas as opções antigas estão em "Todas as op�
 | Valor estranho | Anote a janela e a situação e abra uma Issue com `diagnostico_lmu.txt` e `overlay_log_lmu.txt`. |
 
 ## 9. Atualizar para uma versão nova
-
+- **Painéis:** um cartão de vidro por janela (prévia, estado ligado/desligado, chave e "Personalizar ›"); busca e filtros por categoria em pílulas no topo.
 1. Feche o overlay (*Sair* na bandeja).
 2. Baixe o novo `.zip` e **copie por cima** da pasta atual (o `config*.json`, recordes, mapas e logs ficam e continuam valendo, pois não vêm no pacote).
 3. Leia o [CHANGELOG](../CHANGELOG.md) para ver o que mudou. Reabra o overlay.
@@ -302,20 +322,12 @@ A janela Classificação ganhou o layout de tabela de transmissão: barra superi
 - Para voltar ao visual antigo, use `"classificacao_layout": "classico"` no `config.json`.
 - **Versão EXE:** baixe `WolfxRacing_LMU_vX.Y.Z_EXE.zip` na release, extraia e abra `WolfxRacing_LMU.exe` (não precisa de Python). `testar_demo_exe.bat` abre em modo demonstração e `fechar_overlay_exe.bat` fecha à força. Para gerar no seu PC: `overlay\gerar_exe_lmu.bat`.
 
-## Novidades da 1.7.0 (prints)
+## Calculadora de FOV (Central)
 
-Coach ao vivo, Delta Trace (com o *ritmo ideal estimado*), Consumo, Curvas e Tendência, e a Central com **Elementos** liga/desliga e prévia ao vivo (imagens geradas com dados de exemplo).
+No menu lateral da Central, **Calculadora de FOV**. Preencha a distância dos olhos até o centro da tela, a diagonal, a proporção e, se for o caso, a curvatura; no triplo informe a moldura por emenda e, se as laterais forem diferentes, a diagonal delas. O resultado mostra o FOV vertical e horizontal, o total e o ângulo das laterais (triplo), o espaço ocupado (largura X e profundidade Y), as medidas com fita métrica para conferir o ângulo e o número a digitar em cada jogo. O valor é um ponto de partida: ajuste cerca de ±10 % ao gosto e confirme no menu do jogo se, no modo triplo, o número vale para uma tela ou para o conjunto. As entradas ficam salvas no `config.json` (`fov_calc`). A calculadora não altera arquivos do jogo. Se a combinação for fisicamente impossível (por exemplo, FOV total do triplo igual ou acima de 360°, como três ultrawides a 15 cm), a Central mostra "Confira os dados" com o motivo em vez de um número. No triplo, as três telas são consideradas à mesma distância do olho, com as laterais viradas para ele; a moldura é um vão angular aproximado.
 
-![Coach](imagens/overlay_coach.png)
+### Idioma / Language (build aq)
+Central > **Aparência e sistema** > **IDIOMA / LANGUAGE** (ou menu da bandeja > **Idioma / Language**): Automático (usa o idioma do Windows), Português (Brasil), English, Español, Deutsch, Français e Italiano. Os painéis trocam na hora; a Central e os menus da bandeja trocam ao reiniciar o overlay. Texto sem traducao aparece em portugues. A voz do Coach continua em portugues.
 
-![Coach com elementos desligados](imagens/overlay_coach_elementos.png)
-
-![Delta Trace](imagens/overlay_delta_trace.png)
-
-![Consumo](imagens/overlay_consumo.png)
-
-![Curvas](imagens/overlay_curvas.png)
-
-![Tendência](imagens/janela_tendencia.png)
-
-![Central: elementos com prévia](imagens/central_elementos.png)
+### Pedais do Coach (build ap)
+Janela opcional (Central > Pilotagem, ou menu da bandeja). Mostra o que fazer agora com os pedais, segundo a sua referencia: **FREIE** (com a % alvo), **TRAIL BRAKING** (solte o freio aos poucos enquanto vira), **SOLTE O FREIO**, **SOLTE O ACELERADOR**, **ACELERE** e **PE FUNDO**. As barras mostram a sua % de freio e de acelerador ao vivo, com uma marca branca no ponto onde a referencia estava. A linha de baixo traz o plano da proxima freada (pico de freio e metros de trail). Use "Centralizar na tela (horizontal)" no menu da bandeja ou arraste com as janelas destravadas. O Coach ao vivo tambem passa a mostrar a % de pico e "trail" na linha da proxima curva, e a avaliacao da curva compara o seu freio com o da referencia.

@@ -19,6 +19,7 @@ import ov_nucleo as nu
 MODS_JANELAS_LMU = nu.MOD_CONTROL | nu.MOD_SHIFT          # Ctrl+Shift  (o iRacing usa Ctrl+Alt+Shift)
 MODS_CONTROLES_LMU = nu.MOD_ALT | nu.MOD_SHIFT            # Alt+Shift   (o iRacing usa Ctrl+Alt)
 MODS_NOVAS_Q = nu.MOD_ALT                                  # build q: Alt+F21..F23 (so Alt; o iRacing usa Alt+F13..F19)
+MODS_V18_LMU = nu.MOD_SHIFT                                # 1.8.0 build ae: Shift+F13..F20 (o iRacing usa Ctrl+F13..F20)
 MODS_NOVAS_LMU = MODS_CONTROLES_LMU                        # 1.3.0: Alt+Shift+F21..F24 (livres; os controles usam F13..F20)
 
 
@@ -61,6 +62,15 @@ ATALHOS_LMU = (
     nu.AtalhoGlobal("janela_consumo", "Mostrar/ocultar consumo por trecho (Burn Zones e Fuel Flow)", MODS_NOVAS_Q, 21, "alternar", "mostrar_consumo"),
     nu.AtalhoGlobal("janela_delta_trace", "Mostrar/ocultar Delta Trace", MODS_NOVAS_Q, 22, "alternar", "mostrar_delta_trace"),
     nu.AtalhoGlobal("janela_curvas", "Mostrar/ocultar Curvas (velocidade minima por curva)", MODS_NOVAS_Q, 23, "alternar", "mostrar_curvas"),
+    # 1.8.0: paineis novos. Shift+F13..F20 (o iRacing usa Ctrl+F13..F20)
+    nu.AtalhoGlobal("janela_vazao", "Mostrar/ocultar Mapa de vazao", MODS_V18_LMU, 13, "alternar", "mostrar_vazao"),
+    nu.AtalhoGlobal("janela_marcha", "Mostrar/ocultar Eficiencia por marcha", MODS_V18_LMU, 14, "alternar", "mostrar_marcha_efic"),
+    nu.AtalhoGlobal("janela_destino", "Mostrar/ocultar Destino do combustivel", MODS_V18_LMU, 15, "alternar", "mostrar_destino"),
+    nu.AtalhoGlobal("janela_digiflag", "Mostrar/ocultar Digiflag (bandeiras)", MODS_V18_LMU, 16, "alternar", "mostrar_digiflag"),
+    nu.AtalhoGlobal("janela_ultrapassagem", "Mostrar/ocultar Alerta de ultrapassagem", MODS_V18_LMU, 17, "alternar", "mostrar_ultrapassagem"),
+    nu.AtalhoGlobal("janela_calendario", "Mostrar/ocultar Calendario de corridas", MODS_V18_LMU, 18, "alternar", "mostrar_calendario"),
+    nu.AtalhoGlobal("janela_hibrido", "Mostrar/ocultar Energia hibrida (Boost)", MODS_V18_LMU, 19, "alternar", "mostrar_hibrido"),
+    nu.AtalhoGlobal("janela_sessao", "Mostrar/ocultar Tempo da sessao", MODS_V18_LMU, 20, "alternar", "mostrar_sessao"),
 )
 
 CHAVES_ALTERNAR = tuple(a.alvo for a in ATALHOS_LMU if a.tipo == "alternar")

@@ -31,7 +31,7 @@ def sessao(ir):
     ir.v.update({
         "WeekendInfo": {"TrackLength": "2.30 km", "TrackDisplayName": "Pista de Teste", "TrackNumTurns": 6, "Official": 0,
                         "WeekendOptions": {"IncidentLimit": "unlimited"}},
-        "DriverInfo": {"DriverCarIdx": 0, "Drivers": [{"CarIdx": 0, "UserName": "Piloto", "CarNumber": "7", "CarClassID": 1,
+        "DriverInfo": {"DriverCarIdx": 0, "Drivers": [{"CarIdx": 0, "UserName": "Adriano", "CarNumber": "7", "CarClassID": 1,
                        "CarClassShortName": "GT3", "CarScreenName": "Carro de Teste", "CarID": 99, "IRating": 2000}]},
         "SessionInfo": {"Sessions": [{"SessionNum": 0, "SessionType": "Practice"}]},
         "PlayerCarIdx": 0, "SessionNum": 0, "SessionUniqueID": 1, "IsOnTrack": True, "IsInGarage": False, "IsReplayPlaying": False,

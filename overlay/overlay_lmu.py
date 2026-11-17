@@ -62,7 +62,7 @@ from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 from ov_janela_lmu import JanelaClassificacaoLMU, JanelaClimaLMU, classe_classificacao      # classificacao com mais colunas (so no LMU)
 import ov_janelas_extra_lmu as extra_lmu              # janelas novas (energia, pneus, danos, alertas, stints, tendencia)
 
-VERSAO = "LMU 1.7.0 Glass/Sport (base iRacing 1.7.0)"
+VERSAO = "LMU 1.8.0 Glass/Sport (base iRacing 1.8.0)"
 NOME_JOGO = "Le Mans Ultimate"
 DEMO = "--demo" in sys.argv
 DIAGNOSTICO = "--diagnostico" in sys.argv
@@ -456,6 +456,8 @@ class TelemetriaLMU:
                               "box": c["box"], "ativo": True})
             dados["trafego"] = v15.montar_trafego(lista, meu["id"], comprimento, dados["velocidade"] / 3.6,
                                                   self._memoria_trafego, agora)
+            if base.ov_v18 is not None:                  # v1.8: carros de tras (alerta de ultrapassagem), diferenca = distancia / velocidade
+                dados["v18_atras"] = base.ov_v18.atras_por_distancia(lista, meu["id"], dados["velocidade"] / 3.6, comprimento)
         # minimapa: o LMU informa a posicao no mundo; o tracado e aprendido numa volta limpa
         chave = lmu.texto(info.mTrackName)
         if self.v15_mapa.chave != chave:
@@ -630,9 +632,31 @@ class TelemetriaLMU:
             calc.get("ritmo"), restante, registros)
 
     # -- janelas novas (v1.2) --------------------------------------------------------------------------------------
+    def _extra_v18(self):
+        return getattr(self, "_v18_extra", None) or {}
+
+    def _montar_extra_v18(self, info, scor, tele, concluidas):
+        """v1.8: tempo/voltas da sessao e, nos hipercarros, a bateria do sistema hibrido (mBatteryChargeFraction)."""
+        voltas = lmu.voltas_da_sessao(info.mMaxLaps)
+        restante = lmu.tempo_restante(info)
+        fim = float(info.mEndET)
+        atual = float(info.mCurrentET)
+        extra = {"restante": restante, "voltas_total": voltas,
+                 "voltas_rest": None if voltas is None else max(0, voltas - concluidas),
+                 "decorrido": atual if (0 < fim < 1.0e6 and math.isfinite(atual) and atual >= 0) else None}
+        estado = int(tele.mElectricBoostMotorState)                 # 0 = indisponivel, 1 = inativo, 2 = propulsao, 3 = regeneracao
+        carga = float(tele.mBatteryChargeFraction)
+        if estado > 0 and math.isfinite(carga) and 0.0 <= carga <= 1.0:
+            extra["hibrido"] = {"carga": carga, "deploy": None, "ativo": estado == 2}
+        return extra
+
     def _montar_extras(self, dados, snap, info, scor, tele, i_scor):
         concluidas = max(0, int(scor.mTotalLaps))
         na_box = bool(scor.mInPits)
+        try:
+            self._v18_extra = self._montar_extra_v18(info, scor, tele, concluidas)
+        except Exception:
+            base.registrar_erro("v1.8 (sessao e hibrido)")
         ve = lmu.energia_virtual_pct(tele)
         try:
             dados["lmu_energia"] = self._montar_energia(dados, tele, ve, concluidas, na_box)
@@ -1002,6 +1026,7 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
     garantir_arquivos_do_lmu()
     app = QApplication.instance() or QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
+    base.definir_icone_app(app, "WolfxRacing.Overlay.LMU")          # build an: icone WolfxRacing na barra de tarefas
     trava = trava_instancia_unica()
     if trava is None:
         QMessageBox.information(None, "Overlay LMU", "O overlay do LMU ja esta em execucao.\n\nProcure o icone azul "
@@ -1010,6 +1035,11 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
 
     semear_config()
     config = carregar_config_lmu()
+    if getattr(base, "ov_i18n", None) is not None:
+        try:
+            base.ov_i18n.definir_idioma(config.get("idioma", "auto"))
+        except Exception:
+            base.registrar_erro("idioma")
     if config_extra:
         config.update(config_extra)
     versoes = {"overlay": VERSAO, "nucleo": nucleo.VERSAO_NUCLEO, "python": sys.version.split()[0], "SO": sys.platform,
@@ -1024,6 +1054,11 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
     if config.get("tema_vidro", True) and config.get("tema_sport", False):
         config["tema_sport"] = False                  # Glass Fume e Sport sao excludentes (config antigo: vence o Glass Fume)
     base.definir_tema(config.get("tema_moderno", True), config.get("opacidade_fundo", 0.80), config.get("tema_sport", False), config.get("tema_vidro", True))
+    if base.ov_v18 is not None:
+        try:
+            base.ov_v18.aplicar_daltonismo(base, config.get("daltonismo", "padrao"))
+        except Exception:
+            base.registrar_erro("modo daltonico")
     base.JanelaBase.MULT_TAXA = 0.5 if config.get("economia_cpu") else 1.0
     if config.get("prioridade_baixa", True) and not DEMO and base.definir_prioridade_baixa(True):
         base.registrar_info("prioridade do processo do overlay: abaixo do normal")
@@ -1050,6 +1085,14 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
     janela_curvas = base.JanelaCurvas(config)
     janela_consumo = base.JanelaConsumo(config)
     janela_delta_trace = base.JanelaDeltaTrace(config)
+    classes_v18 = {}
+    if base.v18_janelas is not None:
+        try:
+            classes_v18 = base.v18_janelas.construir(base)
+        except Exception:
+            base.registrar_erro("v1.8 (janelas novas)")
+    janelas_v18 = [K(config) for K in classes_v18.values()]
+    servico_v18 = base.ov_v18.Servico(PASTA) if janelas_v18 else None
     janela_coach = base.JanelaCoach(config)
     janela_bandeiras = base.JanelaBandeiras(config)
     janela_trafego = base.JanelaTrafego(config)
@@ -1062,7 +1105,7 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
                janela_energia, janela_pneus, janela_danos, janela_alertas, janela_stints, janela_tendencia,
                janela_luz_abs, janela_luz_tc, janela_retorno, janela_estrategia, janela_curvas, janela_coach,
                janela_bandeiras, janela_trafego, janela_minimapa, janela_auxiliar, janela_contato, janela_pit,
-               janela_consumo, janela_delta_trace]
+               janela_consumo, janela_delta_trace] + janelas_v18
     for j in janelas:
         j.setWindowTitle("Overlay " + NOME_JOGO)
     visib = base.VisibilidadeAuto(bool(config.get("auto_modo", True)) and not DEMO)
@@ -1150,6 +1193,15 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
     def ao_margem(valor):
         config["margem_combustivel"] = float(valor)
         telemetria.margem_combustivel = float(valor)
+        base.salvar_config(config)
+
+    def ao_daltonismo(modo):
+        if base.ov_v18 is None:
+            return
+        base.ov_v18.aplicar_daltonismo(base, modo)
+        config["daltonismo"] = modo
+        for j in janelas:
+            j.update()
         base.salvar_config(config)
 
     def ao_alcance_g(valor):
@@ -1317,6 +1369,13 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
     adicionar("Mostrar Curvas (velocidade minima x melhor passagem)", config["mostrar_curvas"], alternar_janela(janela_curvas), chave="mostrar_curvas")
     adicionar("Mostrar Consumo por trecho (Burn Zones e Fuel Flow)", config["mostrar_consumo"], alternar_janela(janela_consumo), chave="mostrar_consumo")
     adicionar("Mostrar Delta Trace (tempo ganho/perdido ao longo da volta)", config["mostrar_delta_trace"], alternar_janela(janela_delta_trace), chave="mostrar_delta_trace")
+    for _j18 in janelas_v18:                                    # v1.8: um item de menu por janela nova
+        adicionar(getattr(_j18, "ROTULO_MENU", "Mostrar " + _j18.CHAVE), config[_j18.CHAVE_ATIVO], alternar_janela(_j18), chave=_j18.CHAVE_ATIVO)
+        if hasattr(_j18, "centralizar"):                          # build ap: Pedais do Coach pode ser centralizada na tela
+            _a_cent = QAction("   Centralizar na tela (horizontal)", menu)
+            _a_cent.triggered.connect(lambda _c=False, j=_j18: (j.centralizar(True, False), base.salvar_config(config)))
+            menu.addAction(_a_cent)
+    base.montar_menu_idioma(menu, config)
     adicionar("Mostrar Bandeiras (so aparece com bandeira)", config["mostrar_bandeiras"], alternar_janela(janela_bandeiras), chave="mostrar_bandeiras")
     adicionar("Mostrar Trafego de outras classes (so com carro por perto)", config["mostrar_trafego"], alternar_janela(janela_trafego), chave="mostrar_trafego")
     adicionar("Mostrar Minimapa rotativo", config["mostrar_minimapa"], alternar_janela(janela_minimapa), chave="mostrar_minimapa")
@@ -1344,7 +1403,7 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
         base.definir_tema(config.get("tema_moderno", True), config.get("opacidade_fundo", 0.80), config.get("tema_sport", False), config.get("tema_vidro", True))
         for j in janelas:
             j.recarregar_layout()
-    base.montar_menu_backup(menu, config, "lmu", "1.7.0", aplicar_backup)
+    base.montar_menu_backup(menu, config, "lmu", "1.8.0", aplicar_backup)
     base.montar_menu_amigos(menu, config)
     menu.addSeparator()
     adicionar("Visual moderno (desmarque para voltar ao visual classico)", config["tema_moderno"],
@@ -1453,7 +1512,7 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
                                       "salvar": lambda: base.salvar_config(config), "alcance_minimapa": trocar_raio,
                                       "importar_volante": base.importar_imagem_volante,
                                       "remover_volante": base.remover_imagem_volante,
-                                      "registrar_erro": base.registrar_erro})
+                                      "registrar_erro": base.registrar_erro, "daltonismo": ao_daltonismo})
     bandeja.show()
     if config.get("teclas_globais", True):
         iniciar_teclas()
@@ -1464,6 +1523,8 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
     def ciclo():
         try:
             dados = telemetria.ler()
+            if servico_v18 is not None:
+                base.ov_v18.alimentar(servico_v18, telemetria, dados, config, time.monotonic(), base.registrar_erro)
             mostrar = visib.atualizar(dados, time.monotonic(), edicao=not config["travado"])
             for j in janelas:
                 try:                        # um painel com erro nao impede a atualizacao dos demais

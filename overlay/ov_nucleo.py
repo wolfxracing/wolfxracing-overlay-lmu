@@ -728,6 +728,7 @@ VK_F13 = 0x7C                      # F13 = 0x7C ... F24 = 0x87
 MODS_JANELAS = MOD_CONTROL | MOD_ALT | MOD_SHIFT
 MODS_CONTROLES = MOD_CONTROL | MOD_ALT
 MODS_NOVAS = MOD_ALT                # 1.3.0: as 4 janelas novas (Luz ABS/TC, Retorno, Estrategia); o LMU usa Alt+Shift+F21..F24
+MODS_V18 = MOD_CONTROL            # 1.8.0 build ae: os 8 paineis da 1.8 usam Ctrl+F13..F20 (o LMU usa Shift+F13..F20; sem colisao com nenhum dos mapas)
 ID_BASE_TECLA = 0x4F00             # ids de atalho do overlay (faixa permitida: 0x0000 a 0xBFFF)
 INTERVALO_MIN_ATALHO = 0.20        # s: um mesmo atalho repetido antes disso e ignorado (toque duplo/rebote)
 
@@ -795,6 +796,15 @@ ATALHOS = (
     AtalhoGlobal("janela_consumo", "Mostrar/ocultar consumo por trecho (Burn Zones e Fuel Flow)", MODS_NOVAS, 17, "alternar", "mostrar_consumo"),
     AtalhoGlobal("janela_delta_trace", "Mostrar/ocultar Delta Trace", MODS_NOVAS, 18, "alternar", "mostrar_delta_trace"),
     AtalhoGlobal("janela_curvas", "Mostrar/ocultar Curvas (velocidade minima por curva)", MODS_NOVAS, 19, "alternar", "mostrar_curvas"),
+    # 1.8.0: paineis novos (Ctrl+F13..F20); acrescentados no fim, os codigos dos atalhos antigos nao mudam
+    AtalhoGlobal("janela_vazao", "Mostrar/ocultar Mapa de vazao", MODS_V18, 13, "alternar", "mostrar_vazao"),
+    AtalhoGlobal("janela_marcha", "Mostrar/ocultar Eficiencia por marcha", MODS_V18, 14, "alternar", "mostrar_marcha_efic"),
+    AtalhoGlobal("janela_destino", "Mostrar/ocultar Destino do combustivel", MODS_V18, 15, "alternar", "mostrar_destino"),
+    AtalhoGlobal("janela_digiflag", "Mostrar/ocultar Digiflag (bandeiras)", MODS_V18, 16, "alternar", "mostrar_digiflag"),
+    AtalhoGlobal("janela_ultrapassagem", "Mostrar/ocultar Alerta de ultrapassagem", MODS_V18, 17, "alternar", "mostrar_ultrapassagem"),
+    AtalhoGlobal("janela_calendario", "Mostrar/ocultar Calendario de corridas", MODS_V18, 18, "alternar", "mostrar_calendario"),
+    AtalhoGlobal("janela_hibrido", "Mostrar/ocultar Energia hibrida (Boost)", MODS_V18, 19, "alternar", "mostrar_hibrido"),
+    AtalhoGlobal("janela_sessao", "Mostrar/ocultar Tempo da sessao", MODS_V18, 20, "alternar", "mostrar_sessao"),
 )
 TIPOS_ATALHO = ("alternar", "perfil", "chamar")
 

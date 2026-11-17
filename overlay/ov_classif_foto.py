@@ -311,6 +311,35 @@ def enriquecer(classif, tipo_sessao, progresso, ref_padrao, variacao, paradas=No
 
 
 # --------------------------------------------------------------------------
+# Build am: sessao encerrada e bandeira quadriculada por carro
+# --------------------------------------------------------------------------
+BIT_QUADRICULADA = 0x0001        # irsdk_checkered (SessionFlags e CarIdxSessionFlags)
+
+
+def marcar_encerramento(classif, estado, flags_sessao, flags_carros):
+    """Marca classif['sessao_encerrada'] e, em cada linha, 'finalizou' (o carro recebeu a bandeira quadriculada).
+    Sessao encerrada = SessionState >= 5 (quadriculada/volta de resfriamento) ou o bit de quadriculada em SessionFlags.
+    Por carro: o bit de quadriculada em CarIdxSessionFlags. Sem esse dado, nenhum carro e marcado (so o fundo aparece)."""
+    try:
+        enc = (estado is not None and int(estado) >= 5) or (flags_sessao is not None and bool(int(flags_sessao) & BIT_QUADRICULADA))
+    except (TypeError, ValueError):
+        enc = False
+    classif["sessao_encerrada"] = bool(enc)
+    n = 0
+    for classe in classif.get("classes", []):
+        for l in classe.get("linhas", []):
+            v = None
+            try:
+                v = flags_carros[l.get("idx")] if flags_carros is not None else None
+                fin = bool(enc and v is not None and int(v) & BIT_QUADRICULADA)
+            except (TypeError, ValueError, IndexError, KeyError):
+                fin = False
+            l["finalizou"] = fin
+            n += fin
+    return enc, n
+
+
+# --------------------------------------------------------------------------
 # Dados de demonstracao (modo --demo e testes)
 # --------------------------------------------------------------------------
 def entradas_demo(classif, volta, tempo):
@@ -346,6 +375,7 @@ def entradas_demo(classif, volta, tempo):
 # Janela
 # --------------------------------------------------------------------------
 LARGURA_FOTO = 846
+EXTRA_BANDEIRA = 36        # build am: largura da coluna da bandeira quadriculada (so com a sessao encerrada)
 ALTURA_LINHA_FOTO = 26
 ALTURA_BARRA = 36
 ALTURA_ROTULOS = 18
@@ -397,6 +427,8 @@ def construir(base):
         def __init__(self, config):
             self._tx = textos(config.get("classificacao_idioma", "en"))
             self._assin_colunas = None
+            self._extra = 0                                  # build am: largura extra da coluna de bandeira quadriculada (so com a sessao encerrada)
+            self._pm_bandeira = None
             self._topo = ALTURA_TOPO_FOTO
             self._reserva = self.RESERVA_DIREITA
             self._aplicar_colunas(config)
@@ -446,7 +478,8 @@ def construir(base):
                 if g not in ocultas:
                     cursor += larg
             self.X = X
-            self._largura = self.LARGURA_BASE - sum(trecho[h][1] for h in ocultas)
+            self._largura_cols = self.LARGURA_BASE - sum(trecho[h][1] for h in ocultas)
+            self._largura = self._largura_cols + self._extra
             self._visiveis = frozenset(g for g, _r, _k in self.GRUPOS if g not in ocultas)
             self._cab_off = frozenset(cab)
             self._topo = (0 if "barra" in cab else ALTURA_BARRA) + (0 if "titulos" in cab else ALTURA_ROTULOS) + 6
@@ -462,12 +495,30 @@ def construir(base):
 
         def opcoes_mudaram(self):
             """Chamado pela Central depois de mudar uma opcao do painel: reaplica colunas, cabecalho, largura e altura."""
-            if self._aplicar_colunas():
+            mudou = self._aplicar_colunas()
+            mudou = self._atualizar_extra() or mudou
+            if mudou:
                 self._reajustar()
             self.update()
 
+        def _atualizar_extra(self):
+            """Coluna de bandeira quadriculada: so ocupa largura com a sessao encerrada, a opcao ligada e alguem que ja terminou."""
+            d = self.dados if isinstance(getattr(self, "dados", None), dict) else {}
+            classif = d.get("classificacao") if d.get("conectado") else None
+            quer = bool(classif and classif.get("sessao_encerrada") and self.config.get("classif_bandeira_coluna", True)
+                        and any(l.get("finalizou") for c in classif.get("classes", []) for l in c.get("linhas", [])))
+            extra = EXTRA_BANDEIRA if quer else 0
+            if extra == self._extra:
+                return False
+            self._extra = extra
+            self._largura = getattr(self, "_largura_cols", self._largura) + extra
+            return True
+
         def atualizar(self, dados):
-            if self._aplicar_colunas():
+            mudou = self._aplicar_colunas()
+            self.dados = dados
+            mudou = self._atualizar_extra() or mudou
+            if mudou:
                 self._reajustar()
             super().atualizar(dados)
 
@@ -494,6 +545,8 @@ def construir(base):
                 p.setFont(base.fonte(12))
                 p.drawText(self._retangulo_base(), Qt.AlignCenter, self._tx["sem_dados"])
                 return
+            if classif.get("sessao_encerrada") and self.config.get("classif_bandeira_fundo", True):
+                self._fundo_quadriculada(p)
             if "barra" not in self._cab_off:
                 self._barra(p, classif.get("cabecalho") or {})
             if "titulos" not in self._cab_off:
@@ -505,6 +558,54 @@ def construir(base):
                 for linha, salto in linhas:
                     self._linha_foto(p, y, linha, salto, QColor(*classe["cor"]))
                     y += ALTURA_LINHA_FOTO
+
+        # bandeira quadriculada (build am) ----------------------------------------------------
+        def _fundo_quadriculada(self, p):
+            """Bandeira quadriculada ondulada, bem suave, atras da tabela quando a sessao encerrou (desenhada uma vez e guardada)."""
+            from PySide6.QtCore import QPointF
+            from PySide6.QtGui import QLinearGradient, QPainter, QPixmap, QPolygonF
+            x0, y0 = self._largura_cols * 0.24, self._topo + 6
+            w, h = self._largura_cols * 0.58, max(40.0, self._altura_base - self._topo - 12)
+            chave = (round(w), round(h))
+            if self._pm_bandeira is None or self._pm_bandeira[0] != chave:
+                esc = 2.0
+                pm = QPixmap(int(w * esc), int(h * esc))
+                pm.fill(Qt.transparent)
+                q = QPainter(pm)
+                q.setRenderHint(QPainter.Antialiasing, True)
+                q.scale(esc, esc)
+                q.setPen(Qt.NoPen)
+                cel = 22.0
+                ond = lambda x: math.sin(x / 68.0) * 7.0 + 5.0
+                for r in range(int(h // cel) + 2):
+                    for c in range(int(w // cel) + 1):
+                        xa, xb, ya, yb = c * cel, (c + 1) * cel, r * cel, (r + 1) * cel
+                        q.setBrush(QColor(255, 255, 255, 40) if (r + c) % 2 == 0 else QColor(0, 0, 0, 70))
+                        q.drawPolygon(QPolygonF([QPointF(xa, ya + ond(xa)), QPointF(xb, ya + ond(xb)), QPointF(xb, yb + ond(xb)), QPointF(xa, yb + ond(xa))]))
+                q.setCompositionMode(QPainter.CompositionMode_DestinationIn)      # bordas esfumadas
+                g = QLinearGradient(0, 0, w, 0)
+                g.setColorAt(0.0, QColor(0, 0, 0, 0))
+                g.setColorAt(0.22, QColor(0, 0, 0, 255))
+                g.setColorAt(0.78, QColor(0, 0, 0, 255))
+                g.setColorAt(1.0, QColor(0, 0, 0, 0))
+                q.fillRect(0, 0, int(w), int(h), g)
+                q.end()
+                self._pm_bandeira = (chave, pm)
+            p.drawPixmap(QRectF(x0, y0, w, h), self._pm_bandeira[1], QRectF(self._pm_bandeira[1].rect()))
+
+        @staticmethod
+        def _celula_quadriculada(p, x, y, h):
+            """Marca de quem terminou: quadradinho de bandeira quadriculada (7 x 4 quadrados) ao lado da linha."""
+            lado = 4.0
+            ox, oy = x, y + (h - 4 * lado) / 2.0
+            p.setPen(Qt.NoPen)
+            for r in range(4):
+                for c in range(7):
+                    p.setBrush(QColor(245, 245, 245) if (r + c) % 2 == 0 else QColor(15, 15, 18))
+                    p.drawRect(QRectF(ox + c * lado, oy + r * lado, lado, lado))
+            p.setBrush(Qt.NoBrush)
+            p.setPen(QPen(QColor(255, 255, 255, 120), 1))
+            p.drawRect(QRectF(ox, oy, 7 * lado, 4 * lado))
 
         # barra superior ------------------------------------------------------------------
         def _barra(self, p, cab):
@@ -743,6 +844,9 @@ def construir(base):
                 else:
                     p.setPen(base.COR_VERDE if d["pb"] else texto)
                 p.drawText(QRectF(X["ultima"], y, 74, h), Qt.AlignRight | Qt.AlignVCenter, base.fmt_tempo(d["ultima"]))
+
+            if d.get("finalizou") and self._extra:                      # build am: bandeira quadriculada ao lado de quem terminou
+                self._celula_quadriculada(p, self._largura_cols + 2, y, h)
 
             # paradas e stint
             n = d.get("paradas")

@@ -1,0 +1,199 @@
+Grafico de acelerador e freio (na telemetria)¦Throttle and brake graph (in telemetry)¦Gráfico de acelerador y freno (en la telemetría)¦Gas- und Bremsdiagramm (in der Telemetrie)¦Graphique accélérateur et frein (dans la télémétrie)¦Grafico acceleratore e freno (nella telemetria)
+0.5 volta(s) de folga¦0.5 lap(s) of margin¦0.5 vuelta(s) de margen¦0.5 Runde(n) Reserve¦0.5 tour(s) de marge¦0.5 giro/i di margine
+12% do consumo (1.5x a media)¦12% of consumption (1.5x the average)¦12% del consumo (1.5x la media)¦12 % des Verbrauchs (1,5x der Durchschnitt)¦12 % de la consommation (1,5x la moyenne)¦12% del consumo (1,5x la media)
+ABERTA¦OPEN¦ABIERTA¦OFFEN¦OUVERTE¦APERTA
+ACABA¦ENDS¦TERMINA¦ENDE¦FIN¦FINE
+ADICIONAR¦ADD¦AÑADIR¦HINZUFÜGEN¦AJOUTER¦AGGIUNGI
+AGORA  L/h¦NOW  L/h¦AHORA  L/h¦JETZT  L/h¦MAINTENANT  L/h¦ORA  L/h
+AGUA¦WATER¦AGUA¦WASSER¦EAU¦ACQUA
+ALERTA DE CORRIDA¦RACE ALERT¦ALERTA DE CARRERA¦RENNWARNUNG¦ALERTE DE COURSE¦AVVISO DI GARA
+ALTO¦HIGH¦ALTO¦HOCH¦HAUT¦ALTO
+BAIXO¦LOW¦BAJO¦NIEDRIG¦BAS¦BASSO
+AO LADO¦BESIDE YOU¦AL LADO¦NEBEN DIR¦À CÔTÉ¦ACCANTO
+ATRAS¦BEHIND¦ATRÁS¦HINTEN¦DERRIÈRE¦DIETRO
+AUTOMÁTICOS¦AUTOMATIC¦AUTOMÁTICOS¦AUTOMATISCH¦AUTOMATIQUES¦AUTOMATICI
+BEST¦BEST¦BEST¦BEST¦BEST¦BEST
+Barra a fundo, parcial e solto¦Full, partial and released bar¦Barra a fondo, parcial y suelta¦Balken voll, teilweise und gelöst¦Barre à fond, partielle et relâchée¦Barra a fondo, parziale e rilasciata
+Barra superior¦Top bar¦Barra superior¦Obere Leiste¦Barre supérieure¦Barra superiore
+COACH¦COACH¦COACH¦COACH¦COACH¦COACH
+COMB¦FUEL¦COMB¦KRAFTST.¦CARB.¦CARB.
+COMB.¦FUEL¦COMB.¦KRAFTST.¦CARB.¦CARB.
+FUEL¦FUEL¦FUEL¦FUEL¦FUEL¦FUEL
+COLOCAR NA PARADA¦PUT IN THE STOP¦PONER EN LA PARADA¦IN DEN STOPP EINTRAGEN¦METTRE À L'ARRÊT¦METTI NELLA SOSTA
+COLOCAR NA V10¦PUT AT L10¦PONER EN V10¦AUF R10 SETZEN¦METTRE AU T10¦METTI AL G10
+Como chegam ao carro (calibrados)¦How they reach the car (calibrated)¦Cómo llegan al coche (calibrados)¦Wie sie das Auto erreichen (kalibriert)¦Comment ils arrivent à la voiture (calibrés)¦Come arrivano all'auto (calibrati)
+Como o pe pisa (cru)¦How the foot presses (raw)¦Cómo pisa el pie (crudo)¦Wie der Fuß tritt (roh)¦Comment le pied appuie (brut)¦Come preme il piede (grezzo)
+Os dois (mostra a calibracao)¦Both (shows the calibration)¦Ambos (muestra la calibración)¦Beide (zeigt die Kalibrierung)¦Les deux (montre l'étalonnage)¦Entrambi (mostra la calibrazione)
+DELTA¦DELTA¦DELTA¦DELTA¦DELTA¦DELTA
+DESG.¦WEAR¦DESG.¦VERSCHL.¦USURE¦USURA
+DISTÂNCIA ATÉ A TELA¦DISTANCE TO THE SCREEN¦DISTANCIA A LA PANTALLA¦ABSTAND ZUM BILDSCHIRM¦DISTANCE À L'ÉCRAN¦DISTANZA DALLO SCHERMO
+DRIVER¦DRIVER¦DRIVER¦DRIVER¦DRIVER¦DRIVER
+Diagonal¦Diagonal¦Diagonal¦Diagonal¦Diagonale¦Diagonale
+Diagonal lateral¦Side diagonal¦Diagonal lateral¦Seitliche Diagonale¦Diagonale latérale¦Diagonale laterale
+Deuteranopia¦Deuteranopia¦Deuteranopía¦Deuteranopie¦Deutéranopie¦Deuteranopia
+Protanopia¦Protanopia¦Protanopía¦Protanopie¦Protanopie¦Protanopia
+Tritanopia¦Tritanopia¦Tritanopía¦Tritanopie¦Tritanopie¦Tritanopia
+Dos olhos até o centro da tela (a tela central, no triplo).¦From the eyes to the center of the screen (the center screen, in a triple).¦De los ojos al centro de la pantalla (la pantalla central, en triple).¦Von den Augen bis zur Bildschirmmitte (der mittlere Bildschirm bei Triple).¦Des yeux au centre de l'écran (l'écran central, en triple).¦Dagli occhi al centro dello schermo (lo schermo centrale, nel triplo).
+Entre os cantos externos das laterais¦Between the outer corners of the side screens¦Entre las esquinas exteriores de las laterales¦Zwischen den äußeren Ecken der Seitenbildschirme¦Entre les coins extérieurs des écrans latéraux¦Tra gli angoli esterni degli schermi laterali
+Entre os cantos internos das laterais¦Between the inner corners of the side screens¦Entre las esquinas interiores de las laterales¦Zwischen den inneren Ecken der Seitenbildschirme¦Entre les coins intérieurs des écrans latéraux¦Tra gli angoli interni degli schermi laterali
+Estado (propulsão / regeneração)¦State (propulsion / regeneration)¦Estado (propulsión / regeneración)¦Zustand (Antrieb / Rekuperation)¦État (propulsion / régénération)¦Stato (propulsione / rigenerazione)
+ESTILO¦STYLE¦ESTILO¦STIL¦STYLE¦STILE
+English¦English¦English¦English¦English¦English
+Español¦Español¦Español¦Español¦Español¦Español
+Deutsch¦Deutsch¦Deutsch¦Deutsch¦Deutsch¦Deutsch
+Français¦Français¦Français¦Français¦Français¦Français
+Italiano¦Italiano¦Italiano¦Italiano¦Italiano¦Italiano
+Escolher imagem…¦Choose image…¦Elegir imagen…¦Bild auswählen…¦Choisir une image…¦Scegli immagine…
+Importar novo cronograma (PDF)…¦Import new schedule (PDF)…¦Importar nuevo calendario (PDF)…¦Neuen Zeitplan importieren (PDF)…¦Importer un nouveau calendrier (PDF)…¦Importa nuovo calendario (PDF)…
+Faixa de consumo por trecho¦Consumption band per section¦Franja de consumo por tramo¦Verbrauchsband pro Abschnitt¦Bande de consommation par secteur¦Fascia di consumo per tratto
+Faixas de RPM (cabeçalho e cores por célula)¦RPM bands (header and colors per cell)¦Franjas de RPM (cabecera y colores por celda)¦Drehzahlbereiche (Kopfzeile und Farben pro Zelle)¦Plages de régime (en-tête et couleurs par cellule)¦Fasce di giri (intestazione e colori per cella)
+Girar a imagem com o volante¦Rotate the image with the wheel¦Girar la imagen con el volante¦Bild mit dem Lenkrad drehen¦Faire tourner l'image avec le volant¦Ruota l'immagine con il volante
+Grade por faixa de RPM¦Grid by RPM band¦Cuadrícula por franja de RPM¦Raster nach Drehzahlbereich¦Grille par plage de régime¦Griglia per fascia di giri
+HISTORICO DE STINTS¦STINT HISTORY¦HISTORIAL DE STINTS¦STINT-VERLAUF¦HISTORIQUE DES RELAIS¦STORICO DEGLI STINT
+INCLINAÇÃO (~)¦SLOPE (~)¦PENDIENTE (~)¦STEIGUNG (~)¦PENTE (~)¦PENDENZA (~)
+Imagem do volante: volante desenhado (padrão)¦Wheel image: drawn wheel (default)¦Imagen del volante: volante dibujado (predeterminado)¦Lenkradbild: gezeichnetes Lenkrad (Standard)¦Image du volant : volant dessiné (par défaut)¦Immagine del volante: volante disegnato (predefinito)
+LADO DO ULTIMO IMPACTO¦SIDE OF THE LAST IMPACT¦LADO DEL ÚLTIMO IMPACTO¦SEITE DES LETZTEN AUFPRALLS¦CÔTÉ DU DERNIER IMPACT¦LATO DELL'ULTIMO IMPATTO
+LAST¦LAST¦LAST¦LAST¦LAST¦LAST
+LAYOUT DO PAINEL¦PANEL LAYOUT¦DISEÑO DEL PANEL¦PANEL-LAYOUT¦DISPOSITION DU PANNEAU¦LAYOUT DEL PANNELLO
+LARGUE COM CHUVA  ✓¦START IN THE WET  ✓¦SALGA CON LLUVIA  ✓¦MIT REGEN STARTEN  ✓¦PARTEZ SOUS LA PLUIE  ✓¦PARTI CON LA PIOGGIA  ✓
+PARA A LARGADA: TROQUE PARA CHUVA¦FOR THE START: SWITCH TO WETS¦PARA LA SALIDA: CAMBIE A LLUVIA¦FÜR DEN START: AUF REGEN WECHSELN¦POUR LE DÉPART : PASSEZ AUX PNEUS PLUIE¦PER LA PARTENZA: PASSA ALLE GOMME DA PIOGGIA
+PARA A CORRIDA¦FOR THE RACE¦PARA LA CARRERA¦FÜR DAS RENNEN¦POUR LA COURSE¦PER LA GARA
+Laterais diferentes da central¦Side screens different from the center¦Laterales distintas de la central¦Seitenbildschirme anders als der mittlere¦Écrans latéraux différents du central¦Schermi laterali diversi dal centrale
+Legenda de cores (mín. e máx.)¦Color legend (min and max)¦Leyenda de colores (mín. y máx.)¦Farblegende (Min. und Max.)¦Légende des couleurs (min. et max.)¦Legenda colori (min. e max.)
+Legenda inferior¦Bottom legend¦Leyenda inferior¦Untere Legende¦Légende inférieure¦Legenda inferiore
+Licença (SR)¦License (SR)¦Licencia (SR)¦Lizenz (SR)¦Licence (SR)¦Licenza (SR)
+Ligue e desligue os painéis, ajuste tamanho e aparência. Tudo se aplica na hora.¦Turn panels on and off, adjust size and appearance. Everything applies instantly.¦Active y desactive los paneles, ajuste tamaño y aspecto. Todo se aplica al instante.¦Panels ein- und ausschalten, Größe und Aussehen anpassen. Alles wirkt sofort.¦Activez et désactivez les panneaux, réglez la taille et l'apparence. Tout s'applique immédiatement.¦Attiva e disattiva i pannelli, regola dimensione e aspetto. Tutto si applica subito.
+Ligue ou desligue cada coluna e use as setas para mudar a ordem. A prévia ao lado muda na hora.¦Turn each column on or off and use the arrows to change the order. The preview beside it updates instantly.¦Active o desactive cada columna y use las flechas para cambiar el orden. La vista previa de al lado cambia al instante.¦Jede Spalte ein- oder ausschalten und mit den Pfeilen die Reihenfolge ändern. Die Vorschau daneben ändert sich sofort.¦Activez ou désactivez chaque colonne et utilisez les flèches pour changer l'ordre. L'aperçu à côté change immédiatement.¦Attiva o disattiva ogni colonna e usa le frecce per cambiare l'ordine. L'anteprima accanto cambia subito.
+Ligue ou desligue cada elemento. A prévia ao lado e a janela mudam na hora (a janela encolhe junto).¦Turn each element on or off. The preview beside it and the window update instantly (the window shrinks with it).¦Active o desactive cada elemento. La vista previa de al lado y la ventana cambian al instante (la ventana se encoge también).¦Jedes Element ein- oder ausschalten. Vorschau und Fenster ändern sich sofort (das Fenster schrumpft mit).¦Activez ou désactivez chaque élément. L'aperçu à côté et la fenêtre changent immédiatement (la fenêtre rétrécit aussi).¦Attiva o disattiva ogni elemento. L'anteprima accanto e la finestra cambiano subito (la finestra si riduce).
+Ligue um painel aqui; abra "Personalizar" para tamanho e opções com a prévia ao lado.¦Turn a panel on here; open "Customize" for size and options with the preview beside it.¦Active un panel aquí; abra "Personalizar" para tamaño y opciones con la vista previa al lado.¦Hier ein Panel einschalten; unter „Anpassen“ Größe und Optionen mit Vorschau daneben.¦Activez un panneau ici ; ouvrez « Personnaliser » pour la taille et les options avec l'aperçu à côté.¦Attiva un pannello qui; apri "Personalizza" per dimensione e opzioni con l'anteprima accanto.
+Local indefinido¦Undefined location¦Ubicación indefinida¦Ort nicht definiert¦Lieu non défini¦Posizione non definita
+MENOR É MELHOR¦LOWER IS BETTER¦MENOR ES MEJOR¦NIEDRIGER IST BESSER¦PLUS BAS EST MIEUX¦PIÙ BASSO È MEGLIO
+MIN km/h¦MIN km/h¦MÍN km/h¦MIN km/h¦MIN km/h¦MIN km/h
+MÉDIO¦AVERAGE¦MEDIO¦MITTEL¦MOYEN¦MEDIO
+Marcador da posição atual¦Current position marker¦Marcador de la posición actual¦Markierung der aktuellen Position¦Marqueur de la position actuelle¦Indicatore della posizione attuale
+Marcador do RPM atual¦Current RPM marker¦Marcador del RPM actual¦Markierung der aktuellen Drehzahl¦Marqueur du régime actuel¦Indicatore dei giri attuali
+MEDIDAS COM FITA (para conferir o ângulo)¦TAPE MEASUREMENTS (to check the angle)¦MEDIDAS CON CINTA (para comprobar el ángulo)¦MESSUNGEN MIT BAND (zur Winkelprüfung)¦MESURES AU RUBAN (pour vérifier l'angle)¦MISURE CON NASTRO (per verificare l'angolo)
+Melhor, média e pior¦Best, average and worst¦Mejor, media y peor¦Beste, Durchschnitt und schlechteste¦Meilleur, moyen et pire¦Migliore, media e peggiore
+Melhor:¦Best:¦Mejor:¦Beste:¦Meilleur :¦Migliore:
+Ultima:¦Last:¦Última:¦Letzte:¦Dernier :¦Ultimo:
+Otima:¦Optimal:¦Óptima:¦Optimal:¦Optimal :¦Ottimale:
+Setor 1:¦Sector 1:¦Sector 1:¦Sektor 1:¦Secteur 1 :¦Settore 1:
+Moldura por emenda (mm)¦Bezel per seam (mm)¦Marco por unión (mm)¦Rahmen pro Naht (mm)¦Cadre par jonction (mm)¦Cornice per giunzione (mm)
+Mostrar o número em cada célula¦Show the number in each cell¦Mostrar el número en cada celda¦Zahl in jeder Zelle anzeigen¦Afficher le nombre dans chaque cellule¦Mostra il numero in ogni cella
+Negativo = telas sobrepostas (kit sem moldura).¦Negative = overlapping screens (bezel-less kit).¦Negativo = pantallas superpuestas (kit sin marco).¦Negativ = überlappende Bildschirme (rahmenloses Kit).¦Négatif = écrans superposés (kit sans cadre).¦Negativo = schermi sovrapposti (kit senza cornice).
+No triplo, as laterais ficam à mesma distância dos olhos, viradas para você.¦In a triple, the side screens sit at the same distance from the eyes, angled toward you.¦En triple, las laterales quedan a la misma distancia de los ojos, orientadas hacia usted.¦Bei Triple stehen die seitlichen Bildschirme im gleichen Abstand zu den Augen und zu Ihnen gedreht.¦En triple, les écrans latéraux sont à la même distance des yeux, tournés vers vous.¦Nel triplo, gli schermi laterali sono alla stessa distanza dagli occhi, orientati verso di te.
+No standings data¦No standings data¦Sin datos de clasificación¦Keine Wertungsdaten¦Aucune donnée de classement¦Nessun dato di classifica
+Número e classe¦Number and class¦Número y clase¦Nummer und Klasse¦Numéro et classe¦Numero e classe
+O QUE DIGITAR NO JOGO¦WHAT TO ENTER IN THE GAME¦QUÉ ESCRIBIR EN EL JUEGO¦WAS IM SPIEL EINZUGEBEN IST¦QUOI SAISIR DANS LE JEU¦COSA INSERIRE NEL GIOCO
+NUMERAÇÃO DOS PILOTOS¦DRIVER NUMBERING¦NUMERACIÓN DE LOS PILOTOS¦FAHRERNUMMERN¦NUMÉROTATION DES PILOTES¦NUMERAZIONE DEI PILOTI
+OLEO¦OIL¦ACEITE¦ÖL¦HUILE¦OLIO
+Oleo (temp.)¦Oil (temp.)¦Aceite (temp.)¦Öl (Temp.)¦Huile (temp.)¦Olio (temp.)
+OVERLAY IRACING¦IRACING OVERLAY¦OVERLAY IRACING¦IRACING-OVERLAY¦OVERLAY IRACING¦OVERLAY IRACING
+OVERLAY LE MANS ULTIMATE¦LE MANS ULTIMATE OVERLAY¦OVERLAY LE MANS ULTIMATE¦LE-MANS-ULTIMATE-OVERLAY¦OVERLAY LE MANS ULTIMATE¦OVERLAY LE MANS ULTIMATE
+OVERLAY LMU¦LMU OVERLAY¦OVERLAY LMU¦LMU-OVERLAY¦OVERLAY LMU¦OVERLAY LMU
+Overlay Le Mans Ultimate¦Le Mans Ultimate Overlay¦Overlay Le Mans Ultimate¦Le-Mans-Ultimate-Overlay¦Overlay Le Mans Ultimate¦Overlay Le Mans Ultimate
+Overlay iRacing¦iRacing Overlay¦Overlay iRacing¦iRacing-Overlay¦Overlay iRacing¦Overlay iRacing
+Os blocos por curva e o desenho da pista aparecem nos dois layouts.¦Per-corner blocks and the track drawing appear in both layouts.¦Los bloques por curva y el dibujo de la pista aparecen en ambos diseños.¦Kurvenblöcke und Streckenzeichnung erscheinen in beiden Layouts.¦Les blocs par virage et le tracé du circuit apparaissent dans les deux dispositions.¦I blocchi per curva e il disegno della pista compaiono in entrambi i layout.
+Os blocos por curva aparecem depois que a janela Curvas mapear a pista (1 volta limpa)¦Per-corner blocks appear after the Corners window maps the track (1 clean lap)¦Los bloques por curva aparecen cuando la ventana Curvas mapea la pista (1 vuelta limpia)¦Die Kurvenblöcke erscheinen, nachdem das Fenster Kurven die Strecke erfasst hat (1 saubere Runde)¦Les blocs par virage apparaissent après la cartographie de la piste par la fenêtre Virages (1 tour propre)¦I blocchi per curva compaiono dopo che la finestra Curve ha mappato la pista (1 giro pulito)
+Os carros logo à frente e atrás de você na pista, com diferença de tempo.¦The cars right ahead of and behind you on track, with time gaps.¦Los coches justo delante y detrás de usted en pista, con diferencia de tiempo.¦Die Autos direkt vor und hinter Ihnen auf der Strecke, mit Zeitabstand.¦Les voitures juste devant et derrière vous sur la piste, avec l'écart de temps.¦Le auto subito davanti e dietro di te in pista, con il distacco in tempo.
+PIORANDO¦WORSENING¦EMPEORANDO¦VERSCHLECHTERT SICH¦EN DÉGRADATION¦IN PEGGIORAMENTO
+PIT LANE¦PIT LANE¦PIT LANE¦BOXENGASSE¦PIT LANE¦PIT LANE
+POSIÇÕES¦POSITIONS¦POSICIONES¦POSITIONEN¦POSITIONS¦POSIZIONI
+PARCELA¦SHARE¦PARTE¦ANTEIL¦PART¦QUOTA
+PARE / CEDA / LIVRE ao voltar para a pista.  Aparece sozinho quando você está fora da pista.¦STOP / YIELD / CLEAR when rejoining the track.  Appears on its own when you are off track.¦PARE / CEDA / LIBRE al volver a la pista.  Aparece solo cuando está fuera de pista.¦STOPP / VORFAHRT / FREI beim Zurückkehren auf die Strecke.  Erscheint von selbst, wenn Sie neben der Strecke sind.¦STOP / CÉDEZ / LIBRE au retour en piste.  Apparaît seul quand vous êtes hors piste.¦STOP / DAI PRECEDENZA / LIBERO al rientro in pista.  Appare da solo quando sei fuori pista.
+Painel colorido com a bandeira em vigor: verde, amarela, azul, branca, quadriculada...¦Colored panel with the current flag: green, yellow, blue, white, checkered...¦Panel de color con la bandera vigente: verde, amarilla, azul, blanca, a cuadros...¦Farbiges Panel mit der aktuellen Flagge: grün, gelb, blau, weiß, Zielflagge...¦Panneau coloré avec le drapeau en vigueur : vert, jaune, bleu, blanc, à damier...¦Pannello colorato con la bandiera in vigore: verde, gialla, blu, bianca, a scacchi...
+Paradas no box¦Pit stops¦Paradas en boxes¦Boxenstopps¦Arrêts aux stands¦Soste ai box
+Pneu = camada interna (mais proxima do MFD do jogo; ajustavel¦Tire = inner layer (closest to the game's MFD; adjustable¦Neumático = capa interior (más cercana al MFD del juego; ajustable¦Reifen = innere Schicht (am nächsten am MFD des Spiels; einstellbar¦Pneu = couche interne (la plus proche du MFD du jeu ; réglable¦Gomma = strato interno (il più vicino all'MFD del gioco; regolabile
+Piscar com a bateria abaixo de 15%¦Blink when the battery is below 15%¦Parpadear con la batería por debajo del 15%¦Blinken, wenn die Batterie unter 15 % liegt¦Clignoter quand la batterie est sous 15 %¦Lampeggia con batteria sotto il 15%
+Posição escrita dentro da bolinha de cada carro¦Position written inside each car's dot¦Posición escrita dentro del punto de cada coche¦Position im Punkt jedes Autos¦Position écrite dans la pastille de chaque voiture¦Posizione scritta dentro il pallino di ogni auto
+Posição na classe e faixa da classe¦Class position and class stripe¦Posición en la clase y franja de la clase¦Klassenposition und Klassenstreifen¦Position dans la classe et bandeau de classe¦Posizione in classe e banda della classe
+Preenche os campos com uma configuração comum; depois ajuste às suas medidas.¦Fills the fields with a common setup; then adjust to your measurements.¦Rellena los campos con una configuración común; luego ajuste a sus medidas.¦Füllt die Felder mit einer üblichen Konfiguration; danach an Ihre Maße anpassen.¦Remplit les champs avec une configuration courante ; ajustez ensuite à vos mesures.¦Compila i campi con una configurazione comune; poi regola alle tue misure.
+Prévia com dados de exemplo. Com o jogo aberto, o painel mostra os dados reais.¦Preview with sample data. With the game open, the panel shows real data.¦Vista previa con datos de ejemplo. Con el juego abierto, el panel muestra los datos reales.¦Vorschau mit Beispieldaten. Bei geöffnetem Spiel zeigt das Panel die echten Daten.¦Aperçu avec des données d'exemple. Avec le jeu ouvert, le panneau affiche les données réelles.¦Anteprima con dati di esempio. Con il gioco aperto, il pannello mostra i dati reali.
+Pulsar na hora de trocar¦Pulse when it is time to switch¦Pulsar a la hora de cambiar¦Pulsieren, wenn es Zeit zum Wechseln ist¦Pulser quand il est temps de changer¦Pulsa quando è ora di cambiare
+QUALIFICACAO EM¦QUALIFYING IN¦CLASIFICACIÓN EN¦QUALIFYING IN¦QUALIFICATIONS DANS¦QUALIFICA TRA
+RACE¦RACE¦RACE¦RACE¦RACE¦RACE
+REABAST.¦REFUEL¦REPOSTAJE¦NACHTANKEN¦RAVITAIL.¦RIFORN.
+RECARREGANDO/PARADO¦RECHARGING/STOPPED¦RECARGANDO/PARADO¦LÄDT/STEHT¦RECHARGE/ARRÊTÉ¦RICARICA/FERMO
+REPARO OBRIGATORIO¦MANDATORY REPAIR¦REPARACIÓN OBLIGATORIA¦PFLICHTREPARATUR¦RÉPARATION OBLIGATOIRE¦RIPARAZIONE OBBLIGATORIA
+REPARO OBRIGATÓRIO¦MANDATORY REPAIR¦REPARACIÓN OBLIGATORIA¦PFLICHTREPARATUR¦RÉPARATION OBLIGATOIRE¦RIPARAZIONE OBBLIGATORIA
+REPARO OPCIONAL¦OPTIONAL REPAIR¦REPARACIÓN OPCIONAL¦OPTIONALE REPARATUR¦RÉPARATION FACULTATIVE¦RIPARAZIONE OPZIONALE
+REPAROS RAPIDOS¦QUICK REPAIRS¦REPARACIONES RÁPIDAS¦SCHNELLREPARATUREN¦RÉPARATIONS RAPIDES¦RIPARAZIONI RAPIDE
+RESTA¦LEFT¦QUEDA¦BLEIBT¦RESTE¦RESTA
+RESTAM¦LEFT¦QUEDAN¦BLEIBEN¦RESTENT¦RESTANO
+RESULTADO¦RESULT¦RESULTADO¦ERGEBNIS¦RÉSULTAT¦RISULTATO
+RITMO¦PACE¦RITMO¦TEMPO¦RYTHME¦RITMO
+RITMO (5 ÚLT.)¦PACE (LAST 5)¦RITMO (5 ÚLT.)¦TEMPO (LETZTE 5)¦RYTHME (5 DERN.)¦RITMO (ULT. 5)
+RITMO (ULT. 5 LIMPAS)¦PACE (LAST 5 CLEAN)¦RITMO (ÚLT. 5 LIMPIAS)¦TEMPO (LETZTE 5 SAUBERE)¦RYTHME (5 DERN. PROPRES)¦RITMO (ULT. 5 PULITI)
+RPM máximo observado¦Maximum observed RPM¦RPM máximo observado¦Maximal beobachtete Drehzahl¦Régime maximal observé¦Giri massimi osservati
+Radar¦Radar¦Radar¦Radar¦Radar¦Radar
+Refazer o mapa desta pista¦Redo this track's map¦Rehacer el mapa de esta pista¦Karte dieser Strecke neu erstellen¦Refaire la carte de ce circuit¦Rifai la mappa di questa pista
+Ritmo ideal estimado (soma dos melhores trechos)¦Estimated ideal pace (sum of the best sections)¦Ritmo ideal estimado (suma de los mejores tramos)¦Geschätztes ideales Tempo (Summe der besten Abschnitte)¦Rythme idéal estimé (somme des meilleurs secteurs)¦Ritmo ideale stimato (somma dei migliori tratti)
+Ritmo, inclinação, próxima e consistência¦Pace, slope, next and consistency¦Ritmo, pendiente, próxima y consistencia¦Tempo, Steigung, nächste und Konsistenz¦Rythme, pente, prochain et régularité¦Ritmo, pendenza, prossimo e costanza
+Rodapé (pior pneu e origem dos dados)¦Footer (worst tire and data source)¦Pie (peor neumático y origen de los datos)¦Fußzeile (schlechtester Reifen und Datenquelle)¦Pied (pire pneu et source des données)¦Piè di pagina (gomma peggiore e origine dei dati)
+Rodapé (volta e tempo restante)¦Footer (lap and time remaining)¦Pie (vuelta y tiempo restante)¦Fußzeile (Runde und Restzeit)¦Pied (tour et temps restant)¦Piè di pagina (giro e tempo rimanente)
+SECO PEDIDO NOS BOXES¦DRY REQUESTED IN THE PITS¦SECO PEDIDO EN BOXES¦TROCKEN IN DER BOX ANGEFORDERT¦SEC DEMANDÉ AUX STANDS¦ASCIUTTO RICHIESTO AI BOX
+CHUVA PEDIDO NOS BOXES¦WET REQUESTED IN THE PITS¦LLUVIA PEDIDA EN BOXES¦REGEN IN DER BOX ANGEFORDERT¦PLUIE DEMANDÉE AUX STANDS¦PIOGGIA RICHIESTA AI BOX
+SEM JANELA¦NO WINDOW¦SIN VENTANA¦KEIN FENSTER¦PAS DE FENÊTRE¦NESSUNA FINESTRA
+SEM PARADA¦NO STOP¦SIN PARADA¦KEIN STOPP¦PAS D'ARRÊT¦NESSUNA SOSTA
+STINT¦STINT¦STINT¦STINT¦RELAIS¦STINT
+Selo de estado¦Status badge¦Sello de estado¦Statusabzeichen¦Badge d'état¦Sigillo di stato
+Sem cronograma carregado. Use o botão acima para importar o PDF Season Schedule do iRacing.¦No schedule loaded. Use the button above to import the iRacing Season Schedule PDF.¦Sin calendario cargado. Use el botón de arriba para importar el PDF Season Schedule de iRacing.¦Kein Zeitplan geladen. Verwenden Sie die Schaltfläche oben, um das iRacing-Season-Schedule-PDF zu importieren.¦Aucun calendrier chargé. Utilisez le bouton ci-dessus pour importer le PDF Season Schedule d'iRacing.¦Nessun calendario caricato. Usa il pulsante sopra per importare il PDF Season Schedule di iRacing.
+Sem stints ainda (um stint comeca na saida dos boxes)¦No stints yet (a stint starts when leaving the pits)¦Aún sin stints (un stint empieza al salir de boxes)¦Noch keine Stints (ein Stint beginnt beim Verlassen der Box)¦Pas encore de relais (un relais commence à la sortie des stands)¦Ancora nessuno stint (uno stint inizia all'uscita dai box)
+Sem referência do Coach para esta pista e carro.\nDirija uma volta limpa para gravar.¦No Coach reference for this track and car.\nDrive a clean lap to record.¦Sin referencia del Coach para esta pista y coche.\nConduzca una vuelta limpia para grabar.¦Keine Coach-Referenz für diese Strecke und dieses Auto.\nFahren Sie eine saubere Runde zur Aufzeichnung.¦Aucune référence du Coach pour ce circuit et cette voiture.\nFaites un tour propre pour enregistrer.¦Nessun riferimento del Coach per questa pista e auto.\nGuida un giro pulito per registrare.
+SÓ ACELERADOR PLENO¦FULL THROTTLE ONLY¦SOLO ACELERADOR A FONDO¦NUR VOLLGAS¦PLEIN GAZ SEULEMENT¦SOLO ACCELERATORE PIENO
+Só aparecer com carro por perto¦Only appear with a car nearby¦Aparecer solo con un coche cerca¦Nur bei Auto in der Nähe anzeigen¦N'apparaître qu'avec une voiture proche¦Appari solo con un'auto vicina
+Só aparecer quando houver alerta¦Only appear when there is an alert¦Aparecer solo cuando haya alerta¦Nur bei Warnung anzeigen¦N'apparaître qu'en cas d'alerte¦Appari solo quando c'è un avviso
+TELA¦SCREEN¦PANTALLA¦BILDSCHIRM¦ÉCRAN¦SCHERMO
+TELAS¦SCREENS¦PANTALLAS¦BILDSCHIRME¦ÉCRANS¦SCHERMI
+TEMPO¦TIME¦TIEMPO¦ZEIT¦TEMPS¦TEMPO
+TEMPO ATÉ ACABAR¦TIME TO FINISH¦TIEMPO HASTA EL FINAL¦ZEIT BIS ZUM ENDE¦TEMPS AVANT LA FIN¦TEMPO ALLA FINE
+VOLTAS ATÉ ACABAR¦LAPS TO FINISH¦VUELTAS HASTA EL FINAL¦RUNDEN BIS ZUM ENDE¦TOURS AVANT LA FIN¦GIRI ALLA FINE
+TENDENCIA DE RITMO¦PACE TREND¦TENDENCIA DE RITMO¦PACE-TREND¦TENDANCE DE RYTHME¦TENDENZA DEL RITMO
+TENDENCIA DO STINT¦STINT TREND¦TENDENCIA DEL STINT¦STINT-TREND¦TENDANCE DU RELAIS¦TENDENZA DELLO STINT
+TRAIL BRAKING¦TRAIL BRAKING¦TRAIL BRAKING¦TRAIL BRAKING¦TRAIL BRAKING¦TRAIL BRAKING
+TRECHOS DE MAIOR CONSUMO (indicativo, nao e economia)¦HIGHEST-CONSUMPTION SECTIONS (indicative, not savings)¦TRAMOS DE MAYOR CONSUMO (indicativo, no es ahorro)¦ABSCHNITTE MIT HÖCHSTEM VERBRAUCH (Richtwert, keine Einsparung)¦SECTEURS À PLUS FORTE CONSOMMATION (indicatif, pas une économie)¦TRATTI A MAGGIOR CONSUMO (indicativo, non è risparmio)
+Tabela por faixa de acelerador e RPM¦Table by throttle band and RPM¦Tabla por franja de acelerador y RPM¦Tabelle nach Gas- und Drehzahlbereich¦Tableau par plage d'accélérateur et régime¦Tabella per fascia di acceleratore e giri
+Tamanho da imagem: {#}%¦Image size: {#}%¦Tamaño de la imagen: {#}%¦Bildgröße: {#} %¦Taille de l'image : {#} %¦Dimensione immagine: {#}%
+Teclas de atalho para o Stream Deck (Ctrl+Alt+F13...F24 e Alt+F13...F16)¦Hotkeys for the Stream Deck (Ctrl+Alt+F13...F24 and Alt+F13...F16)¦Teclas de acceso rápido para el Stream Deck (Ctrl+Alt+F13...F24 y Alt+F13...F16)¦Tastenkürzel für das Stream Deck (Strg+Alt+F13...F24 und Alt+F13...F16)¦Raccourcis clavier pour le Stream Deck (Ctrl+Alt+F13...F24 et Alt+F13...F16)¦Tasti di scelta rapida per lo Stream Deck (Ctrl+Alt+F13...F24 e Alt+F13...F16)
+Teclas de atalho para o Stream Deck (Ctrl+Shift+F13...F24 e Alt+Shift+F13...F24)¦Hotkeys for the Stream Deck (Ctrl+Shift+F13...F24 and Alt+Shift+F13...F24)¦Teclas de acceso rápido para el Stream Deck (Ctrl+Shift+F13...F24 y Alt+Shift+F13...F24)¦Tastenkürzel für das Stream Deck (Strg+Umschalt+F13...F24 und Alt+Umschalt+F13...F24)¦Raccourcis clavier pour le Stream Deck (Ctrl+Maj+F13...F24 et Alt+Maj+F13...F24)¦Tasti di scelta rapida per lo Stream Deck (Ctrl+Shift+F13...F24 e Alt+Shift+F13...F24)
+Tempo decorrido / total¦Elapsed / total time¦Tiempo transcurrido / total¦Verstrichene / Gesamtzeit¦Temps écoulé / total¦Tempo trascorso / totale
+Tempo ganho ou perdido ao longo da volta contra a melhor volta limpa da sessão.¦Time gained or lost along the lap against the session's best clean lap.¦Tiempo ganado o perdido a lo largo de la vuelta frente a la mejor vuelta limpia de la sesión.¦Gewonnene oder verlorene Zeit über die Runde gegenüber der besten sauberen Runde der Sitzung.¦Temps gagné ou perdu sur le tour par rapport au meilleur tour propre de la session.¦Tempo guadagnato o perso lungo il giro rispetto al miglior giro pulito della sessione.
+Tempo ou voltas restantes com barra de progresso.¦Time or laps remaining with a progress bar.¦Tiempo o vueltas restantes con barra de progreso.¦Verbleibende Zeit oder Runden mit Fortschrittsbalken.¦Temps ou tours restants avec barre de progression.¦Tempo o giri rimanenti con barra di avanzamento.
+Tipo da sessão (RACE, QUALY...)¦Session type (RACE, QUALY...)¦Tipo de sesión (RACE, QUALY...)¦Sitzungstyp (RACE, QUALY...)¦Type de session (RACE, QUALY...)¦Tipo di sessione (RACE, QUALY...)
+Todos os carros por posição e classe, com SR, iRating e posições ganhas.¦All cars by position and class, with SR, iRating and positions gained.¦Todos los coches por posición y clase, con SR, iRating y posiciones ganadas.¦Alle Autos nach Position und Klasse, mit SR, iRating und gewonnenen Positionen.¦Toutes les voitures par position et classe, avec SR, iRating et places gagnées.¦Tutte le auto per posizione e classe, con SR, iRating e posizioni guadagnate.
+Traçado da pista com todos os carros na cor da classe.¦Track layout with all cars in the class color.¦Trazado de la pista con todos los coches en el color de la clase.¦Streckenverlauf mit allen Autos in der Klassenfarbe.¦Tracé du circuit avec toutes les voitures dans la couleur de la classe.¦Tracciato della pista con tutte le auto nel colore della classe.
+Trecho da pista ao seu redor girando com o carro sempre para cima.¦The track section around you, rotating with the car always pointing up.¦El tramo de pista a su alrededor girando con el coche siempre hacia arriba.¦Der Streckenabschnitt um Sie herum, drehend, das Auto zeigt immer nach oben.¦Le tronçon de piste autour de vous, qui tourne avec la voiture toujours vers le haut.¦Il tratto di pista attorno a te, che ruota con l'auto sempre rivolta verso l'alto.
+Trilha da posição recente¦Recent position trail¦Rastro de la posición reciente¦Spur der letzten Position¦Traînée de la position récente¦Scia della posizione recente
+Título e consumo agora¦Title and current consumption¦Título y consumo ahora¦Titel und aktueller Verbrauch¦Titre et consommation actuelle¦Titolo e consumo attuale
+Título e contador¦Title and counter¦Título y contador¦Titel und Zähler¦Titre et compteur¦Titolo e contatore
+Título e pista/carro¦Title and track/car¦Título y pista/coche¦Titel und Strecke/Auto¦Titre et circuit/voiture¦Titolo e pista/auto
+Título e referência¦Title and reference¦Título y referencia¦Titel und Referenz¦Titre et référence¦Titolo e riferimento
+Título e stint¦Title and stint¦Título y stint¦Titel und Stint¦Titre et relais¦Titolo e stint
+VAZÃO MÉDIA POR CÉLULA¦AVERAGE FLOW PER CELL¦CAUDAL MEDIO POR CELDA¦MITTLERER DURCHFLUSS PRO ZELLE¦DÉBIT MOYEN PAR CELLULE¦PORTATA MEDIA PER CELLA
+VIDA¦LIFE¦VIDA¦LEBEN¦VIE¦VITA
+VOCE¦YOU¦USTED¦SIE¦VOUS¦TU
+VOLANTE¦WHEEL¦VOLANTE¦LENKRAD¦VOLANT¦VOLANTE
+VS MELHOR¦VS BEST¦VS MEJOR¦VS BESTE¦VS MEILLEUR¦VS MIGLIORE
+VS MELHOR VOLTA¦VS BEST LAP¦VS MEJOR VUELTA¦VS BESTE RUNDE¦VS MEILLEUR TOUR¦VS MIGLIOR GIRO
+Velocidade mínima em cada curva contra a sua melhor passagem.¦Minimum speed in each corner against your best pass.¦Velocidad mínima en cada curva frente a su mejor paso.¦Mindestgeschwindigkeit in jeder Kurve gegenüber Ihrer besten Passage.¦Vitesse minimale dans chaque virage par rapport à votre meilleur passage.¦Velocità minima in ogni curva rispetto al tuo miglior passaggio.
+Volta anterior¦Previous lap¦Vuelta anterior¦Vorherige Runde¦Tour précédent¦Giro precedente
+Volta anterior (rodapé)¦Previous lap (footer)¦Vuelta anterior (pie)¦Vorherige Runde (Fußzeile)¦Tour précédent (pied)¦Giro precedente (piè di pagina)
+Volta anterior (tracejada)¦Previous lap (dashed)¦Vuelta anterior (discontinua)¦Vorherige Runde (gestrichelt)¦Tour précédent (pointillé)¦Giro precedente (tratteggiata)
+Volta atual / total¦Current / total lap¦Vuelta actual / total¦Aktuelle / gesamte Runde¦Tour actuel / total¦Giro attuale / totale
+Voltar ao desenhado¦Back to the drawn one¦Volver al dibujado¦Zurück zum gezeichneten¦Revenir au dessiné¦Torna al disegnato
+Voltas do stint¦Stint laps¦Vueltas del stint¦Stint-Runden¦Tours du relais¦Giri dello stint
+WolfxRacing · Configurações do overlay ({})¦WolfxRacing · Overlay settings ({})¦WolfxRacing · Configuración del overlay ({})¦WolfxRacing · Overlay-Einstellungen ({})¦WolfxRacing · Paramètres de l'overlay ({})¦WolfxRacing · Impostazioni dell'overlay ({})
+apagado¦off¦apagado¦aus¦éteint¦spento
+estavel¦stable¦estable¦stabil¦stable¦stabile
+batida¦hit¦golpe¦Treffer¦choc¦colpo
+custom¦custom¦personalizado¦benutzerdefiniert¦personnalisé¦personalizzato
+agora¦now¦ahora¦jetzt¦maintenant¦ora
+ex.: porsche, mx-5¦e.g.: porsche, mx-5¦ej.: porsche, mx-5¦z. B.: porsche, mx-5¦ex. : porsche, mx-5¦es.: porsche, mx-5
+ex.: spa, monza, daytona¦e.g.: spa, monza, daytona¦ej.: spa, monza, daytona¦z. B.: spa, monza, daytona¦ex. : spa, monza, daytona¦es.: spa, monza, daytona
+cumpra nos boxes conforme as regras da sessao¦complete in the pits according to the session rules¦cumpla en boxes según las reglas de la sesión¦in der Box gemäß den Sitzungsregeln erledigen¦à effectuer aux stands selon les règles de la session¦da svolgere ai box secondo le regole della sessione
+dano confirmado pelo reparo¦damage confirmed by the repair¦daño confirmado por la reparación¦Schaden durch Reparatur bestätigt¦dommage confirmé par la réparation¦danno confermato dalla riparazione
+ha bandeira amarela local; reduza e nao ultrapasse¦there is a local yellow flag; slow down and do not overtake¦hay bandera amarilla local; reduzca y no adelante¦lokale Gelbe Flagge; verlangsamen und nicht überholen¦drapeau jaune local ; ralentissez et ne dépassez pas¦c'è una bandiera gialla locale; rallenta e non sorpassare
+ha {} min¦{} min ago¦hace {} min¦vor {} Min.¦il y a {} min¦{} min fa
+ate {} g¦up to {} g¦hasta {} g¦bis {} g¦jusqu'à {} g¦fino a {} g
+em {} min {} s¦in {} min {} s¦en {} min {} s¦in {} Min. {} s¦dans {} min {} s¦tra {} min {} s
+abaixo: esta volta¦below: this lap¦abajo: esta vuelta¦unten: diese Runde¦en bas : ce tour¦sotto: questo giro

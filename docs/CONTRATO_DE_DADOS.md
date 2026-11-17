@@ -54,6 +54,7 @@ O adaptador **envolve** as classes de leitura já testadas (`Telemetria` e `Tele
 | `curvas` | dict | nao | v1.4.0: velocidade minima por curva |
 | `consumo` | dict | nao | v1.7.0 build o: consumo por trecho (Burn Zones) e fluxo (L/h) |
 | `delta_trace` | dict | nao | v1.7.0 build o: delta ao longo da volta; build q: `ref_tempos` (tempos brutos da referencia) e `curvas` (zonas das curvas) |
+| `v18` | dict | nao | v1.8: `vazao`, `marcha`, `destino`, `ultrapassagem`, `hibrido` (None se o carro nao informa), `sessao`, `calendario`, `rpm_max` (montado por `ov_v18.Servico`; a demonstracao traz o seu) |
 | `bandeira` | dict | nao | v1.5.0 |
 | `trafego` | dict | nao | v1.5.0 |
 | `tendencia` | dict | nao | v1.6.0: ritmo |
@@ -64,6 +65,8 @@ O adaptador **envolve** as classes de leitura já testadas (`Telemetria` e `Tele
 | `tc` | dict | nao | ajuste do controle de tracao |
 | `bias` | num | nao | balanco de freio dianteiro, se ajustavel |
 | `luz_tc` | dict | nao | v1.2.0: TC atuando |
+| `limitador` | bool | nao | build aj: limitador de velocidade dos boxes ativo |
+| `previa` | bool | nao | build aj: dados de exemplo da previa da Central (alertas fixos) |
 | `pedais_cru` | dict | nao | v1.2.0: pedais sem a calibracao do carro |
 | `retorno` | dict | nao | v1.2.0: retorno a pista |
 | `estrategia` | dict | nao | v1.2.0: chuva x seco |

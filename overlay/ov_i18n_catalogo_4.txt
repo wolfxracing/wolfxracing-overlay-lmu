@@ -1,0 +1,37 @@
+C{#}: {}¦C{#}: {}¦C{#}: {}¦K{#}: {}¦V{#} : {}¦C{#}: {}
+C{#} em {} m¦C{#} in {} m¦C{#} en {} m¦K{#} in {} m¦V{#} dans {} m¦C{#} tra {} m
+C{#} de {}¦C{#} of {}¦C{#} de {}¦K{#} von {}¦V{#} sur {}¦C{#} di {}
+freio {}%¦brake {}%¦freno {}%¦Bremse {}%¦frein {}%¦freno {}%
+trail {} m¦trail {} m¦trail {} m¦Trail {} m¦trail {} m¦trail {} m
+acel saída {}%¦exit throttle {}%¦acel. de salida {}%¦Gas Ausgang {}%¦accél. sortie {}%¦acc. uscita {}%
+sem trail (solta de vez)¦no trail (releases at once)¦sin trail (suelta de golpe)¦kein Trail (sofort lösen)¦pas de trail (relâche d'un coup)¦senza trail (rilascia di colpo)
+Sem zona de frenagem à frente¦No braking zone ahead¦Sin zona de frenada por delante¦Keine Bremszone voraus¦Pas de zone de freinage devant¦Nessuna zona di frenata davanti
+Melhor passagem: {} s¦Best pass: {} s¦Mejor paso: {} s¦Beste Passage: {} s¦Meilleur passage : {} s¦Miglior passaggio: {} s
+Freada {} m depois da referência¦Braking {} m after the reference¦Frenada {} m después de la referencia¦Bremsen {} m nach der Referenz¦Freinage {} m après la référence¦Frenata {} m dopo il riferimento
+Freada {} m antes da referência¦Braking {} m before the reference¦Frenada {} m antes de la referencia¦Bremsen {} m vor der Referenz¦Freinage {} m avant la référence¦Frenata {} m prima del riferimento
+Tirada de pé {} m depois da referência¦Lift-off {} m after the reference¦Soltar {} m después de la referencia¦Gas weg {} m nach der Referenz¦Pied levé {} m après la référence¦Rilascio {} m dopo il riferimento
+Tirada de pé {} m antes da referência¦Lift-off {} m before the reference¦Soltar {} m antes de la referencia¦Gas weg {} m vor der Referenz¦Pied levé {} m avant la référence¦Rilascio {} m prima del riferimento
+Ápice {} km/h¦Apex {} km/h¦Vértice {} km/h¦Scheitel {} km/h¦Corde {} km/h¦Corda {} km/h
+apice {} km/h¦apex {} km/h¦vértice {} km/h¦Scheitel {} km/h¦corde {} km/h¦corda {} km/h
+marcha {}¦gear {}¦marcha {}¦Gang {}¦rapport {}¦marcia {}
+freada perfeita¦perfect braking¦frenada perfecta¦perfektes Bremsen¦freinage parfait¦frenata perfetta
+boa freada¦good braking¦buena frenada¦gutes Bremsen¦bon freinage¦buona frenata
+freou cedo (~{} m)¦braked early (~{} m)¦frenó pronto (~{} m)¦zu früh gebremst (~{} m)¦freiné trop tôt (~{} m)¦frenato presto (~{} m)
+freou tarde (~{} m)¦braked late (~{} m)¦frenó tarde (~{} m)¦zu spät gebremst (~{} m)¦freiné trop tard (~{} m)¦frenato tardi (~{} m)
+freou muito cedo (~{} m)¦braked far too early (~{} m)¦frenó demasiado pronto (~{} m)¦viel zu früh gebremst (~{} m)¦freiné beaucoup trop tôt (~{} m)¦frenato molto presto (~{} m)
+freou muito tarde (~{} m)¦braked far too late (~{} m)¦frenó demasiado tarde (~{} m)¦viel zu spät gebremst (~{} m)¦freiné beaucoup trop tard (~{} m)¦frenato molto tardi (~{} m)
+sem freada¦no braking¦sin frenada¦kein Bremsen¦pas de freinage¦nessuna frenata
+tirada perfeita¦perfect lift-off¦soltada perfecta¦perfektes Gas-Wegnehmen¦levé de pied parfait¦rilascio perfetto
+boa tirada¦good lift-off¦buena soltada¦gutes Gas-Wegnehmen¦bon levé de pied¦buon rilascio
+tirou o pe cedo (~{} m)¦lifted early (~{} m)¦soltó pronto (~{} m)¦zu früh Gas weggenommen (~{} m)¦levé trop tôt (~{} m)¦rilasciato presto (~{} m)
+tirou o pe tarde (~{} m)¦lifted late (~{} m)¦soltó tarde (~{} m)¦zu spät Gas weggenommen (~{} m)¦levé trop tard (~{} m)¦rilasciato tardi (~{} m)
+nao tirou o pe¦did not lift¦no soltó¦kein Gas weggenommen¦n'a pas levé le pied¦non ha rilasciato
+freou onde bastava tirar o pe¦braked where lifting was enough¦frenó donde bastaba soltar¦gebremst, wo Gas wegnehmen reichte¦freiné là où lever le pied suffisait¦frenato dove bastava rilasciare
+Freio {}% (ref {}%)¦Brake {}% (ref {}%)¦Freno {}% (ref {}%)¦Bremse {}% (Ref {}%)¦Frein {}% (réf {}%)¦Freno {}% (rif {}%)
+trail {} m (ref {} m)¦trail {} m (ref {} m)¦trail {} m (ref {} m)¦Trail {} m (Ref {} m)¦trail {} m (réf {} m)¦trail {} m (rif {} m)
+Ritmo: aguardando voltas limpas¦Pace: waiting for clean laps¦Ritmo: esperando vueltas limpias¦Pace: warte auf saubere Runden¦Rythme : en attente de tours propres¦Ritmo: in attesa di giri puliti
+Alvo {} | {}¦Target {} | {}¦Objetivo {} | {}¦Ziel {} | {}¦Cible {} | {}¦Obiettivo {} | {}
+no ritmo¦on pace¦al ritmo¦im Soll¦dans le rythme¦al ritmo
+poupe {}%/volta¦save {}%/lap¦ahorre {}%/vuelta¦sparen Sie {}%/Runde¦économisez {}%/tour¦risparmia {}%/giro
+combustivel pede parada¦fuel calls for a stop¦el combustible pide parada¦Kraftstoff verlangt Stopp¦le carburant impose un arrêt¦il carburante richiede una sosta
+ritmo caindo¦pace dropping¦ritmo cayendo¦Pace fällt¦rythme en baisse¦ritmo in calo

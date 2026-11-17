@@ -1,0 +1,78 @@
+Aguardando o iRacing...¦Waiting for iRacing...¦Esperando a iRacing...¦Warte auf iRacing...¦En attente d'iRacing...¦In attesa di iRacing...
+Aguardando o Le Mans Ultimate...¦Waiting for Le Mans Ultimate...¦Esperando a Le Mans Ultimate...¦Warte auf Le Mans Ultimate...¦En attente de Le Mans Ultimate...¦In attesa di Le Mans Ultimate...
+Aguardando o jogo...¦Waiting for the game...¦Esperando al juego...¦Warte auf das Spiel...¦En attente du jeu...¦In attesa del gioco...
+Aguardando pista e carro...¦Waiting for track and car...¦Esperando pista y coche...¦Warte auf Strecke und Auto...¦En attente du circuit et de la voiture...¦In attesa di pista e auto...
+Aguardando voltas limpas...¦Waiting for clean laps...¦Esperando vueltas limpias...¦Warte auf saubere Runden...¦En attente de tours propres...¦In attesa di giri puliti...
+Aguardando voltas limpas¦Waiting for clean laps¦Esperando vueltas limpias¦Warte auf saubere Runden¦En attente de tours propres¦In attesa di giri puliti
+(sem boxes e sem bandeira de perigo)¦(no pit stops and no danger flag)¦(sin boxes y sin bandera de peligro)¦(ohne Boxenstopp und ohne Gefahrenflagge)¦(sans stand et sans drapeau de danger)¦(senza box e senza bandiera di pericolo)
+Aguardando voltas limpas (sem boxes, sem bandeira)¦Waiting for clean laps (no pit stops, no flag)¦Esperando vueltas limpias (sin boxes, sin bandera)¦Warte auf saubere Runden (ohne Boxenstopp, ohne Flagge)¦En attente de tours propres (sans stand, sans drapeau)¦In attesa di giri puliti (senza box, senza bandiera)
+Aguardando a primeira curva da volta...¦Waiting for the first corner of the lap...¦Esperando la primera curva de la vuelta...¦Warte auf die erste Kurve der Runde...¦En attente du premier virage du tour...¦In attesa della prima curva del giro...
+Sem dados¦No data¦Sin datos¦Keine Daten¦Pas de données¦Nessun dato
+Sem dados de setores¦No sector data¦Sin datos de sectores¦Keine Sektordaten¦Pas de données de secteurs¦Nessun dato dei settori
+Sem dados de pista molhada¦No wet-track data¦Sin datos de pista mojada¦Keine Daten für nasse Strecke¦Pas de données de piste mouillée¦Nessun dato di pista bagnata
+ACELERADOR¦THROTTLE¦ACELERADOR¦GASPEDAL¦ACCÉLÉRATEUR¦ACCELERATORE
+ACELER.¦THROT.¦ACEL.¦GAS¦ACCÉL.¦ACCEL.
+ACEL. %¦THR. %¦ACEL. %¦GAS %¦ACCÉL. %¦ACCEL. %
+FREIO¦BRAKE¦FRENO¦BREMSE¦FREIN¦FRENO
+FREANDO¦BRAKING¦FRENANDO¦BREMSEN¦FREINAGE¦FRENATA
+FREIE¦BRAKE¦FRENE¦BREMSEN¦FREINEZ¦FRENA
+TRAIL BRAKING¦TRAIL BRAKING¦TRAIL BRAKING¦TRAIL BRAKING¦TRAIL BRAKING¦TRAIL BRAKING
+SOLTE O FREIO¦RELEASE BRAKE¦SUELTE EL FRENO¦BREMSE LÖSEN¦RELÂCHEZ LE FREIN¦RILASCIA IL FRENO
+SOLTE O ACELERADOR¦LIFT OFF¦SUELTE EL ACELERADOR¦GAS WEGNEHMEN¦LEVEZ LE PIED¦LASCIA L'ACCELERATORE
+ACELERE¦ACCELERATE¦ACELERE¦BESCHLEUNIGEN¦ACCÉLÉREZ¦ACCELERA
+PÉ FUNDO¦FLAT OUT¦A FONDO¦VOLLGAS¦PIED À FOND¦A FONDO
+A FUNDO¦FULL¦A FONDO¦VOLL¦À FOND¦A FONDO
+SOLTO¦RELEASED¦SUELTO¦LOSGELASSEN¦RELÂCHÉ¦RILASCIATO
+TIRE¦LIFT¦SUELTE¦GAS WEG¦LEVEZ¦LEVA
+TIRANDO¦LIFTING¦SOLTANDO¦GAS WEG¦PIED LEVÉ¦IN RILASCIO
+Instrução (freie, trail braking, solte, acelere)¦Instruction (brake, trail braking, lift, accelerate)¦Instrucción (frene, trail braking, suelte, acelere)¦Anweisung (bremsen, Trail Braking, Gas weg, beschleunigen)¦Instruction (freinez, trail braking, levez, accélérez)¦Istruzione (frena, trail braking, rilascia, accelera)
+Barras de freio e acelerador (você x referência)¦Brake and throttle bars (you vs reference)¦Barras de freno y acelerador (usted vs referencia)¦Brems- und Gaspedalbalken (Sie vs. Referenz)¦Barres de frein et d'accélérateur (vous vs référence)¦Barre di freno e acceleratore (tu vs riferimento)
+Próxima freada (% alvo e trail)¦Next braking zone (target % and trail)¦Próxima frenada (% objetivo y trail)¦Nächste Bremszone (Ziel-% und Trail)¦Prochain freinage (% cible et trail)¦Prossima frenata (% obiettivo e trail)
+Próxima freada (contagem, marcha, ápice)¦Next braking zone (countdown, gear, apex)¦Próxima frenada (cuenta atrás, marcha, vértice)¦Nächste Bremszone (Countdown, Gang, Scheitelpunkt)¦Prochain freinage (compte à rebours, rapport, point de corde)¦Prossima frenata (conto alla rovescia, marcia, corda)
+Pedais do Coach¦Coach Pedals¦Pedales del Coach¦Coach-Pedale¦Pédales du Coach¦Pedali del Coach
+Coach ao vivo¦Live Coach¦Coach en vivo¦Live-Coach¦Coach en direct¦Coach dal vivo
+COACH¦COACH¦COACH¦COACH¦COACH¦COACH
+Mostrar Coach (onde frear, marcha e velocidade-alvo)¦Show Coach (where to brake, gear and target speed)¦Mostrar Coach (dónde frenar, marcha y velocidad objetivo)¦Coach anzeigen (wo bremsen, Gang und Zielgeschwindigkeit)¦Afficher le Coach (où freiner, rapport et vitesse cible)¦Mostra Coach (dove frenare, marcia e velocità obiettivo)
+Mostrar Pedais do Coach (freio %, trail braking, soltar e acelerar)¦Show Coach Pedals (brake %, trail braking, lift and accelerate)¦Mostrar Pedales del Coach (freno %, trail braking, soltar y acelerar)¦Coach-Pedale anzeigen (Brems-%, Trail Braking, Gas weg und beschleunigen)¦Afficher les Pédales du Coach (frein %, trail braking, lever et accélérer)¦Mostra Pedali del Coach (freno %, trail braking, rilascio e accelerazione)
+Centralizar na tela (horizontal)¦Center on screen (horizontal)¦Centrar en la pantalla (horizontal)¦Auf dem Bildschirm zentrieren (horizontal)¦Centrer à l'écran (horizontal)¦Centra sullo schermo (orizzontale)
+Onde frear, marcha e velocidade no ápice, contra a sua melhor volta (ou uma importada).¦Where to brake, gear and apex speed, against your best lap (or an imported one).¦Dónde frenar, marcha y velocidad en el vértice, frente a su mejor vuelta (o una importada).¦Wo bremsen, Gang und Scheitelgeschwindigkeit im Vergleich zu Ihrer besten Runde (oder einer importierten).¦Où freiner, rapport et vitesse au point de corde, face à votre meilleur tour (ou un tour importé).¦Dove frenare, marcia e velocità alla corda, rispetto al tuo giro migliore (o uno importato).
+Dirija uma volta limpa para gravar¦Drive a clean lap to record¦Conduzca una vuelta limpia para grabar¦Fahren Sie eine saubere Runde zum Aufzeichnen¦Faites un tour propre pour enregistrer¦Guida un giro pulito per registrare
+a sua referencia nesta pista e carro¦your reference on this track and car¦su referencia en esta pista y coche¦Ihre Referenz auf dieser Strecke und mit diesem Auto¦votre référence sur ce circuit et cette voiture¦il tuo riferimento su questa pista e auto
+Complete uma volta limpa (sem box,¦Complete a clean lap (no pit stop,¦Complete una vuelta limpia (sin box,¦Fahren Sie eine saubere Runde (ohne Box,¦Faites un tour propre (sans stand,¦Completa un giro pulito (senza box,
+sem sair da pista) para criar a referencia¦without leaving the track) to create the reference¦sin salir de la pista) para crear la referencia¦ohne die Strecke zu verlassen), um die Referenz zu erstellen¦sans sortir de la piste) pour créer la référence¦senza uscire di pista) per creare il riferimento
+SUA MELHOR¦YOUR BEST¦SU MEJOR¦IHRE BESTE¦VOTRE MEILLEUR¦IL TUO MIGLIORE
+IMPORTADA¦IMPORTED¦IMPORTADA¦IMPORTIERT¦IMPORTÉE¦IMPORTATA¦
+DELTA REF.¦REF. DELTA¦DELTA REF.¦REF.-DELTA¦DELTA RÉF.¦DELTA RIF.
+DELTA¦DELTA¦DELTA¦DELTA¦DELTA¦DELTA
+MARCHA¦GEAR¦MARCHA¦GANG¦RAPPORT¦MARCIA
+APICE¦APEX¦VÉRTICE¦SCHEITEL¦CORDE¦CORDA
+Avaliacao da curva aparece aqui¦Corner rating appears here¦La evaluación de la curva aparece aquí¦Die Kurvenbewertung erscheint hier¦L'évaluation du virage apparaît ici¦La valutazione della curva appare qui
+Sem zona de frenagem a frente¦No braking zone ahead¦Sin zona de frenada por delante¦Keine Bremszone voraus¦Pas de zone de freinage devant¦Nessuna zona di frenata davanti
+Sem zona de frenagem à frente¦No braking zone ahead¦Sin zona de frenada por delante¦Keine Bremszone voraus¦Pas de zone de freinage devant¦Nessuna zona di frenata davanti
+C{} de {} | freada {} m¦C{} of {} | braking {} m¦C{} de {} | frenada {} m¦K{} von {} | Bremsen {} m¦V{} sur {} | freinage {} m¦C{} di {} | frenata {} m
+C{}: freou cedo (~{} m) | apice {} km/h¦C{}: braked early (~{} m) | apex {} km/h¦C{}: frenó pronto (~{} m) | vértice {} km/h¦K{}: zu früh gebremst (~{} m) | Scheitel {} km/h¦V{} : freiné trop tôt (~{} m) | corde {} km/h¦C{}: frenato presto (~{} m) | corda {} km/h
+solte o freio aos poucos até o ápice · freio alvo {}%¦ease off the brake gradually to the apex · brake target {}%¦suelte el freno poco a poco hasta el vértice · freno objetivo {}%¦Bremse bis zum Scheitelpunkt langsam lösen · Brems-Ziel {}%¦relâchez le frein progressivement jusqu'à la corde · frein cible {}%¦rilascia il freno gradualmente fino alla corda · freno obiettivo {}%
+freio alvo {}%¦brake target {}%¦freno objetivo {}%¦Brems-Ziel {}%¦frein cible {}%¦freno obiettivo {}%
+acelerador alvo {}%¦throttle target {}%¦acelerador objetivo {}%¦Gas-Ziel {}%¦accélérateur cible {}%¦acceleratore obiettivo {}%
+acelerador {}%¦throttle {}%¦acelerador {}%¦Gas {}%¦accélérateur {}%¦acceleratore {}%
+Sem referência do Coach para esta pista e carro.¦No Coach reference for this track and car.¦Sin referencia del Coach para esta pista y coche.¦Keine Coach-Referenz für diese Strecke und dieses Auto.¦Pas de référence du Coach pour ce circuit et cette voiture.¦Nessun riferimento del Coach per questa pista e auto.
+Dirija uma volta limpa para gravar.¦Drive a clean lap to record.¦Conduzca una vuelta limpia para grabar.¦Fahren Sie eine saubere Runde zum Aufzeichnen.¦Faites un tour propre pour enregistrer.¦Guida un giro pulito per registrare.
+Delta e avaliação da curva¦Delta and corner rating¦Delta y evaluación de la curva¦Delta und Kurvenbewertung¦Delta et évaluation du virage¦Delta e valutazione della curva
+Ritmo, dica da curva e resumo¦Pace, corner tip and summary¦Ritmo, consejo de la curva y resumen¦Pace, Kurventipp und Zusammenfassung¦Rythme, conseil du virage et résumé¦Ritmo, consiglio della curva e riepilogo
+Aviso / stint (rodapé)¦Warning / stint (footer)¦Aviso / stint (pie)¦Warnung / Stint (Fußzeile)¦Avertissement / relais (pied)¦Avviso / stint (piè di pagina)
+Título e fonte da referência¦Title and reference source¦Título y fuente de la referencia¦Titel und Referenzquelle¦Titre et source de la référence¦Titolo e fonte del riferimento
+Coach: referencia e importacao¦Coach: reference and import¦Coach: referencia e importación¦Coach: Referenz und Import¦Coach : référence et importation¦Coach: riferimento e importazione
+Importar volta de referencia (CSV ou .ibt)...¦Import reference lap (CSV or .ibt)...¦Importar vuelta de referencia (CSV o .ibt)...¦Referenzrunde importieren (CSV oder .ibt)...¦Importer un tour de référence (CSV ou .ibt)...¦Importa giro di riferimento (CSV o .ibt)...
+Importar o CSV mais novo da pasta de entrada¦Import the newest CSV from the input folder¦Importar el CSV más reciente de la carpeta de entrada¦Neueste CSV aus dem Eingangsordner importieren¦Importer le CSV le plus récent du dossier d'entrée¦Importa il CSV più recente dalla cartella di ingresso
+Abrir a pasta de entrada¦Open the input folder¦Abrir la carpeta de entrada¦Eingangsordner öffnen¦Ouvrir le dossier d'entrée¦Apri la cartella di ingresso
+Usar so a minha melhor volta¦Use only my best lap¦Usar solo mi mejor vuelta¦Nur meine beste Runde verwenden¦Utiliser seulement mon meilleur tour¦Usa solo il mio giro migliore
+Usar so a volta importada¦Use only the imported lap¦Usar solo la vuelta importada¦Nur die importierte Runde verwenden¦Utiliser seulement le tour importé¦Usa solo il giro importato
+Automatico (a mais rapida entre a minha e a importada)¦Automatic (fastest of mine and the imported one)¦Automático (la más rápida entre la mía y la importada)¦Automatisch (schnellere von meiner und der importierten)¦Automatique (la plus rapide entre la mienne et l'importée)¦Automatico (la più veloce tra la mia e quella importata)
+Apagar a volta importada desta pista e carro¦Delete the imported lap for this track and car¦Borrar la vuelta importada de esta pista y coche¦Importierte Runde für diese Strecke und dieses Auto löschen¦Supprimer le tour importé pour ce circuit et cette voiture¦Elimina il giro importato per questa pista e auto
+Apagar o historico por curva desta pista e carro¦Delete the per-corner history for this track and car¦Borrar el historial por curva de esta pista y coche¦Kurvenverlauf für diese Strecke und dieses Auto löschen¦Supprimer l'historique par virage pour ce circuit et cette voiture¦Elimina lo storico per curva di questa pista e auto
+Resumo da sessao: onde perdi tempo, por curva...¦Session summary: where I lost time, by corner...¦Resumen de la sesión: dónde perdí tiempo, por curva...¦Sitzungszusammenfassung: wo ich Zeit verloren habe, je Kurve...¦Résumé de la session : où j'ai perdu du temps, par virage...¦Riepilogo sessione: dove ho perso tempo, per curva...
+Curvas: reiniciar o aprendizado desta pista¦Corners: reset learning for this track¦Curvas: reiniciar el aprendizaje de esta pista¦Kurven: Lernen für diese Strecke zurücksetzen¦Virages : réinitialiser l'apprentissage de ce circuit¦Curve: reimposta l'apprendimento di questa pista
+Carregar sozinho a minha melhor volta das telemetrias gravadas (.ibt)¦Load my best lap automatically from recorded telemetry (.ibt)¦Cargar automáticamente mi mejor vuelta de las telemetrías grabadas (.ibt)¦Meine beste Runde automatisch aus aufgezeichneter Telemetrie laden (.ibt)¦Charger automatiquement mon meilleur tour depuis les télémétries enregistrées (.ibt)¦Carica automaticamente il mio giro migliore dalle telemetrie registrate (.ibt)
+Procurar agora a minha melhor volta nas telemetrias (.ibt)¦Search now for my best lap in the telemetry (.ibt)¦Buscar ahora mi mejor vuelta en las telemetrías (.ibt)¦Jetzt meine beste Runde in der Telemetrie suchen (.ibt)¦Chercher maintenant mon meilleur tour dans les télémétries (.ibt)¦Cerca ora il mio giro migliore nelle telemetrie (.ibt)
+Ritmo das últimas voltas limpas.¦Pace of the last clean laps.¦Ritmo de las últimas vueltas limpias.¦Pace der letzten sauberen Runden.¦Rythme des derniers tours propres.¦Ritmo degli ultimi giri puliti.
+Avisos por voz (voz do Windows)¦Voice alerts (Windows voice)¦Avisos por voz (voz de Windows)¦Sprachwarnungen (Windows-Stimme)¦Alertes vocales (voix Windows)¦Avvisi vocali (voce di Windows)
