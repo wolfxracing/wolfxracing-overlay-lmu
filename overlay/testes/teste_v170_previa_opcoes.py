@@ -60,8 +60,9 @@ def difere(a, b, ruido=0):
         return True
     return int((np.abs(_arr(a) - _arr(b)).sum(axis=2) > 24).sum()) > ruido * 2 + 40
 def ruido_de(chave):
-    a = previa_img(chave); b = previa_img(chave)
-    return int((np.abs(_arr(a) - _arr(b)).sum(axis=2) > 24).sum()) if a.size() == b.size() else 0
+    # build az: o ruido (previa animada pelo relogio real) e o MAIOR entre varias renderizacoes consecutivas; um unico par subestimava no Windows
+    imgs = [previa_img(chave) for _ in range(5)]
+    return max((int((np.abs(_arr(x) - _arr(y)).sum(axis=2) > 24).sum()) for x, y in zip(imgs, imgs[1:]) if x.size() == y.size()), default=0)
 # acoes que so mudam COMPORTAMENTO (quando o painel aparece / pisca), sem efeito visual na previa de exemplo
 SO_COMPORTAMENTO = {"estrategia_pulsar", "auxiliar_sempre", "pit_sempre", "radar_auto", "digiflag_piscar", "hibrido_alerta", "ultrap_auto",
                     "ultrap_distante", "ultrap_so_outras", "ultrap_so_mesma_volta"}

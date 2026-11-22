@@ -148,7 +148,8 @@ reais["principal"].config = cfg
 cen.abrir_detalhe("principal"); cen._ciclo_previa(); app.processEvents()
 confere(set(cen._campos_pos) >= {"volante", "marcha", "velocidade", "pedais"}, "Central: linha de X, Y e fonte para cada item")
 def img(): cen._ciclo_previa(); app.processEvents(); return cen.det_previa._pix.toImage()
-a0 = img(); a0b = img(); RZ = int((np.abs(arr(a0) - arr(a0b)).sum(axis=2) > 24).sum())
+a0 = img(); _extra = [img() for _ in range(4)]          # build az: ruido = maior diferenca entre renderizacoes consecutivas (relogio real)
+RZ = max(int((np.abs(arr(x) - arr(y)).sum(axis=2) > 24).sum()) for x, y in zip([a0] + _extra, _extra))
 sx, sy, cb, ce, st, bc = cen._campos_pos["marcha"]
 sy.setValue(12); app.processEvents()
 confere(cfg.get(chp + "_pos", {}).get("marcha") == [0, 12], "Central: campo Y grava a posicao")
