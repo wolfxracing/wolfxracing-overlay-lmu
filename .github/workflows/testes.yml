@@ -13,6 +13,8 @@ jobs:
   testes:
     runs-on: windows-latest
     timeout-minutes: 90
+    # 'offscreen' no Windows e informativo (fontes de reserva mudam larguras da Central); o resultado que vale e o do Qt nativo ('windows')
+    continue-on-error: ${{ matrix.plataforma == 'offscreen' }}
     strategy:
       fail-fast: false
       matrix:

@@ -1028,8 +1028,11 @@ def teste_v13_correcoes_do_jogo_real():
     # --- janela do jogo (so Windows; aqui so o texto e o retorno seguro) ---------------------------------------
     confere(lmu.janela_do_jogo() is None, "fora do Windows: janela_do_jogo() devolve None sem erro")
     confere("nao encontrada" in lmu.descrever_janela_jogo(None), "texto quando o jogo nao e encontrado")
-    confere(lmu.jogo_acima_do_overlay(1234, [1, 2]) is None, "fora do Windows: amostra de sobreposicao devolve None sem erro")
-    confere(lmu.instalar_gancho_primeiro_plano(lambda: None) is None, "fora do Windows: gancho de foco nao instala e nao quebra")
+    if sys.platform != "win32":   # build az: no Windows estas funcoes agem de verdade (gancho real do sistema); so se verifica o retorno seguro fora dele
+        confere(lmu.jogo_acima_do_overlay(1234, [1, 2]) is None, "fora do Windows: amostra de sobreposicao devolve None sem erro")
+        confere(lmu.instalar_gancho_primeiro_plano(lambda: None) is None, "fora do Windows: gancho de foco nao instala e nao quebra")
+    else:
+        print("PULADO (build az): amostra de sobreposicao e gancho de foco agem no Windows de verdade; verificados so fora dele")
     amostra = {"exe": "Le Mans Ultimate.exe", "x": 0, "y": 0, "largura": 2560, "altura": 1440, "com_borda": False,
                "tela_cheia": True, "topmost": True, "primeiro_plano": False, "exe_primeiro_plano": "chrome.exe", "z_jogo": 1,
                "z_overlay": 3}
