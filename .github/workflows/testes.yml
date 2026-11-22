@@ -1,0 +1,38 @@
+name: Testes (Windows nativo e offscreen)
+
+# Roda TODAS as suites do pacote (rodar_todos_os_testes.py: um processo por suite, codigo de saida por suite)
+# no Windows, com a plataforma Qt nativa ("windows") e sem tela ("offscreen"). Nao substitui a homologacao em simulador real.
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        plataforma: [windows, offscreen]
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: overlay
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalar dependencias de teste
+        run: python -m pip install --only-binary ":all:" -r requirements-teste.txt
+      - name: Rodar todas as suites
+        run: python rodar_todos_os_testes.py --plataforma ${{ matrix.plataforma }} --timeout 1500
+      - name: Guardar logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs_testes_${{ matrix.plataforma }}
+          path: overlay/logs_testes/
