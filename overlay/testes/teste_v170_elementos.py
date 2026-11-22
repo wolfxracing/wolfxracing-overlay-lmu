@@ -55,7 +55,7 @@ for cls in PAINEIS:
         jx = janela(cls, off=(eid,)); imx = img(jx)
         mudou = (jx.size() != j0.size()) or imx != im0
         confere(mudou, f"desligar '{eid}' muda o painel")
-        if eid in secoes:
+        if eid in secoes and not (cls is o.JanelaCoach and eid == "proxima"):          # build av: a faixa do Coach so some com os 4 itens desligados
             confere(base[1] - jx.height() == secoes[eid], f"desligar '{eid}' encolhe exatamente {secoes[eid]} px ({base[1]}->{jx.height()})")
     # tudo desligado e todas as combinacoes sorteadas (ou todas, se forem poucas)
     jt = janela(cls, off=tuple(ids))
@@ -91,7 +91,7 @@ alvo = {(x, y - 130) for x, y in a if y >= 220}
 conf = len(alvo & b) / max(1, len(alvo)) if len(alvo) > 30 else 0.0
 confere(conf > 0.95, f"Tendencia sem grafico: legenda subiu 130 px ({conf:.1%})")
 # Coach sem proxima: delta e ritmo sobem 82 px
-j0 = janela(o.JanelaCoach); jx = janela(o.JanelaCoach, off=("proxima",))
+j0 = janela(o.JanelaCoach); jx = janela(o.JanelaCoach, off=("proxima", "freada", "marcha", "apice"))
 a, b = claros(img(j0)), claros(img(jx))
 alvo = {(x, y - 82) for x, y in a if y >= 106}
 conf = len(alvo & b) / max(1, len(alvo))

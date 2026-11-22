@@ -2,6 +2,68 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e [SemVer](https://semver.org/lang/pt-BR/).
 
+## 1.8.1 build az (corretiva - auditoria da build ay)
+- Fontes: a sonda que decide se o negrito muda o desenho da fonte do tema passou a aceitar uma lista de familias (tema, alternativas do tema e, por fim, a Rajdhani embutida) e ficou muito mais rapida (leitura direta dos pixels; mediana de 27,73 ms para 0,18 ms com cache vazio, medida no Windows pela auditoria). As 28 decisoes de peso comparadas permaneceram iguais. Orbitron em italico passa a respeitar o peso pelo eixo variavel (wght).
+- Executor de testes: rodar_todos_os_testes.py ganhou --plataforma windows|offscreen (registrado em AMBIENTE.txt e RESUMO.txt). Testes de cronograma deixam de depender de time.tzset() (inexistente no Windows): sem tzset usam o fuso fixo BRT3 e as verificacoes de horario de verao sao PULADAS com aviso explicito. As suites de cronograma tambem passam a PULAR (com aviso) as verificacoes que usam o cronograma.json real, dado do usuario que nao e versionado; os demais passos usam dados sinteticos.
+- Executor de testes (causa de travamento achada): a trava de instancia unica do overlay (overlay_iracing*.lock) fica na pasta temporaria do sistema; com ela compartilhada, a suite teste_fase2022 ficava esperando se outra execucao (ou o overlay aberto em demo) a segurasse. Cada suite agora roda com a SUA pasta temporaria (TMP/TEMP/TMPDIR); dois pacotes em paralelo passam.
+- Versao do produto 1.8.1 (a tag v1.8.0 ja estava publicada). Telemetria, calculos de corrida e configuracoes dos usuarios nao foram alterados.
+- Classificacao LMU (cabecalho): fonte e metricas reaproveitadas dentro de cada desenho (reducao de 4,8% a 11,4% no tempo de desenho do cabecalho nos cinco cenarios medidos pela auditoria, imagens identicas); sessao (RACE) do layout foto respeita o contador de carros; a ancora padrao volta a ser identica a referencia congelada da au, mantendo a correcao de saliencia nos itens personalizados.
+- Atualizador completo do LMU (atualizar_lmu.py): confere inventario e SHA-256 do manifesto ANTES de escrever no destino (origem incompleta ou divergente e recusada), copia em area temporaria no mesmo volume e reverte as alteracoes do programa se um arquivo estiver bloqueado; codigo de saida 3 = reversao incompleta. verificar_migracao.py valida a migracao a partir da ae numa copia isolada.
+- Sem homologacao em simulador real; os testes visuais usam dados sinteticos e renderizacao Qt.
+
+## 1.8.1 build ay (correcoes da auditoria da build ax)
+- Classificacao LMU, cabecalho (foto): o total de carros mede, reserva e desenha pela AREA REAL do texto renderizado (tinta com saliencia de italico e glifos altos, sem recorte). O indicador de sessao (RACE) respeita o espaco do contador. Regra previsivel: o contador tem prioridade; o que nao cabe INTEIRO some (nada pela metade); se o contador sozinho nao cabe na barra, ele e que some. Testado com 180 px, 210 px e largura normal, Orbitron/Michroma 200% com negrito e italico, 62 e 100 carros.
+- Classificacao LMU, cabecalho (classico): tempo/volta, temperaturas e total de carros sao medidos EM CONJUNTO com o estilo de cada item; prioridade tempo/volta > contador > temperaturas; a reserva do contador e liberada quando ele esta oculto ou sem espaco.
+- Negrito + italico visiveis: se o Qt nao muda o peso da fonte do tema (Bahnschrift variavel no Windows), a escolha de negrito usa a familia seguinte do tema (Segoe UI). Aparencia padrao intacta.
+- LMU: o icone alternativo da bandeja passa o proprio QPainter a fonte() (nao herda a fonte de outro pintor).
+- Entrega: pacote COMPLETO de atualizacao do LMU (serve a partir de qualquer build anterior, com backup, SHA-256 e rollback); rodar_todos_os_testes.py (codigo de saida por teste, falha final) e requirements-teste.txt (PySide6 + NumPy).
+- Sem homologacao em simulador real.
+
+## 1.8.1 build ax (correcoes da auditoria da build aw)
+- Fonte e cor isoladas por QPainter (iRacing e LMU): fonte(), fonte_titulo(), _cor_do_elemento() e _estilo_do_elemento() passam a consultar o estilo do PINTOR que mede/desenha. Dois pintores abertos ao mesmo tempo nao se misturam (A com Orbitron 150% negrito italico vermelho mede e desenha 30 pt, B com Bungee 60% regular azul, 12 pt). Todas as chamadas de desenho dos paineis passam o pintor; a pilha de cores da aw ficou intacta.
+- LMU, Classificacao - total de carros: o contador (N CARS / N CARROS) mede, reserva espaco e desenha com a fonte EFETIVA do proprio item. Foto: a area fixa de 120 x 20 acompanha o texto (sem corte com 62 carros e Orbitron 200%), alinhada a direita como antes. Classico: a folga das temperaturas usa a largura real do contador (sem sobreposicao com 62 carros e Orbitron 150%) e e liberada quando o contador esta oculto.
+- Testes: teste_v18_cores_aninhadas (caso 6 reescrito, 78 verificacoes) e teste_v18_ncars_lmu (novo, 137). Sem homologacao em jogo real.
+
+## 1.8.1 build aw (correcoes da auditoria da build av)
+- P2.1 Janelas exclusivas do LMU com itens individuais (posicao X/Y, fonte, negrito, italico, tamanho, cor, liga/desliga): Energia e combustivel, Pneus e freios, Danos, Alertas na pista, Historico de stints e Tendencia de ritmo. Desenho, calculos e comportamento padrao inalterados (imagem identica a da build au). Classificacao do LMU: N CARS agora e um item (o espaco reservado na barra acompanha a fonte escolhida) e o layout classico tambem tem itens (legenda, sessao, tempo e volta, temperaturas, N CARROS, titulos, faixas de classe, linhas). Itens Clima e Incidentes saem da lista da Classificacao do LMU (nunca eram desenhados la).
+- P2.2 Isolamento de pintores reentrante: a pilha de itens guarda o estado POR PINTOR (referencia fraca). Abrir/fechar itens em um pintor nao toca nos itens abertos de outro (A abre, B abre, B fecha, A continua com a sua cor/fonte); so restos de pintores ja encerrados sao descartados. Transparencia, degrades e excecoes preservados.
+- P2.3 teste_v18_itens_todos_paineis reforcado: persistencia com salvar_config/carregar_config REAIS (config.json gravado e recarregado: X/Y, fonte, tamanho, estilo, cor, visibilidade), dimensao esperada (tamanho() x escala e valores da build au), imagem padrao comparada com a referencia CONGELADA da build au (arquivos da au em outro processo, hash conferido), 6 janelas do LMU + Classificacao LMU (foto e classico) incluidas, cada propriedade verificada em cada cenario de dados em que o item aparece, relogios congelados.
+- Defeito achado pelo teste de persistencia (vinha de builds anteriores): posicao e estilo dos itens do Delta Trace eram gravados mas descartados ao reiniciar; agora sobrevivem.
+- Catalogo i18n: 1029 entradas (+47). Sem homologacao em jogo real.
+
+## 1.8.1 build av (correcoes da auditoria da build au)
+- P1.1 Cor por item com itens aninhados: cada item guarda os metodos que havia antes e os devolve ao fechar; a cor de dentro vale so dentro e, ao fechar o interno, volta a cor do externo. Embrulhos com referencia fraca ao pintor (sem ciclo que segure o QPainter), sobras de um desenho que falhou sao descartadas e desfeitas, pintores/janelas diferentes nao interferem. Transparencia e degrades preservados.
+- P1.2 Coach: contagem (proxima), curva e distancia (freada), marcha e apice funcionam cada um sozinho; a faixa de cima so some quando os quatro estao desligados. Desenho padrao identico ao da build au.
+- P2.1 Dependencias explicitas (DEPENDE): Mapa de vazao (marcador e trilha sobre o mapa), Eficiencia por marcha (parcela, RPM maximo e RPM atual sobre a grade) e Destino do combustivel (cabecalho de RPM na tabela). Na Central o item dependente aparece com "(depende de: ...)" e fica desabilitado enquanto o de fora estiver desligado. Pneus: "detalhes" agora e independente de "vida"; Classificacao: sessao, contadores, clima e incidentes sao independentes da "barra" (que passa a ser so o fundo).
+- P2.2 Classificacao: o espaco de sessao, clima, incidentes e contadores e medido com o estilo real do item (fonte, negrito, italico, tamanho ate 200 %); sem sobreposicao em pt, de e fr.
+- P2.3 Novos itens (posicao, fonte, tamanho e cor) em Mapa da pista, Forca G, Luz do ABS, Luz do TC, Trafego, Minimapa rotativo, Ultimo contato e Entrada do pit. O desenho principal (pista do Mapa/Minimapa, disco da Forca G) continua fixo.
+- P2.4 Teste novo teste_v18_itens_todos_paineis: cada item de cada painel e verificado propriedade a propriedade (X, Y, fonte, negrito, italico, tamanho, cor, visibilidade), persistencia em JSON e restauracao; item/propriedade sem efeito faz o teste falhar. Itens sem texto (ou so com traco/degrade) estao listados no proprio teste como nao aplicaveis.
+- P3 Central: "Tam. padrao" e um valor a parte (49) e 50 % passa a ser um tamanho real.
+- Qualidade: teste_v18_telemetria_ordem deterministico (tempo congelado e temporizador da previa parado), 6 execucoes paralelas sem falha. Correcoes achadas pelo novo teste: fonte do numero do Relativo e do numero no Minimapa passaram a respeitar o estilo.
+- Testes novos: teste_v18_cores_aninhadas (24), teste_v18_classif_barra_fontes (295). Catalogo i18n: 982 entradas. Sem homologacao em jogo real.
+
+## 1.8.1 build au (itens com posicao e estilo em TODOS os paineis; 19 correcoes da validacao da build at)
+- Previa ao vivo da Central agora acompanha cada opcao: Relativo (iRating X/Y, fontes, distancia em segundos, nome), Pneus (zonas, vida e rodape), Velocidade nas curvas (titulo e contador), Tendencia de ritmo (titulo e selo de estado), Mapa de vazao (trilha da posicao), Calendario (fechamento do registro), Energia hibrida (estado) e Tempo da sessao (barra de progresso e percentual).
+- Paineis que ganharam itens com posicao (X/Y), fonte, negrito/italico, tamanho e cor: Classificacao (barra superior, tipo da sessao, contadores, clima, incidentes, titulos, faixa de classe, linhas), Radar (faixa, brilho, aviso, carros, seu carro, distancias, nota), Voltas (calculo de combustivel: voltas ate o fim, necessario e adicionar), Danos e impactos, Combustivel e pit, Retorno a pista, Estrategia de pneus, Bandeiras, Auxiliar de sessao e Delta Trace (grafico, volta anterior, ritmo ideal, blocos, numero da curva, desenho da pista).
+- Coach ao vivo: itens separados para a contagem grande, curva e distancia da proxima freada, marcha da curva, velocidade no apice, delta, ritmo, dica da melhor curva e rodape.
+- Estrategia de pneus: o texto do nivel da pista (ex.: "Pouco molhada") nao encosta mais na barra de nivel.
+- Pedais do Coach: a previa mostra um exemplo (freio, acelerador, alvo e plano da curva) quando ainda nao ha referencia, para ver o que cada ajuste muda.
+- Cor: alem do texto, agora tambem pinta os preenchimentos solidos do item (barras, selos, marcadores). Degrade e transparencia continuam como estao.
+- Teste novo: teste_v18_itens_todos_paineis (todo item de todo painel muda a previa ao mover, trocar fonte/tamanho ou cor). Catalogo i18n: 957 entradas. Sem homologacao em jogo real.
+
+## 1.8.1 build at (posicao livre e estilo de cada item, em todos os paineis com itens)
+- Central: nos paineis com itens (Elementos), novo bloco "POSICAO E ESTILO DOS ITENS": arraste qualquer item direto na previa (horizontal e vertical, encaixe de 2 px) ou ajuste X e Y; por item: fonte de corrida, negrito/italico, tamanho (50 a 200 %) e cor do texto. Botao "Restaurar posicoes e estilos".
+- 9 fontes de corrida embutidas na pasta fontes/ (licenca OFL, texto em fontes/LICENCAS_OFL.txt): Racing Sans One, Russo One, Audiowide, Rajdhani, Chakra Petch, Orbitron, Michroma, Share Tech Mono, Bungee. Simbolos que a fonte nao tem (como o grau) caem na fonte do tema.
+- Telemetria: cada bloco (volante, marcha, velocidade, pedais, grafico, barra de RPM) tambem ganha posicao e estilo, alem da ordem da build as.
+- Cobertura: Telemetria e 20 paineis que declaram itens. Itens do Delta Trace (grafico, curva, mapa, blocos) e zonas/vida do Pneus ainda nao se movem. Paineis sem itens declarados (ex.: Radar, Minimapa, Mapa, Luz ABS/TC, Combustivel, Danos, Estrategia, Forca G) ficam para a proxima etapa.
+- Chaves de config: elementos_<painel>_pos ({item: [x, y]}) e elementos_<painel>_estilo ({item: {fonte, cor, negrito, italico, tam}}); valores invalidos sao ignorados. Sem configuracao o desenho e identico ao anterior.
+- Teste novo: teste_v18_posicao_fonte (78 verificacoes). Catalogo i18n: 899 entradas. Sem homologacao em jogo real.
+
+## 1.8.1 build as (Telemetria: ordem dos itens personalizavel)
+- Telemetria: em Central > Telemetria, bloco "ORDEM DOS ITENS DA TELEMETRIA", cada item muda de posicao com as setas (◀ ▶), com a previa mudando na hora. Itens da barra: volante, marcha, velocidade, pedais e grafico; do painel: marcha, velocidade e RPM, pedais e volante. Ex.: volante a direita e pedais entre a marcha e o volante. Botao "Ordem original".
+- Cada layout (barra e painel) guarda a sua propria ordem (chaves 'telemetria_ordem_barra' e 'telemetria_ordem_painel'); a janela nao muda de tamanho e, sem configuracao, o desenho e identico ao anterior (conferido pixel a pixel). Ids invalidos ou repetidos sao ignorados.
+- Teste novo: teste_v18_telemetria_ordem (35 verificacoes, inclui todas as permutacoes dos dois layouts); catalogo i18n com 887 entradas. Calculos, Coach e demais paineis inalterados. Sem homologacao em jogo real.
+
 ## 1.8.0 build ar (corretiva - auditoria da build aq)
 - P2: ao trocar o idioma na Central aparece o mesmo aviso de reinicio do menu da bandeja (ov_i18n.AVISO_REINICIAR, no idioma escolhido), pois a Central e os menus so traduzem por completo apos reiniciar.
 - P3: a traducao passa a cobrir tambem argumentos nomeados de texto (text, title, toolTip, string, label) nas chamadas interceptadas, p.ex. QLabel(text=...), QMenu(title=...). Identificadores internos (objectName, propriedades) nunca sao traduzidos. Nota: os setters do PySide (setText etc.) nao aceitam argumentos nomeados; so os construtores.
@@ -77,6 +139,15 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 - Reparo opcional entra na limpeza das marcas; rotulo "Local indefinido" no lugar de "Fora da pista" para contatos sem direcao.
 - Cada impacto e gravado no overlay_log.txt (zona, tipo, g, reparo, incidentes) para diagnostico.
 - Novo teste teste_v18_danos.py (10 verificacoes). Sem homologacao em jogo real.
+
+## [1.8.1] - 2026-11-22
+
+### Resumo da versao 1.8.1 (builds as a az)
+- **Telemetria:** ordem dos itens personalizavel (as); posicao e estilo livres de cada item em todos os paineis com itens (at, au); correcoes de auditoria (av a ay).
+- **Fontes:** negrito e italico visiveis em todos os temas, inclusive Vidro/Bahnschrift e Orbitron; sonda de negrito otimizada (az).
+- **Classificacao LMU:** cabecalho corrigido nos layouts foto e classico (ay, az); pacote COMPLETO de atualizacao com verificacao de manifesto e reversao (ay, az).
+- **Executor de testes:** rodar_todos_os_testes.py com codigo de saida por suite e --plataforma windows|offscreen; testes de cronograma portateis para o Windows (az).
+- Validado com testes automaticos e dados simulados; a homologacao em simulador real segue pendente. Detalhes por build acima.
 
 ## [1.8.0] - 2026-11-17
 

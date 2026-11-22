@@ -25,8 +25,15 @@ dash/tools/out_sport/
 dash/tools/thumbs/
 dist/
 *.zip
+# referencia visual congelada da build au (os testes comparam contra ela; nao altere)
+!overlay/testes/referencia_au/referencia_au.zip
 # saida da compilacao do EXE
 overlay/exe/
 overlay/referencias/
 overlay/pit_entradas.json
 overlay/pit_entradas_v2.json
+# saida do executor de testes (rodar_todos_os_testes.py)
+overlay/logs_testes/
+# cronograma importado do PDF do usuario (dado pessoal, gerado por atualizar_cronograma.bat)
+overlay/cronograma.json
+overlay/cronograma_anterior.json

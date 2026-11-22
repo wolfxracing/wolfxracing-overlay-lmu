@@ -7,8 +7,8 @@ Herda da janela de classificacao do iRacing (arquivo original intacto) e troca a
 """
 import math
 
-from PySide6.QtCore import QPointF, Qt
-from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainterPath, QPen, QPolygonF
+from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QFontMetricsF, QPainterPath, QPen, QPolygonF
 
 import overlay_iracing as base
 import ov_classif_lmu as cl
@@ -18,6 +18,20 @@ COR_CINZA, COR_TEXTO, COR_VERDE = base.COR_CINZA, base.COR_TEXTO, base.COR_VERDE
 COR_VERMELHO, COR_LARANJA = base.COR_VERMELHO, base.COR_LARANJA
 
 LARGURA_LMU = 846
+
+# O limite de tolerancia evita recuo adicional da tinta por arredondamento da metrica.
+SOBRA_TOLERANCIA = 2.0
+
+
+def area_texto(fonte_, texto, fonte_personalizada):
+    """{'adv', 'larg', 'sobra'}: avanço, largura da tinta e recuo necessario para a tinta nao passar da borda direita."""
+    fm = QFontMetricsF(fonte_)
+    adv = fm.horizontalAdvance(texto)
+    br = fm.tightBoundingRect(texto)
+    larg = br.right() - br.left()                      # largura da TINTA (e ela que precisa caber; o avanço inclui recuos laterais)
+    # O texto com a fonte padrao conserva a ancora original em qualquer backend Qt.
+    sobra = max(0.0, (br.right() - adv) - SOBRA_TOLERANCIA) if fonte_personalizada else 0.0
+    return {"adv": adv, "larg": larg, "sobra": sobra}
 ALTURA_LINHA = base.ALTURA_LINHA_CLASS
 # (chave, x, largura, rotulo) - posicoes no tamanho base (100 %)
 X = {"pos": (20, 26), "var": (50, 34), "num": (86, 38), "marca": (126, 34), "piloto": (164, 134),
@@ -28,6 +42,11 @@ X = {"pos": (20, 26), "var": (50, 34), "num": (86, 38), "marca": (126, 34), "pil
 class JanelaClassificacaoLMU(base.JanelaClassificacao):
     LINHAS_MINHA_CLASSE = 10        # carros mostrados na sua classe (topo + vizinhanca)
     LINHAS_OUTRAS_CLASSES = 5       # carros mostrados nas demais classes
+    # build aw: itens do layout CLASSICO com posicao, fonte, tamanho e cor livres na Central (mesmos ids do layout da foto quando existem)
+    ELEMENTOS = (("legenda", "Palavra CLASSIFICACAO"), ("sessao", "Tipo da sessão (RACE, QUALY...)"), ("contadores", "Tempo e volta"),
+                 ("temperaturas", "Temperaturas da pista e do ar"), ("ncars", "Total de carros (N CARROS)"),
+                 ("titulos", "Títulos das colunas"), ("classes", "Faixa de cada classe"), ("linhas", "Linhas dos pilotos"),
+                 ("aviso", "Mensagem de espera (sem dados)"))
 
     def tamanho(self):
         return (LARGURA_LMU, self._altura_base)
@@ -60,33 +79,41 @@ class JanelaClassificacaoLMU(base.JanelaClassificacao):
             return
         classif = d.get("classificacao")
         if not classif or not self._blocos_atual:
-            p.setPen(COR_CINZA)
-            p.setFont(fonte(12))
-            p.drawText(self._retangulo_base(), Qt.AlignCenter, "Sem dados de classificacao")
+            if self._abre(p, "aviso"):
+                p.setPen(COR_CINZA)
+                p.setFont(fonte(12, p=p))
+                p.drawText(self._retangulo_base(), Qt.AlignCenter, "Sem dados de classificacao")
+                self._fecha(p)
             return
         self._barra_superior(p, classif)
         y = self.ALTURA_TOPO
         for classe, linhas in self._blocos_atual:
-            self._cabecalho_classe(p, y, classe)
+            if self._abre(p, "classes"):
+                self._cabecalho_classe(p, y, classe)
+                self._fecha(p)
             y += ALTURA_LINHA
             for linha, salto in linhas:
-                self._linha(p, y, linha, salto, QColor(*classe["cor"]))
+                if self._abre(p, "linhas"):
+                    self._linha(p, y, linha, salto, QColor(*classe["cor"]))
+                    self._fecha(p)
                 y += ALTURA_LINHA
 
     def _barra_superior(self, p, classif):
         sessao = classif.get("sessao") or {}
-        p.setFont(fonte(8, QFont.DemiBold))
-        p.setPen(COR_CINZA)
-        p.drawText(14, 5, 110, 18, Qt.AlignLeft | Qt.AlignVCenter, "CLASSIFICACAO")
+        if self._abre(p, "legenda"):
+            p.setFont(fonte(8, QFont.DemiBold, p=p))
+            p.setPen(COR_CINZA)
+            p.drawText(14, 5, 110, 18, Qt.AlignLeft | Qt.AlignVCenter, "CLASSIFICACAO")
+            self._fecha(p)
         x = 122
         tipo = classif.get("tipo_sessao")
         if tipo:
-            p.setFont(fonte(10, QFont.Bold))
-            p.setPen(QColor(255, 255, 255))
-            p.drawText(x, 5, 120, 18, Qt.AlignLeft | Qt.AlignVCenter, tipo)
+            if self._abre(p, "sessao"):
+                p.setFont(fonte(10, QFont.Bold, p=p))
+                p.setPen(QColor(255, 255, 255))
+                p.drawText(x, 5, 120, 18, Qt.AlignLeft | Qt.AlignVCenter, tipo)
+                self._fecha(p)
             x += 112
-        p.setFont(fonte(9, QFont.DemiBold))
-        p.setPen(COR_TEXTO)
         partes = []
         if sessao.get("decorrido") is not None:
             texto = cl.fmt_hms(sessao["decorrido"])
@@ -98,31 +125,75 @@ class JanelaClassificacaoLMU(base.JanelaClassificacao):
             if sessao.get("voltas_total"):
                 v += f"/{sessao['voltas_total']}"
             partes.append(v)
-        p.drawText(x, 5, 330, 18, Qt.AlignLeft | Qt.AlignVCenter, "    ".join(partes))
-        # direita: temperaturas e total de carros
+        # build ay: os tres blocos (tempo/volta, temperaturas, total de carros) sao medidos JUNTOS, cada um com o estilo do proprio item (fonte, negrito,
+        # italico, tamanho %), e desenhados sem recorte. Regra de espaco (previsivel; nunca se desenha texto pela metade):
+        #   prioridade tempo/volta > total de carros > temperaturas; o que nao cabe INTEIRO no espaco livre some, e a reserva do que sumiu e liberada
+        #   (contador oculto ou sem espaco = as temperaturas vao ate a borda). Afastamento minimo entre blocos: 12 px.
+        borda = LARGURA_LMU - 14
         direita = []
         if sessao.get("pista") is not None:
             direita.append(f"PISTA {sessao['pista']:.0f}°C")
         if sessao.get("ar") is not None:
             direita.append(f"AR {sessao['ar']:.0f}°C")
         total = sum(c["n_carros"] for c in classif["classes"])
-        direita.append(f"{total} CARROS")
-        p.setFont(fonte(8, QFont.DemiBold))
-        p.setPen(COR_CINZA)
-        p.drawText(LARGURA_LMU - 14 - 300, 5, 300, 18, Qt.AlignRight | Qt.AlignVCenter, "    ".join(direita))
+        texto_n = f"{total} CARROS"
+        texto_c = "    ".join(partes)
+        texto_t = "    ".join(direita)
+
+        def medir(eid, texto, tam, peso):
+            """area do texto com o estilo do item, ou None se o item esta oculto (entao nao reserva espaco)."""
+            if not texto or not self._abre(p, eid):
+                return None, None
+            try:
+                fonte_item = fonte(tam, peso, p=p)
+                return fonte_item, area_texto(fonte_item, texto, base._estilo_do_elemento(p) is not None)
+            finally:
+                self._fecha(p)
+        fonte_c, a_c = medir("contadores", texto_c, 9, QFont.DemiBold)
+        fonte_t, a_t = medir("temperaturas", texto_t, 8, QFont.DemiBold)
+        fonte_n, a_n = medir("ncars", texto_n, 8, QFont.DemiBold)
+        mostra_c = a_c is not None and x + a_c["larg"] <= borda
+        limite = (x + a_c["larg"] + 12) if mostra_c else x
+        mostra_n = a_n is not None and (borda - a_n["larg"]) >= limite
+        limite_t = borda
+        if mostra_n:
+            # Preserva a folga de quatro espacos medida com a fonte do contador.
+            limite_t -= QFontMetricsF(fonte_n).horizontalAdvance("    " + texto_n)
+        mostra_t = a_t is not None and (limite_t - a_t["larg"]) >= limite
+        if mostra_c and self._abre(p, "contadores"):
+            p.setFont(fonte_c)
+            p.setPen(COR_TEXTO)
+            p.drawText(QRectF(x, 5, max(330.0, a_c["larg"] + 8.0), 18), Qt.AlignLeft | Qt.AlignVCenter | Qt.TextDontClip, texto_c)
+            self._fecha(p)
+        if mostra_t and self._abre(p, "temperaturas"):
+            p.setFont(fonte_t)
+            p.setPen(COR_CINZA)
+            larg_r = max(300.0, a_t["larg"] + 8.0)
+            fim = limite_t - a_t["sobra"]
+            p.drawText(QRectF(fim - larg_r, 5, larg_r, 18), Qt.AlignRight | Qt.AlignVCenter | Qt.TextDontClip, texto_t)
+            self._fecha(p)
+        if mostra_n and self._abre(p, "ncars"):
+            p.setFont(fonte_n)
+            p.setPen(COR_CINZA)
+            larg_r = max(300.0, a_n["larg"] + 8.0)
+            p.drawText(QRectF(borda - a_n["sobra"] - larg_r, 5, larg_r, 18), Qt.AlignRight | Qt.AlignVCenter | Qt.TextDontClip, texto_n)
+            self._fecha(p)
 
         # Rotulos das colunas
-        p.setFont(fonte(7, QFont.DemiBold))
-        y = 26
-        rot = (("pos", "P", Qt.AlignRight), ("num", "#", Qt.AlignLeft), ("marca", "CARRO", Qt.AlignHCenter),
-               ("piloto", "PILOTO", Qt.AlignLeft), ("par", "PAR", Qt.AlignHCenter), ("comb", "COMB", Qt.AlignRight),
-               ("gap", "GAP", Qt.AlignRight), ("int", "INT", Qt.AlignRight), ("melhor", "MELHOR", Qt.AlignRight),
-               ("ultima", "ULTIMA", Qt.AlignRight), ("media", "MED 5", Qt.AlignRight))
-        for chave, texto, alinh in rot:
-            x0, w = X[chave]
-            p.drawText(x0, y, w, 16, alinh | Qt.AlignVCenter, texto)
-        p.setPen(QPen(QColor(255, 255, 255, 40), 1))
-        p.drawLine(14, 43, LARGURA_LMU - 14, 43)
+        if self._abre(p, "titulos"):
+            p.setFont(fonte(7, QFont.DemiBold, p=p))
+            p.setPen(COR_CINZA)
+            y = 26
+            rot = (("pos", "P", Qt.AlignRight), ("num", "#", Qt.AlignLeft), ("marca", "CARRO", Qt.AlignHCenter),
+                   ("piloto", "PILOTO", Qt.AlignLeft), ("par", "PAR", Qt.AlignHCenter), ("comb", "COMB", Qt.AlignRight),
+                   ("gap", "GAP", Qt.AlignRight), ("int", "INT", Qt.AlignRight), ("melhor", "MELHOR", Qt.AlignRight),
+                   ("ultima", "ULTIMA", Qt.AlignRight), ("media", "MED 5", Qt.AlignRight))
+            for chave, texto, alinh in rot:
+                x0, w = X[chave]
+                p.drawText(x0, y, w, 16, alinh | Qt.AlignVCenter, texto)
+            p.setPen(QPen(QColor(255, 255, 255, 40), 1))
+            p.drawLine(14, 43, LARGURA_LMU - 14, 43)
+            self._fecha(p)
 
     def _cabecalho_classe(self, p, y, classe):
         h = ALTURA_LINHA
@@ -134,12 +205,12 @@ class JanelaClassificacaoLMU(base.JanelaClassificacao):
         p.drawRoundedRect(8, y + 2, LARGURA_LMU - 16, h - 4, 5, 5)
         p.setBrush(cor)
         p.drawRect(8, y + 2, 4, h - 4)
-        p.setFont(fonte(10, QFont.Bold))
+        p.setFont(fonte(10, QFont.Bold, p=p))
         p.setPen(cor.lighter(125))
         p.drawText(20, y, 200, h, Qt.AlignLeft | Qt.AlignVCenter, classe["nome"])
         mostrados = next((len(v) for c, v in self._blocos_atual if c is classe), classe["n_carros"])
         texto = f"{mostrados}/{classe['n_carros']} CARROS" if mostrados != classe["n_carros"] else f"{classe['n_carros']} CARROS"
-        p.setFont(fonte(8, QFont.DemiBold))
+        p.setFont(fonte(8, QFont.DemiBold, p=p))
         p.setPen(base.COR_TEXTO)
         p.drawText(LARGURA_LMU - 20 - 240, y, 240, h, Qt.AlignRight | Qt.AlignVCenter, texto)
 
@@ -157,7 +228,7 @@ class JanelaClassificacaoLMU(base.JanelaClassificacao):
         p.drawPolygon(tri)
 
     def _selo(self, p, x, y, h, texto, cor_fundo, cor_texto=QColor(20, 20, 24)):
-        fonte_selo = fonte(7, QFont.Bold)
+        fonte_selo = fonte(7, QFont.Bold, p=p)
         largura = QFontMetrics(fonte_selo).horizontalAdvance(texto) + 8
         p.setPen(Qt.NoPen)
         p.setBrush(cor_fundo)
@@ -181,7 +252,7 @@ class JanelaClassificacaoLMU(base.JanelaClassificacao):
         p.setBrush(cor_classe)
         p.drawRect(12, y + 4, 4, h - 8)
         # posicao na classe
-        p.setFont(fonte(10, QFont.Bold))
+        p.setFont(fonte(10, QFont.Bold, p=p))
         p.setPen(COR_TEXTO)
         p.drawText(X["pos"][0], y, X["pos"][1], h, Qt.AlignRight | Qt.AlignVCenter, str(d["pos"]))
         # variacao em relacao ao grid
@@ -189,16 +260,16 @@ class JanelaClassificacaoLMU(base.JanelaClassificacao):
         xv = X["var"][0]
         if v:
             self._seta(p, xv, y, h, v > 0)
-            p.setFont(fonte(8, QFont.Bold))
+            p.setFont(fonte(8, QFont.Bold, p=p))
             p.setPen(COR_VERDE if v > 0 else COR_VERMELHO)
             p.drawText(xv + 11, y, 22, h, Qt.AlignLeft | Qt.AlignVCenter, str(abs(v)))
         # numero e marca
-        p.setFont(fonte(10, QFont.Bold))
+        p.setFont(fonte(10, QFont.Bold, p=p))
         p.setPen(cor_classe.lighter(120))
         p.drawText(X["num"][0], y, X["num"][1], h, Qt.AlignLeft | Qt.AlignVCenter, f"#{d['numero']}")
         self._emblema(p, X["marca"][0], y, X["marca"][1], h, d["marca"])
         # piloto
-        fonte_nome = fonte(10, QFont.Bold)
+        fonte_nome = fonte(10, QFont.Bold, p=p)
         p.setFont(fonte_nome)
         p.setPen(QColor(255, 255, 255))
         nome = QFontMetrics(fonte_nome).elidedText(d["nome"], Qt.ElideRight, X["piloto"][1] - 4)
@@ -214,7 +285,7 @@ class JanelaClassificacaoLMU(base.JanelaClassificacao):
             cor_status = {"FIM": COR_VERDE, "DNF": QColor(120, 120, 135), "DSQ": COR_VERMELHO}[d["status"]]
             self._selo(p, xs, y, h, d["status"], cor_status, QColor(255, 255, 255) if d["status"] != "FIM" else QColor(20, 20, 24))
         # paradas e combustivel
-        p.setFont(fonte(9, QFont.DemiBold))
+        p.setFont(fonte(9, QFont.DemiBold, p=p))
         p.setPen(COR_TEXTO)
         p.drawText(X["par"][0], y, X["par"][1], h, Qt.AlignCenter, f"P{d['paradas']}")
         if d["combustivel_pct"] is None:
@@ -224,13 +295,13 @@ class JanelaClassificacaoLMU(base.JanelaClassificacao):
             texto = f"{d['combustivel_pct']:.0f}%"
         p.drawText(X["comb"][0], y, X["comb"][1], h, Qt.AlignRight | Qt.AlignVCenter, texto)
         # gap e intervalo (cinza com "~" = estimado, nao medido pelo jogo)
-        p.setFont(fonte(9, QFont.Bold))
+        p.setFont(fonte(9, QFont.Bold, p=p))
         for chave, valor in (("gap", d["gap"]), ("int", d["intervalo"])):
             estimado = bool(valor and valor.get("estimado"))
             p.setPen(COR_CINZA if (valor is None or estimado) else QColor(255, 255, 255))
             p.drawText(X[chave][0], y, X[chave][1], h, Qt.AlignRight | Qt.AlignVCenter, cl.fmt_gap(valor))
         # melhor (roxo = melhor da classe), ultima (verde = igual a propria melhor) e media das ultimas 5
-        p.setFont(fonte(10, QFont.Bold))
+        p.setFont(fonte(10, QFont.Bold, p=p))
         p.setPen(COR_CINZA if d["melhor"] is None else (QColor(190, 130, 255) if d["melhor_da_classe"] else QColor(255, 255, 255)))
         p.drawText(X["melhor"][0], y, X["melhor"][1], h, Qt.AlignRight | Qt.AlignVCenter, base.fmt_tempo(d["melhor"]))
         p.setPen(COR_CINZA if d["ultima"] is None else (COR_VERDE if d["pb"] else QColor(255, 255, 255)))
@@ -283,6 +354,9 @@ def construir_foto_lmu():
         CABECALHO = (("barra", "Barra superior"), ("sessao", "Tipo da sessão (RACE, QUALY...)"), ("volta", "Volta atual / total"),
                      ("tempo", "Tempo decorrido / total"), ("ar", "Temperatura do ar"), ("pista", "Temperatura da pista"),
                      ("ncars", "Total de carros (N CARS)"), ("titulos", "Títulos das colunas (POS, DRIVER, GAP...)"))
+        # build aw: o N CARS tambem tem posicao, fonte, tamanho e cor livres (a barra e os demais itens vem da classe base)
+        # (o LMU nao informa clima nem incidentes na barra: esses dois itens da classe base nunca aparecem aqui e ficam de fora da lista)
+        ELEMENTOS = tuple(e for e in FotoBase.ELEMENTOS if e[0] not in ("clima", "incidentes")) + (("ncars", "Total de carros (N CARS)"),)
 
         # barra superior: sessao, tempo, volta, temperaturas, total de carros
         def _barra(self, p, cab):
@@ -303,18 +377,38 @@ def construir_foto_lmu():
                 "ar": sessao.get("ar"), "pista": sessao.get("pista"), "umidade": None,
                 "inc": None, "inc_limite": None, "clima": None,
             }
-            FotoBase._barra(self, p, cabecalho)
             n = sum(c["n_carros"] for c in classif.get("classes", []))
-            if "ncars" not in self._cab_off:
-                p.setFont(base.fonte(9, QFont.Bold))
+            texto_n = f"{n} CARS"
+            # build ay: o total de carros mede, reserva e desenha pela AREA REAL do texto (tinta, com saliencia de italico e glifos altos), com o estilo do item.
+            # Regra de espaco (previsivel): o contador tem prioridade sobre a sessao e sobre os demais itens da esquerda; o que nao cabe INTEIRO some
+            # (nunca fica pela metade). Se o contador sozinho nao cabe na barra (largura da janela - margens), ele e que some e nada reserva espaco.
+            mostra_n = "ncars" not in self._cab_off and self.visivel("ncars")
+            larg_n = None
+            a_n = None
+            if mostra_n and self._abre(p, "ncars"):
+                try:
+                    f_n = base.fonte(9, QFont.Bold, p=p)
+                    a_n = area_texto(f_n, texto_n, base._estilo_do_elemento(p) is not None)
+                    if a_n["larg"] <= self._largura - 16 - 12:
+                        larg_n = QFontMetrics(f_n).horizontalAdvance(texto_n)
+                finally:
+                    self._fecha(p)
+            larg_r = None if larg_n is None else max(120.0, larg_n + 8.0)
+            ocupa = 0.0 if larg_r is None else a_n["larg"] + a_n["sobra"] + 4.0                    # espaco REAL a esquerda da borda direita (largura - 16): a tinta + folga
+            self._reserva = 0 if (larg_r is None) else max(self.RESERVA_DIREITA, larg_r + a_n["sobra"])   # itens da esquerda: area do contador (como antes, nunca menor)
+            self._ncars_ocupa = ocupa                                                           # a sessao (RACE) respeita este espaco (ver ov_classif_foto._barra)
+            FotoBase._barra(self, p, cabecalho)
+            if larg_r is not None and self._abre(p, "ncars"):
+                p.setFont(f_n)
                 p.setPen(COR_CINZA)
-                p.drawText(QRectF(self._largura - 16 - 120, 11, 120, 20), Qt.AlignRight | Qt.AlignVCenter, f"{n} CARS")
+                p.drawText(QRectF(self._largura - 16 - a_n["sobra"] - larg_r, 11, larg_r, 20), Qt.AlignRight | Qt.AlignVCenter | Qt.TextDontClip, texto_n)
+                self._fecha(p)
 
         def _rotulos(self, p):
             X = self.X
             y = self._y_rotulos()
             h = _foto.ALTURA_ROTULOS
-            p.setFont(fonte(7, QFont.DemiBold))
+            p.setFont(fonte(7, QFont.DemiBold, p=p))
             p.setPen(COR_CINZA)
             for chave, larg, texto, alinh in (
                     ("pos", 26, "POS", Qt.AlignCenter), ("delta", 34, "+/\u2212", Qt.AlignCenter),
@@ -331,7 +425,7 @@ def construir_foto_lmu():
         def _faixa_classe(self, p, y, classe):
             h = _foto.ALTURA_LINHA_FOTO
             cor = QColor(*classe["cor"])
-            f = base.fonte(9, QFont.Bold)
+            f = base.fonte(9, QFont.Bold, p=p)
             larg = QFontMetrics(f).horizontalAdvance(classe["nome"]) + 20
             p.setPen(Qt.NoPen)
             p.setBrush(cor)
@@ -342,7 +436,7 @@ def construir_foto_lmu():
             p.drawText(QRectF(12, y + 4, larg, h - 8), Qt.AlignCenter, classe["nome"])
             mostrados = next((len(v) for c, v in self._blocos_atual if c is classe), classe["n_carros"])
             texto = f"{mostrados}/{classe['n_carros']}" if mostrados != classe["n_carros"] else f"{classe['n_carros']}"
-            p.setFont(base.fonte(8, QFont.DemiBold))
+            p.setFont(base.fonte(8, QFont.DemiBold, p=p))
             p.setPen(COR_CINZA)
             p.drawText(QRectF(self._largura - 16 - 120, y, 120, h), Qt.AlignRight | Qt.AlignVCenter, texto)
             p.setPen(QPen(QColor(cor.red(), cor.green(), cor.blue(), 90), 1))
@@ -363,7 +457,7 @@ def construir_foto_lmu():
                 p.setPen(QPen(QColor(255, 255, 255, 60), 1))
                 p.setBrush(QColor(0, 0, 0, 110) if not d["eu"] else QColor(255, 255, 255, 40))
                 p.drawRoundedRect(QRectF(X["pos"], y + 3, 26, h - 6), 5, 5)
-                p.setFont(fonte(10, QFont.Bold))
+                p.setFont(fonte(10, QFont.Bold, p=p))
                 p.setPen(texto)
                 p.drawText(QRectF(X["pos"], y + 3, 26, h - 6), Qt.AlignCenter, str(d["pos"]))
             if "delta" in vis:
@@ -374,12 +468,12 @@ def construir_foto_lmu():
                 p.setBrush(cor_classe)
                 p.drawRoundedRect(QRectF(X["num"], y + 3, 44, h - 6), 5, 5)
                 lum = 0.299 * cor_classe.red() + 0.587 * cor_classe.green() + 0.114 * cor_classe.blue()
-                p.setFont(fonte(10, QFont.Bold))
+                p.setFont(fonte(10, QFont.Bold, p=p))
                 p.setPen(QColor(20, 20, 25) if lum > 150 else QColor(255, 255, 255))
                 p.drawText(QRectF(X["num"], y + 3, 44, h - 6), Qt.AlignCenter, "#" + str(d["numero"]))
             if "marca" in vis:
                 self._emblema(p, X["marca"], y, 34, h, d["marca"])
-            f = fonte(10, QFont.Bold)
+            f = fonte(10, QFont.Bold, p=p)
             p.setFont(f)
             p.setPen(texto)
             p.drawText(QRectF(X["piloto"], y, 154, h), Qt.AlignLeft | Qt.AlignVCenter,
@@ -397,7 +491,7 @@ def construir_foto_lmu():
                     self._selo(p, xs, y, h, d["status"], cor_status,
                                QColor(255, 255, 255) if d["status"] != "FIM" else QColor(20, 20, 24))
             # gap / intervalo (cinza com "~" = estimado)
-            p.setFont(fonte(10, QFont.DemiBold))
+            p.setFont(fonte(10, QFont.DemiBold, p=p))
             for chave, valor, larg in (("gap", d["gap"], 58), ("int", d["intervalo"], 56)):
                 if chave not in vis:
                     continue
@@ -405,7 +499,7 @@ def construir_foto_lmu():
                 p.setPen(COR_CINZA if (valor is None or estimado) else texto)
                 p.drawText(QRectF(X[chave], y, larg, h), Qt.AlignRight | Qt.AlignVCenter, cl.fmt_gap(valor))
             # melhor / ultima / media 5
-            p.setFont(fonte(10, QFont.Bold))
+            p.setFont(fonte(10, QFont.Bold, p=p))
             if "melhor" in vis:
                 p.setPen(COR_CINZA if d["melhor"] is None else
                          (QColor(190, 130, 255) if d["melhor_da_classe"] and not d["eu"] else

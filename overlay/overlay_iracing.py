@@ -36,6 +36,7 @@ Uso:
 import bisect
 import json
 import math
+import weakref
 import os
 import re
 import sys
@@ -165,8 +166,8 @@ except Exception:
     ov_i18n = None
 
 PASTA = _PASTA_BASE
-VERSAO_PRODUTO = "1.8.0"                      # versao do produto (ainda nao publicada); as correcoes da auditoria entram como BUILD
-BUILD = "ar"                                    # identificacao da entrega dentro da 1.8.0 (aparece no cabecalho do log)
+VERSAO_PRODUTO = "1.8.1"                      # versao do produto; as correcoes da auditoria entram como BUILD (az = primeira build da 1.8.1)
+BUILD = "az"                                    # identificacao da entrega dentro da 1.8.1 (aparece no cabecalho do log)
 ARQ_CONFIG = PASTA / "config.json"
 ARQ_LOG = PASTA / "overlay_log.txt"
 ARQ_MAPAS = PASTA / "mapas_pistas.json"
@@ -305,7 +306,7 @@ def carregar_config():
         # ---- build o ----
         "x_consumo": 1440, "y_consumo": 440, "mostrar_consumo": True, "escala_consumo": 1.0,
         "x_delta_trace": 700, "y_delta_trace": 860, "mostrar_delta_trace": True, "escala_delta_trace": 1.0,
-        "delta_trace_layout": "grafico", "delta_trace_elementos": {},   # build r: "grafico" (area ao longo da volta) | "racelab" (numero grande + barra central)
+        "delta_trace_layout": "grafico", "delta_trace_elementos": {}, "delta_trace_elementos_pos": {}, "delta_trace_elementos_estilo": {},   # build aw: posicao e estilo dos itens tambem sobrevivem ao reiniciar; build r: "grafico" (area ao longo da volta) | "racelab" (numero grande + barra central)
         # ---- v1.7.0 ----
         "x_coach": 700, "y_coach": 330, "mostrar_coach": True, "escala_coach": 1.0, "coach_modo": "auto", "coach_voz": False,
         "coach_ibt_auto": True,          # v1.7.0: ao entrar numa pista, procura a sua melhor volta nas telemetrias .ibt
@@ -313,6 +314,8 @@ def carregar_config():
         "amigos": [],                    # v1.7.0: nomes destacados na classificacao e no relativo
         "opacidade_painel": {},          # v1.7.0: opacidade do fundo por painel {chave: 0.2..1.0}; sem a chave = usa a geral
         "classif_colunas": {},           # build l: colunas da classificacao {id: False} para esconder (ausente = visivel)
+        "telemetria_ordem_painel": [],   # build as: ordem dos itens da Telemetria (painel); vazio = ordem original
+        "telemetria_ordem_barra": [],    # build as: ordem dos itens da Telemetria (barra); vazio = ordem original
         "classif_ordem": [],             # build m: ordem das colunas (ids de GRUPOS); vazio/ausente = ordem original
         "classif_cabecalho": {},         # build m: itens do cabecalho {id: False} para esconder (barra, sessao, volta, tempo, ar, pista, umidade, inc, clima, titulos)
         "minimapa_numeros": "classe",    # build l: numero da posicao dentro do marcador do carro: "off" | "classe" | "geral"
@@ -3216,7 +3219,8 @@ class Telemetria:
         fase = "livre" if dist > 150 else ("freando" if ciclo > 9.2 else "adiante")
         return {"estado": "ok", "fonte": "importada", "pista": "Demo", "carro": "Demo", "tempo_ref": 92.4,
                 "proxima": {"n": 3, "dist_m": dist, "tempo_ate": dist / 55.0, "fase": fase, "contagem": contagem,
-                            "marcha": 3, "vel_apice": 94.0, "vel_entrada": 238.0, "pico": 0.92, "total": 9},
+                            "marcha": 3, "vel_apice": 94.0, "vel_entrada": 238.0, "pico": 0.92, "total": 9,
+                            "melhor_sua": {"texto": "Sua melhor nesta curva: ápice 98 km/h"}},
                 "delta": -0.18 if ciclo < 6 else 0.21,
                 "feedback": {"n": 2, "freada_m": 14.0, "nota": "cedo", "vel_apice": 101.0, "dif_vel": -3.0, "marcha": 3,
                              "marcha_ref": 3, "dif_marcha": 0, "gravidade": 1, "texto": "C2: freou cedo (~14 m) | apice -3 km/h"},
@@ -4799,14 +4803,193 @@ _FAMILIAS = {True: ["Bahnschrift", "Segoe UI"], False: ["Segoe UI"]}
 _TEXTURA = []
 
 
-def fonte(tamanho, peso=QFont.Normal):
+# build at: fontes de corrida embutidas (licenca OFL, pasta fontes/) e fonte/posicao por elemento de cada painel
+FONTES_CORRIDA = (
+    ("racing_sans", "Racing Sans One", ("RacingSansOne-Regular.ttf",), False),
+    ("russo", "Russo One", ("RussoOne-Regular.ttf",), False),
+    ("audiowide", "Audiowide", ("Audiowide-Regular.ttf",), False),
+    ("rajdhani", "Rajdhani", ("Rajdhani-SemiBold.ttf", "Rajdhani-Bold.ttf"), True),
+    ("chakra", "Chakra Petch", ("ChakraPetch-Bold.ttf", "ChakraPetch-BoldItalic.ttf"), True),
+    ("orbitron", "Orbitron", ("Orbitron[wght].ttf",), True),
+    ("michroma", "Michroma", ("Michroma-Regular.ttf",), False),
+    ("share_mono", "Share Tech Mono", ("ShareTechMono-Regular.ttf",), False),
+    ("bungee", "Bungee", ("Bungee-Regular.ttf",), False),
+)
+_FONTES_REG = {"carregado": False, "familias": {}}          # id -> (familia, aceita_negrito)
+_ELEM_PILHA = []                                            # itens abertos por _abre/_fecha: (referencia fraca do pintor, estilo, metodos anteriores).
+# Build aw: a pilha e COMPARTILHADA mas o estado e POR PINTOR. Cada pintor tem a sua propria sequencia de itens (a ordem relativa dos
+# seus itens nunca muda) e _fecha(p) tira apenas o ultimo item DO PINTOR p. Assim A abre, B abre, B fecha e A continua com o estilo dele.
+# O ultimo item da lista e o "contexto" de fonte()/_cor_do_elemento(): o pintor que mais recentemente abriu ou fechou um item.
+
+
+def carregar_fontes_corrida():
+    """Registra as fontes de corrida da pasta fontes/ (uma vez) e devolve {id: (familia, aceita_negrito)}. Nunca levanta erro."""
+    if _FONTES_REG["carregado"]:
+        return _FONTES_REG["familias"]
+    _FONTES_REG["carregado"] = True
+    try:
+        from PySide6.QtGui import QFontDatabase
+        pasta = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fontes")
+        for fid, _rot, arquivos, negrito in FONTES_CORRIDA:
+            fam = None
+            for arq in arquivos:
+                caminho = os.path.join(pasta, arq)
+                if os.path.exists(caminho):
+                    ident = QFontDatabase.addApplicationFont(caminho)
+                    fams = QFontDatabase.applicationFontFamilies(ident) if ident >= 0 else []
+                    if fams and fam is None:
+                        fam = fams[0]
+            if fam:
+                _FONTES_REG["familias"][fid] = (fam, negrito)
+    except Exception:
+        pass
+    return _FONTES_REG["familias"]
+
+
+def fontes_corrida_disponiveis():
+    """[(id, rotulo)] das fontes de corrida que foram carregadas."""
+    reg = carregar_fontes_corrida()
+    return [(fid, rot) for fid, rot, _a, _n in FONTES_CORRIDA if fid in reg]
+
+
+def _dono_da_entrada(e):
+    """Pintor dono de uma entrada da pilha (None se ja foi destruido)."""
+    r = e[0]
+    return r() if isinstance(r, weakref.ref) else r
+
+
+def _entrada_viva(e):
+    """False so para entrada de um pintor que ja foi destruido ou encerrado (desenho que falhou no meio)."""
+    if not isinstance(e[0], weakref.ref):
+        return True
+    q = e[0]()
+    if q is None:
+        return False
+    try:
+        return bool(q.isActive())
+    except AttributeError:                    # pintor simulado (sem isActive): vale enquanto existir
+        return True
+    except Exception:
+        return False
+
+
+def _limpa_pilha():
+    """Remove da pilha o que sobrou de pintores que nao existem mais (nada a restaurar: o pintor ja acabou)."""
+    if any(not _entrada_viva(e) for e in _ELEM_PILHA):
+        _ELEM_PILHA[:] = [e for e in _ELEM_PILHA if _entrada_viva(e)]
+
+
+def _estilo_atual(p=None):
+    """Estilo do item em desenho, ou None.
+    Build ax: com o pintor `p` consulta SO os itens abertos por ele (dois QPainter abertos ao mesmo tempo nao se misturam: medir e desenhar em A usa
+    o estilo de A, em B o de B; pintor sem item aberto = sem estilo). Sem `p` (chamadas antigas, sem pintor a mao) vale o contexto: a ultima entrada viva."""
+    if p is not None:
+        for e in reversed(_ELEM_PILHA):
+            if _dono_da_entrada(e) is p and _entrada_viva(e):
+                return e[1]
+        return None
+    for e in reversed(_ELEM_PILHA):
+        if _entrada_viva(e):
+            return e[1]
+    return None
+
+
+def _cor_do_elemento(p=None):
+    """Cor (#rrggbb) escolhida para o elemento em desenho (do pintor `p`, se dado), ou None."""
+    est = _estilo_atual(p)
+    return est.get("cor") if est else None
+
+
+def _estilo_do_elemento(p=None):
+    """Estilo de fonte do elemento em desenho ({fonte, negrito, italico, tam}) do pintor `p` (se dado), ou None."""
+    est = _estilo_atual(p)
+    return est if est and any(k in est for k in ("fonte", "negrito", "italico", "tam")) else None
+
+
+_SONDA_PESO = {}
+
+
+def _sonda_peso(familias, italico):
+    """Build ay: True se o negrito desta familia MUDA o que e desenhado. Em alguns Qt/Windows a Bahnschrift (fonte variavel) sai com o mesmo peso
+    ao alternar negrito. Compara a tinta normal e em negrito da lista de familias na ordem usada no desenho.
+    Sem QGuiApplication ainda: assume True e nao guarda."""
+    chave = (tuple(familias), bool(italico))
+    if chave in _SONDA_PESO:
+        return _SONDA_PESO[chave]
+    try:
+        from PySide6.QtGui import QGuiApplication, QImage, QPainter
+        if QGuiApplication.instance() is None:
+            return True
+        tintas = []
+        # O ARGB32 armazena QRgb no ordenamento de bytes nativo.
+        vermelho = 2 if sys.byteorder == "little" else 1
+        for peso in (QFont.Normal, QFont.Bold):
+            im = QImage(360, 64, QImage.Format_ARGB32)
+            im.fill(QColor(0, 0, 0))
+            q = QPainter(im)
+            f = QFont(familias[0], 24, peso)
+            f.setFamilies(familias)
+            f.setItalic(bool(italico))
+            q.setFont(f)
+            q.setPen(QColor(255, 255, 255))
+            q.drawText(8, 44, "WOLFX Rg 0123")
+            q.end()
+            tintas.append(sum(im.constBits()[vermelho::4]))
+        ok = abs(tintas[1] - tintas[0]) > 0.02 * max(1, tintas[0])
+    except Exception:
+        ok = True
+    _SONDA_PESO[chave] = ok
+    return ok
+
+
+def _familias_com_peso(familias, italico):
+    """Procura uma familia do tema ou embutida que diferencie os dois pesos."""
+    if _sonda_peso(familias, italico):
+        return familias
+    if len(familias) > 1:
+        alternativas = familias[1:] + familias[:1]
+        if _sonda_peso(alternativas, italico):
+            return alternativas
+    rajdhani = carregar_fontes_corrida().get("rajdhani")
+    if rajdhani:
+        alternativas = [rajdhani[0], *familias]
+        if _sonda_peso(alternativas, italico):
+            return alternativas
+    return familias
+
+
+def fonte(tamanho, peso=QFont.Normal, p=None):
     """Fonte do overlay. Tema moderno: Bahnschrift (fonte de painel automotivo, ja vem no Windows 10/11);
-    se nao existir, cai sozinha na Segoe UI. Tema classico: Segoe UI."""
+    se nao existir, cai sozinha na Segoe UI. Tema classico: Segoe UI.
+    Build at: se o elemento em desenho tem estilo proprio (fonte de corrida, negrito, italico, tamanho), ele vale aqui.
+    Build ax: `p` (o QPainter que vai medir/desenhar) escolhe de quem e o estilo; sem `p`, vale o contexto."""
     familias = _FAMILIAS[bool(TEMA["moderno"])]
-    f = QFont(familias[0], tamanho, peso)
-    f.setFamilies(familias)
-    if TEMA["moderno"] and (TEMA["sport"] or TEMA["vidro"]):
-        f.setItalic(True)                         # visual Sport: texto inclinado (v20.3)
+    est = _estilo_do_elemento(p)
+    fam, aceita_negrito = (carregar_fontes_corrida().get(est.get("fonte")) or (None, True)) if est else (None, True)
+    if fam:
+        f = QFont(fam, tamanho, peso if aceita_negrito else QFont.Normal)
+        f.setFamilies([fam] + list(familias))                   # simbolos que a fonte nao tem (graus etc.) caem na fonte do tema
+    else:
+        f = QFont(familias[0], tamanho, peso)
+        f.setFamilies(familias)
+        if TEMA["moderno"] and (TEMA["sport"] or TEMA["vidro"]):
+            f.setItalic(True)                         # visual Sport: texto inclinado (v20.3)
+    if est:
+        if est.get("italico") is not None:
+            f.setItalic(bool(est["italico"]))
+        elif fam:
+            f.setItalic(False)
+        if est.get("negrito") is not None:
+            if not fam:
+                alternativas = _familias_com_peso(familias, f.italic())
+                if alternativas != familias:
+                    f.setFamilies(alternativas)
+            f.setWeight(QFont.Bold if est["negrito"] else QFont.Normal)
+            # Alguns backends perdem o peso nominal ao sintetizar o itálico da Orbitron variável.
+            if est.get("fonte") == "orbitron" and fam and f.italic() and hasattr(f, "setVariableAxis"):
+                f.setVariableAxis(QFont.Tag("wght"), float(f.weight()))
+        if est.get("tam"):
+            f.setPointSizeF(max(5.0, float(tamanho) * est["tam"] / 100.0))
     return f
 
 
@@ -4815,10 +4998,12 @@ _ARQ_FONTE_TITULO = ("C:/Program Files (x86)/SimHub/DashFonts/SUIGBI_.TTF", "C:/
                      "fontes/SUIGBI_.TTF")
 
 
-def fonte_titulo(tamanho):
+def fonte_titulo(tamanho, p=None):
     """Fonte dos titulos das janelas. Visual Sport e Glass Fume: Sui Generis Bold Italic (a mesma do dash do MagicDash 4), se estiver
     instalada com o SimHub; sem ela, cai na fonte normal em negrito. So para texto simples (a Sui Generis nao tem alguns
     simbolos, como o grau). Nunca levanta erro."""
+    if _estilo_do_elemento(p):                                  # build at: elemento com estilo proprio (build ax: do pintor p)
+        return fonte(tamanho, QFont.Bold, p=p)
     if TEMA["moderno"] and (TEMA["sport"] or TEMA["vidro"]):
         try:
             if _FONTE_TITULO["familia"] is None:
@@ -4837,7 +5022,7 @@ def fonte_titulo(tamanho):
                 return f
         except Exception:
             pass
-    return fonte(tamanho, QFont.Bold)
+    return fonte(tamanho, QFont.Bold, p=p)
 
 
 def definir_tema(moderno=None, opacidade=None, sport=None, vidro=None):
@@ -5094,16 +5279,26 @@ class JanelaBase(QWidget):
     def _chave_elementos(self):
         return self.CHAVE_ELEMENTOS or ("elementos_" + str(self.CHAVE))
 
+    DEPENDE = {}              # build av: item -> item de fora (o desenho dele fica DENTRO do outro; so aparece se o de fora estiver ligado)
+
     def visivel(self, eid):
         d = self.config.get(self._chave_elementos())
-        return not (isinstance(d, dict) and d.get(eid) is False)
+        if isinstance(d, dict) and d.get(eid) is False:
+            return False
+        pai = self.DEPENDE.get(eid)
+        return pai is None or self.visivel(pai)
 
     def _secoes(self):
         return self.SECOES
 
+    SECAO_GRUPO = {}          # build av: secao -> itens que a compoem; a secao so some quando TODOS estao desligados
+
+    def _secao_visivel(self, e):
+        return any(self.visivel(x) for x in self.SECAO_GRUPO.get(e, (e,)))
+
     def _altura_oculta(self):
         """Soma das alturas das secoes desligadas (a janela encolhe esse tanto)."""
-        return sum(h for eid, _y, h in self._secoes() if not self.visivel(eid))
+        return sum(h for eid, _y, h in self._secoes() if not self._secao_visivel(eid))
 
     ALT_MIN_ESPERA = 100      # altura minima (px base) quando ha secao desligada: a mensagem de "aguardando..." nunca pode ser cortada
 
@@ -5122,18 +5317,131 @@ class JanelaBase(QWidget):
         alvo = next((y for e, y, _h in self._secoes() if e == eid), None)
         if alvo is None:
             return 0.0
-        return float(sum(h for e, y, h in self._secoes() if y < alvo and not self.visivel(e)))
+        return float(sum(h for e, y, h in self._secoes() if y < alvo and not self._secao_visivel(e)))
+
+    LIM_POS = 600.0           # build at: deslocamento maximo de um elemento (px base)
+
+    def _pos_elemento(self, eid):
+        """(dx, dy) em px base escolhido na Central para o elemento (0, 0 = lugar original)."""
+        d = self.config.get(self._chave_elementos() + "_pos")
+        v = d.get(eid) if isinstance(d, dict) else None
+        try:
+            return (max(-self.LIM_POS, min(self.LIM_POS, float(v[0]))), max(-self.LIM_POS, min(self.LIM_POS, float(v[1]))))
+        except Exception:
+            return (0.0, 0.0)
+
+    def _estilo_elemento(self, eid):
+        """Estilo escolhido na Central para o elemento: {fonte, cor, negrito, italico, tam}; so as chaves validas (vazio = padrao)."""
+        d = self.config.get(self._chave_elementos() + "_estilo")
+        e = d.get(eid) if isinstance(d, dict) else None
+        out = {}
+        if not isinstance(e, dict):
+            return out
+        if isinstance(e.get("fonte"), str) and e["fonte"] in carregar_fontes_corrida():
+            out["fonte"] = e["fonte"]
+        if isinstance(e.get("cor"), str) and re.fullmatch(r"#[0-9a-fA-F]{6}", e["cor"]):
+            out["cor"] = e["cor"]
+        for k in ("negrito", "italico"):
+            if isinstance(e.get(k), bool):
+                out[k] = e[k]
+        try:
+            if e.get("tam") is not None and not isinstance(e["tam"], bool):
+                out["tam"] = max(50, min(200, int(e["tam"])))
+        except Exception:
+            pass
+        return out
+
+    @staticmethod
+    def _cor_no_item(p, cor):
+        """Troca a cor do item enquanto ele e desenhado: o TEXTO (drawText) e os preenchimentos lisos (setBrush: barras, selos, fundos),
+        sempre mantendo a transparencia original. Linhas (setPen de contornos) e degradês ficam como estao.
+        Build av: aceita itens aninhados. Os metodos ORIGINAIS do QPainter sao chamados direto (nunca o 'embrulho' do item de fora),
+        entao a cor de dentro vale so dentro; devolve o que havia antes (None = metodo original) para o _fecha restaurar."""
+        antes = (p.__dict__.get("drawText"), p.__dict__.get("setBrush"))
+        base = QColor(cor)
+        ref = weakref.ref(p)       # referencia fraca: o embrulho guardado no proprio QPainter nao pode prender o pintor (ciclo = QPainter destruido fora de hora)
+
+        def desenhar_texto(*a, **k):
+            q = ref()
+            if q is None:
+                return None
+            antigo = q.pen()
+            novo = QPen(antigo)
+            c = QColor(base)
+            c.setAlpha(antigo.color().alpha())
+            novo.setColor(c)
+            q.setPen(novo)
+            try:
+                return QPainter.drawText(q, *a, **k)
+            finally:
+                q.setPen(antigo)
+
+        def definir_brush(*a, **k):
+            q = ref()
+            if q is None:
+                return None
+            try:
+                b0 = a[0] if a else None
+                if isinstance(b0, QBrush):
+                    if b0.style() == Qt.SolidPattern:
+                        c = QColor(base)
+                        c.setAlpha(b0.color().alpha())
+                        return QPainter.setBrush(q, QBrush(c))
+                elif isinstance(b0, (QColor, Qt.GlobalColor)):
+                    cc = QColor(b0)
+                    c = QColor(base)
+                    c.setAlpha(cc.alpha())
+                    return QPainter.setBrush(q, c)
+            except Exception:
+                pass
+            return QPainter.setBrush(q, *a, **k)
+        p.drawText = desenhar_texto
+        p.setBrush = definir_brush
+        return antes
+
+    @staticmethod
+    def _restaura_metodos(p, antes):
+        for nome, anterior in zip(("drawText", "setBrush"), antes):
+            try:
+                if anterior is None:
+                    delattr(p, nome)                        # volta ao metodo original do QPainter
+                else:
+                    setattr(p, nome, anterior)              # volta ao embrulho do item de fora
+            except Exception:
+                pass
 
     def _abre(self, p, eid):
-        """True se o elemento esta ligado; ja posiciona o pintor (sobe pelo que foi desligado acima). Casar com _fecha()."""
-        if not self.visivel(eid):
+        """True se o elemento esta ligado; ja posiciona o pintor (sobe pelo que foi desligado acima, soma o deslocamento escolhido
+        na Central e aplica o estilo do elemento: fonte, negrito, italico, tamanho e cor). Casar com _fecha()."""
+        if not self.visivel(eid) or getattr(self, "_teste_oculto", None) == eid:     # _teste_oculto: so a Central (achar o item sob o mouse)
             return False
         p.save()
-        p.translate(0.0, -self._desloc(eid))
+        dx, dy = self._pos_elemento(eid)
+        p.translate(dx, dy - self._desloc(eid))
+        _limpa_pilha()                                          # so o que sobrou de pintores destruidos; o estado dos outros pintores fica intacto
+        est = self._estilo_elemento(eid)
+        antes = None
+        if est.get("cor"):
+            try:
+                antes = self._cor_no_item(p, est["cor"])
+            except Exception:
+                antes = None
+        _ELEM_PILHA.append((weakref.ref(p), est, antes))
         return True
 
     @staticmethod
     def _fecha(p):
+        """Fecha o ultimo item aberto POR ESTE PINTOR (reentrante: outros pintores com itens abertos nao sao tocados)."""
+        for i in range(len(_ELEM_PILHA) - 1, -1, -1):
+            if _dono_da_entrada(_ELEM_PILHA[i]) is p:
+                antes = _ELEM_PILHA.pop(i)[2]
+                if antes is not None:
+                    JanelaBase._restaura_metodos(p, antes)
+                for j in range(len(_ELEM_PILHA) - 1, -1, -1):      # este pintor segue desenhando: o contexto de fonte() volta a ser o dele
+                    if _dono_da_entrada(_ELEM_PILHA[j]) is p:
+                        _ELEM_PILHA.append(_ELEM_PILHA.pop(j))
+                        break
+                break
         p.restore()
 
 
@@ -5375,7 +5683,7 @@ class JanelaBase(QWidget):
 
         if not conectado:
             p.setPen(QColor(200, 200, 210))
-            p.setFont(fonte(15, QFont.DemiBold))
+            p.setFont(fonte(15, QFont.DemiBold, p=p))
             p.drawText(base, Qt.AlignCenter, mensagem)
             return False
         return True
@@ -5568,40 +5876,53 @@ class JanelaTelemetria(JanelaBase):
             p.translate(0, ALTURA)
             p.setPen(QPen(QColor(255, 255, 255, 40), 1))
             p.drawLine(14, 0, LARGURA - 14, 0)
-            self._desenhar_grafico(p, d)
+            if self._abre(p, "grafico"):                              # build at: o grafico do painel tambem e um item (posicao/estilo)
+                self._desenhar_grafico(p, d)
+                self._fecha(p)
             p.restore()
+
+    # build as: ordem dos itens da Telemetria (a Central troca a ordem; sem config = ordem original, pixel a pixel)
+    BLOCOS_PAINEL = (("marcha", "Marcha"), ("velocidade", "Velocidade e RPM"), ("pedais", "Pedais"), ("volante", "Volante"))
+    BLOCOS_BARRA = (("volante", "Volante"), ("marcha", "Marcha"), ("velocidade", "Velocidade"), ("pedais", "Pedais"),
+                    ("grafico", "Gráfico dos pedais"))
+    LARG_BLOCO_PAINEL = {"marcha": 116, "velocidade": 206, "pedais": 118, "volante": 92}      # soma 532 = LARGURA - 28
+    LARG_BLOCO_BARRA = {"volante": 58, "marcha": 46, "velocidade": 84, "pedais": 100, "grafico": 316}
+    ELEMENTOS = (("volante", "Volante"), ("marcha", "Marcha"), ("velocidade", "Velocidade e RPM"), ("pedais", "Pedais"),
+                 ("grafico", "Gráfico dos pedais"), ("rpm", "Barra de RPM (painel)"))
+    CHAVE_ORDEM_PAINEL = "telemetria_ordem_painel"
+    CHAVE_ORDEM_BARRA = "telemetria_ordem_barra"
+
+    @classmethod
+    def ordem_blocos(cls, config, barra):
+        """Ordem dos itens no layout pedido: ids validos, sem repeticao; o que faltar entra no fim, na ordem original."""
+        padrao = [i for i, _r in (cls.BLOCOS_BARRA if barra else cls.BLOCOS_PAINEL)]
+        cfg = (config or {}).get(cls.CHAVE_ORDEM_BARRA if barra else cls.CHAVE_ORDEM_PAINEL)
+        vistos = []
+        if isinstance(cfg, (list, tuple)):
+            for g in cfg:
+                if isinstance(g, str) and g in padrao and g not in vistos:
+                    vistos.append(g)
+        return tuple(vistos + [g for g in padrao if g not in vistos])
 
     def _desenhar_principal(self, p, d):
         # Barra de RPM
         proporcao = max(0.0, min(1.0, d["rpm"] / d["rpm_max"])) if d["rpm_max"] else 0.0
-        p.setPen(Qt.NoPen)
-        p.setBrush(COR_FUNDO_BARRA)
-        p.drawRoundedRect(14, 14, LARGURA - 28, 14, 6, 6)
-        if proporcao < 0.80:
-            cor = COR_VERDE
-        elif proporcao < 0.92:
-            cor = COR_AMARELO
-        else:
-            cor = COR_VERMELHO
-        p.setBrush(cor)
-        p.drawRoundedRect(14, 14, int((LARGURA - 28) * proporcao), 14, 6, 6)
+        if self._abre(p, "rpm"):
+            p.setPen(Qt.NoPen)
+            p.setBrush(COR_FUNDO_BARRA)
+            p.drawRoundedRect(14, 14, LARGURA - 28, 14, 6, 6)
+            if proporcao < 0.80:
+                cor = COR_VERDE
+            elif proporcao < 0.92:
+                cor = COR_AMARELO
+            else:
+                cor = COR_VERMELHO
+            p.setBrush(cor)
+            p.drawRoundedRect(14, 14, int((LARGURA - 28) * proporcao), 14, 6, 6)
+            self._fecha(p)
 
-        # Marcha
         marcha = d["marcha"]
         texto_marcha = "R" if marcha < 0 else ("N" if marcha == 0 else str(marcha))
-        p.setPen(QColor(255, 255, 255))
-        p.setFont(fonte(54, QFont.Bold))
-        p.drawText(14, 38, 110, 84, Qt.AlignCenter, texto_marcha)
-
-        # Velocidade
-        p.setFont(fonte(38, QFont.Bold))
-        p.drawText(130, 40, 180, 54, Qt.AlignRight | Qt.AlignVCenter, str(int(round(d["velocidade"]))))
-        p.setPen(COR_CINZA)
-        p.setFont(fonte(11))
-        p.drawText(130, 92, 180, 20, Qt.AlignRight | Qt.AlignVCenter, "km/h")
-        p.drawText(130, 108, 180, 20, Qt.AlignRight | Qt.AlignVCenter, f"{int(d['rpm']):,} rpm".replace(",", "."))
-
-        # Pedais: embreagem, freio, acelerador
         cru = d.get("pedais_cru") or {}
         usar_cru = self.config.get("inputs_origem", "carro") == "cru"
         v_fre = cru.get("freio") if usar_cru and cru.get("freio") is not None else d["freio"]
@@ -5611,21 +5932,39 @@ class JanelaTelemetria(JanelaBase):
             ("FRE", v_fre, COR_VERMELHO),
             ("ACE", v_ace, COR_VERDE),
         ]
-        x = 340
-        for nome, valor, cor in pedais:
-            valor = max(0.0, min(1.0, valor))
-            p.setPen(Qt.NoPen)
-            p.setBrush(COR_FUNDO_BARRA)
-            p.drawRoundedRect(x, 40, 24, 70, 5, 5)
-            altura = int(70 * valor)
-            p.setBrush(self._cor_pedal(nome, cor, valor, d))
-            p.drawRoundedRect(x, 40 + 70 - altura, 24, altura, 5, 5)
-            p.setPen(COR_CINZA)
-            p.setFont(fonte(8))
-            p.drawText(x - 4, 112, 32, 14, Qt.AlignCenter, nome)
-            x += 38
-
-        self._volante(p, LARGURA - 54, 74, 36, d["volante"])
+        x0 = 14
+        for bid in self.ordem_blocos(self.config, False):
+            if self._abre(p, bid):                                   # build at: posicao e fonte por item
+                if bid == "marcha":
+                    p.setPen(QColor(255, 255, 255))
+                    p.setFont(fonte(54, QFont.Bold, p=p))
+                    p.drawText(x0, 38, 110, 84, Qt.AlignCenter, texto_marcha)
+                elif bid == "velocidade":
+                    p.setPen(QColor(255, 255, 255))
+                    p.setFont(fonte(38, QFont.Bold, p=p))
+                    p.drawText(x0, 40, 180, 54, Qt.AlignRight | Qt.AlignVCenter, str(int(round(d["velocidade"]))))
+                    p.setPen(COR_CINZA)
+                    p.setFont(fonte(11, p=p))
+                    p.drawText(x0, 92, 180, 20, Qt.AlignRight | Qt.AlignVCenter, "km/h")
+                    p.drawText(x0, 108, 180, 20, Qt.AlignRight | Qt.AlignVCenter, f"{int(d['rpm']):,} rpm".replace(",", "."))
+                elif bid == "pedais":
+                    x = x0 + 4
+                    for nome, valor, cor in pedais:
+                        valor = max(0.0, min(1.0, valor))
+                        p.setPen(Qt.NoPen)
+                        p.setBrush(COR_FUNDO_BARRA)
+                        p.drawRoundedRect(x, 40, 24, 70, 5, 5)
+                        altura = int(70 * valor)
+                        p.setBrush(self._cor_pedal(nome, cor, valor, d))
+                        p.drawRoundedRect(x, 40 + 70 - altura, 24, altura, 5, 5)
+                        p.setPen(COR_CINZA)
+                        p.setFont(fonte(8, p=p))
+                        p.drawText(x - 4, 112, 32, 14, Qt.AlignCenter, nome)
+                        x += 38
+                elif bid == "volante":
+                    self._volante(p, x0 + 52, 74, 36, d["volante"])
+                self._fecha(p)
+            x0 += self.LARG_BLOCO_PAINEL[bid]
 
     # cores do layout em barra
     COR_BARRA_EMB = QColor(52, 168, 255)
@@ -5633,45 +5972,60 @@ class JanelaTelemetria(JanelaBase):
     COR_BARRA_ACE = QColor(62, 235, 140)
 
     def _desenhar_barra(self, p, d):
-        """v1.4.1/1.4.2: tudo numa linha e compacto - volante, marcha, velocidade, pedais (finos, com o valor) e grafico."""
-        self._volante(p, 34, 33, 22, d["volante"], espessura=5)
+        """v1.4.1/1.4.2: tudo numa linha e compacto - volante, marcha, velocidade, pedais (finos, com o valor) e grafico.
+        Build as: a ordem dos itens vem de config["telemetria_ordem_barra"] (vazio = a ordem de sempre)."""
         marcha = d["marcha"]
         texto_marcha = "R" if marcha < 0 else ("N" if marcha == 0 else str(marcha))
-        p.setPen(QColor(255, 255, 255))
-        p.setFont(fonte(40, QFont.Bold))
-        p.drawText(64, 8, 44, 56, Qt.AlignCenter, texto_marcha)
-        p.setFont(fonte(28, QFont.Bold))
-        p.drawText(110, 8, 84, 40, Qt.AlignCenter, str(int(round(d["velocidade"]))))
-        p.setFont(fonte(9, QFont.DemiBold))
-        p.drawText(110, 46, 84, 14, Qt.AlignCenter, "KM/H")
         proporcao = max(0.0, min(1.0, d["rpm"] / d["rpm_max"])) if d["rpm_max"] else 0.0
-        p.setPen(Qt.NoPen)
-        p.setBrush(COR_FUNDO_BARRA)
-        p.drawRoundedRect(122, 66, 60, 4, 2, 2)
-        p.setBrush(COR_VERDE if proporcao < 0.80 else (COR_AMARELO if proporcao < 0.92 else COR_VERMELHO))
-        p.drawRoundedRect(122, 66, int(60 * proporcao), 4, 2, 2)
         cru = d.get("pedais_cru") or {}
         usar_cru = self.config.get("inputs_origem", "carro") == "cru"
         v_fre = cru.get("freio") if usar_cru and cru.get("freio") is not None else d["freio"]
         v_ace = cru.get("acelerador") if usar_cru and cru.get("acelerador") is not None else d["acelerador"]
-        x = 204
-        for nome_p, valor, cor in (("EMB", d["embreagem"], self.COR_BARRA_EMB), ("FRE", v_fre, self.COR_BARRA_FRE), ("ACE", v_ace, self.COR_BARRA_ACE)):
-            valor = max(0.0, min(1.0, valor or 0.0))
-            cor_barra = self._cor_pedal(nome_p, cor, valor, d)
-            p.setPen(Qt.NoPen)
-            p.setBrush(COR_FUNDO_BARRA)
-            p.drawRoundedRect(x, 10, 16, 52, 4, 4)
-            altura = int(round(52 * valor))
-            if altura > 0:
-                p.setBrush(cor_barra)
-                p.drawRoundedRect(x, 10 + 52 - altura, 16, altura, 4, 4)
-            p.setPen(cor)
-            p.setFont(fonte(10, QFont.Bold))
-            p.drawText(x - 8, 64, 32, 16, Qt.AlignCenter, f"{valor * 100:.0f}")
-            x += 28
-        if self.config.get("mostrar_grafico", True):
-            desenhar_grafico_inputs(p, QRectF(294, 8, LARGURA_BARRA - 294 - 10, ALTURA_BARRA - 16), self.hist, self.config,
-                                    self._marchas_max, self.COR_BARRA_ACE, self.COR_BARRA_FRE, fundo=self._fundo_alerta(d))
+        grafico = bool(self.config.get("mostrar_grafico", True))
+        ordem = [b for b in self.ordem_blocos(self.config, True) if b != "grafico" or grafico]
+        x0 = 6
+        for bid in ordem:
+            if self._abre(p, bid):                                   # build at: posicao e fonte por item
+                if bid == "volante":
+                    self._volante(p, x0 + 28, 33, 22, d["volante"], espessura=5)
+                elif bid == "marcha":
+                    p.setPen(QColor(255, 255, 255))
+                    p.setFont(fonte(40, QFont.Bold, p=p))
+                    p.drawText(x0, 8, 44, 56, Qt.AlignCenter, texto_marcha)
+                elif bid == "velocidade":
+                    p.setPen(QColor(255, 255, 255))
+                    p.setFont(fonte(28, QFont.Bold, p=p))
+                    p.drawText(x0, 8, 84, 40, Qt.AlignCenter, str(int(round(d["velocidade"]))))
+                    p.setFont(fonte(9, QFont.DemiBold, p=p))
+                    p.drawText(x0, 46, 84, 14, Qt.AlignCenter, "KM/H")
+                    p.setPen(Qt.NoPen)
+                    p.setBrush(COR_FUNDO_BARRA)
+                    p.drawRoundedRect(x0 + 12, 66, 60, 4, 2, 2)
+                    p.setBrush(COR_VERDE if proporcao < 0.80 else (COR_AMARELO if proporcao < 0.92 else COR_VERMELHO))
+                    p.drawRoundedRect(x0 + 12, 66, int(60 * proporcao), 4, 2, 2)
+                elif bid == "pedais":
+                    x = x0 + 10
+                    for nome_p, valor, cor in (("EMB", d["embreagem"], self.COR_BARRA_EMB), ("FRE", v_fre, self.COR_BARRA_FRE), ("ACE", v_ace, self.COR_BARRA_ACE)):
+                        valor = max(0.0, min(1.0, valor or 0.0))
+                        cor_barra = self._cor_pedal(nome_p, cor, valor, d)
+                        p.setPen(Qt.NoPen)
+                        p.setBrush(COR_FUNDO_BARRA)
+                        p.drawRoundedRect(x, 10, 16, 52, 4, 4)
+                        altura = int(round(52 * valor))
+                        if altura > 0:
+                            p.setBrush(cor_barra)
+                            p.drawRoundedRect(x, 10 + 52 - altura, 16, altura, 4, 4)
+                        p.setPen(cor)
+                        p.setFont(fonte(10, QFont.Bold, p=p))
+                        p.drawText(x - 8, 64, 32, 16, Qt.AlignCenter, f"{valor * 100:.0f}")
+                        x += 28
+                elif bid == "grafico":
+                    ultimo = bid == ordem[-1]
+                    largura = self.LARG_BLOCO_BARRA["grafico"] - (0 if ultimo else 8)       # se nao e o ultimo, deixa uma folga ate o proximo item
+                    desenhar_grafico_inputs(p, QRectF(x0, 8, largura, ALTURA_BARRA - 16), self.hist, self.config,
+                                            self._marchas_max, self.COR_BARRA_ACE, self.COR_BARRA_FRE, fundo=self._fundo_alerta(d))
+                self._fecha(p)
+            x0 += self.LARG_BLOCO_BARRA[bid]
 
     def _volante(self, p, cx, cy, r, graus, espessura=8):
         """Build l: volante com a imagem escolhida pelo piloto (PNG), se houver; senao o volante desenhado."""
@@ -5695,7 +6049,7 @@ class JanelaTelemetria(JanelaBase):
         p.drawPixmap(QRectF(-w / 2.0, -h / 2.0, w, h), pm, QRectF(pm.rect()))
         p.restore()
         p.setPen(COR_CINZA)
-        p.setFont(fonte(8))
+        p.setFont(fonte(8, p=p))
         p.drawText(cx - 40, cy + r + 6, 80, 14, Qt.AlignCenter, f"{graus:+.0f}\u00b0")
 
     @staticmethod
@@ -5721,7 +6075,7 @@ class JanelaTelemetria(JanelaBase):
         p.drawRoundedRect(-3, -r - 4, 7, 11, 2, 2)
         p.restore()
         p.setPen(COR_CINZA)
-        p.setFont(fonte(8))
+        p.setFont(fonte(8, p=p))
         p.drawText(cx - 40, cy + r + 6, 80, 14, Qt.AlignCenter, f"{graus:+.0f}\u00b0")
 
     @staticmethod
@@ -5764,7 +6118,7 @@ class JanelaTelemetria(JanelaBase):
         y_topo, y_base = 32, ALTURA_GRAFICO - 14
 
         # Legenda (esquerda) e valores atuais (direita)
-        p.setFont(fonte(8, QFont.DemiBold))
+        p.setFont(fonte(8, QFont.DemiBold, p=p))
         p.setPen(Qt.NoPen)
         p.setBrush(COR_VERDE)
         p.drawRoundedRect(x0, 13, 8, 8, 2, 2)
@@ -5785,7 +6139,7 @@ class JanelaTelemetria(JanelaBase):
         x = self._desenhar_tc(p, d.get("tc"), x + 6)
         self._desenhar_bias(p, d.get("bias"), x + 6)
 
-        p.setFont(fonte(10, QFont.Bold))
+        p.setFont(fonte(10, QFont.Bold, p=p))
         p.setPen(COR_VERDE)
         p.drawText(x1 - 150, 8, 70, 18, Qt.AlignRight | Qt.AlignVCenter, f"{d['acelerador'] * 100:.0f}%")
         p.setPen(COR_VERMELHO)
@@ -5800,7 +6154,8 @@ class JanelaVoltas(JanelaBase):
     CHAVE = "voltas"
     CHAVE_ATIVO = "mostrar_voltas"
     TAXA_HZ = 15.0
-    ELEMENTOS = (("delta", "Coluna do delta"), ("volta", "Coluna da volta"), ("combustivel", "Coluna do combustível"))
+    ELEMENTOS = (("delta", "Coluna do delta"), ("volta", "Coluna da volta"), ("combustivel", "Coluna do combustível"),
+                 ("calc_fim", "Cálculo: voltas até o fim"), ("calc_nec", "Cálculo: combustível necessário"), ("calc_add", "Cálculo: quanto adicionar"))
 
 
     def tamanho(self):
@@ -5833,62 +6188,68 @@ class JanelaVoltas(JanelaBase):
 
         def rotulo(x, texto):
             p.setPen(COR_CINZA)
-            p.setFont(fonte(8, QFont.DemiBold))
+            p.setFont(fonte(8, QFont.DemiBold, p=p))
             p.drawText(x, y0 + 5, larg + 4, 14, Qt.AlignLeft | Qt.AlignVCenter, texto)
 
         def valor(x, texto, cor=QColor(255, 255, 255)):
             p.setPen(cor)
-            p.setFont(fonte(17, QFont.Bold))
+            p.setFont(fonte(17, QFont.Bold, p=p))
             p.drawText(x, y0 + 18, larg, 28, Qt.AlignLeft | Qt.AlignVCenter, texto)
 
         def sub(x, texto, cor=COR_CINZA):
             p.setPen(cor)
-            p.setFont(fonte(8))
+            p.setFont(fonte(8, p=p))
             p.drawText(x, y0 + 45, larg + 6, 14, Qt.AlignLeft | Qt.AlignVCenter, texto)
 
-        # ---- 1) voltas ate o fim
-        x = colunas[0]
-        rotulo(x, "VOLTAS ATE O FIM")
-        if c.get("voltas_fim") is None:
-            valor(x, "--", COR_CINZA)
-            sub(x, "sessao sem fim definido")
-        else:
-            valor(x, f"{c['voltas_fim']:.1f}")
-            if c["fonte"] == "tempo" and c.get("ritmo"):
-                sub(x, f"por tempo (ritmo {fmt_tempo(c['ritmo'])})")
+        if self._abre(p, "calc_fim"):
+            # ---- 1) voltas ate o fim
+            x = colunas[0]
+            rotulo(x, "VOLTAS ATE O FIM")
+            if c.get("voltas_fim") is None:
+                valor(x, "--", COR_CINZA)
+                sub(x, "sessao sem fim definido")
             else:
-                sub(x, "pelas voltas da sessao")
+                valor(x, f"{c['voltas_fim']:.1f}")
+                if c["fonte"] == "tempo" and c.get("ritmo"):
+                    sub(x, f"por tempo (ritmo {fmt_tempo(c['ritmo'])})")
+                else:
+                    sub(x, "pelas voltas da sessao")
+            self._fecha(p)
 
-        # ---- 2) combustivel necessario com margem
-        x = colunas[1]
-        margem = c.get("margem_voltas", 1.0)
-        rotulo(x, f"NECESSARIO (+{margem:g} v)")
-        if c.get("necessario") is None:
-            valor(x, "--", COR_CINZA)
-            sub(x, "complete 2 voltas limpas" if c.get("voltas_fim") is not None else "")
-        else:
-            valor(x, f"{c['necessario']:.1f} L")
-            sub(x, f"tem {c['nivel']:.1f} L no tanque")
-
-        # ---- 3) adicionar
-        x = colunas[2]
-        rotulo(x, "ADICIONAR")
-        if c.get("adicionar") is None:
-            valor(x, "--", COR_CINZA)
-            livre = c.get("livre_tanque")
-            sub(x, f"cabe +{livre:.0f} L" if livre else "")
-        elif c["adicionar"] <= 0.05:
-            valor(x, "OK", COR_VERDE)
-            sub(x, f"folga de {c['folga']:.1f} L", COR_VERDE)
-        else:
-            livre = c.get("livre_tanque")
-            cabe = livre is None or c["adicionar"] <= livre + 0.05
-            valor(x, f"+{c['adicionar']:.1f} L", COR_AMARELO if cabe else COR_VERMELHO)
-            if cabe:
-                sub(x, f"cabe +{livre:.0f} L" if livre is not None else "parar nos boxes")
+        if self._abre(p, "calc_nec"):
+            # ---- 2) combustivel necessario com margem
+            x = colunas[1]
+            margem = c.get("margem_voltas", 1.0)
+            rotulo(x, f"NECESSARIO (+{margem:g} v)")
+            if c.get("necessario") is None:
+                valor(x, "--", COR_CINZA)
+                sub(x, "complete 2 voltas limpas" if c.get("voltas_fim") is not None else "")
             else:
-                sub(x, (f"nao cabe: {c['paradas']} paradas" if c.get("paradas")
-                        else "sem plano de pit viavel"), COR_VERMELHO)
+                valor(x, f"{c['necessario']:.1f} L")
+                sub(x, f"tem {c['nivel']:.1f} L no tanque")
+            self._fecha(p)
+
+        if self._abre(p, "calc_add"):
+            # ---- 3) adicionar
+            x = colunas[2]
+            rotulo(x, "ADICIONAR")
+            if c.get("adicionar") is None:
+                valor(x, "--", COR_CINZA)
+                livre = c.get("livre_tanque")
+                sub(x, f"cabe +{livre:.0f} L" if livre else "")
+            elif c["adicionar"] <= 0.05:
+                valor(x, "OK", COR_VERDE)
+                sub(x, f"folga de {c['folga']:.1f} L", COR_VERDE)
+            else:
+                livre = c.get("livre_tanque")
+                cabe = livre is None or c["adicionar"] <= livre + 0.05
+                valor(x, f"+{c['adicionar']:.1f} L", COR_AMARELO if cabe else COR_VERMELHO)
+                if cabe:
+                    sub(x, f"cabe +{livre:.0f} L" if livre is not None else "parar nos boxes")
+                else:
+                    sub(x, (f"nao cabe: {c['paradas']} paradas" if c.get("paradas")
+                            else "sem plano de pit viavel"), COR_VERMELHO)
+            self._fecha(p)
 
     def _desenhar_voltas(self, p, d):
         y0 = 0
@@ -5897,17 +6258,17 @@ class JanelaVoltas(JanelaBase):
 
         def rotulo(x, texto):
             p.setPen(COR_CINZA)
-            p.setFont(fonte(8, QFont.DemiBold))
+            p.setFont(fonte(8, QFont.DemiBold, p=p))
             p.drawText(x, y0 + 6, larg, 14, Qt.AlignLeft | Qt.AlignVCenter, texto)
 
         def linha(x, y, nome, valor, cor=COR_TEXTO):
-            p.setFont(fonte(9))
+            p.setFont(fonte(9, p=p))
             p.setPen(COR_CINZA)
             p.drawText(x, y, larg, 16, Qt.AlignLeft | Qt.AlignVCenter, nome)
             p.setPen(cor)
             p.drawText(x, y, larg, 16, Qt.AlignRight | Qt.AlignVCenter, valor)
 
-        if self.visivel("delta"):
+        if self._abre(p, "delta"):
             # ---- Coluna 1: delta vs melhor volta ---------------------------------
             x = colunas[0]
             rotulo(x, "DELTA")
@@ -5924,7 +6285,7 @@ class JanelaVoltas(JanelaBase):
                 cor_delta = COR_CINZA
                 texto_delta = "--.---"
             p.setPen(cor_delta)
-            p.setFont(fonte(24, QFont.Bold))
+            p.setFont(fonte(24, QFont.Bold, p=p))
             p.drawText(x, y0 + 20, larg, 38, Qt.AlignLeft | Qt.AlignVCenter, texto_delta)
 
             # Barra de delta: verde para a direita (mais rapido), vermelha para a esquerda
@@ -5942,27 +6303,29 @@ class JanelaVoltas(JanelaBase):
             p.setPen(QPen(QColor(255, 255, 255, 140), 1))
             p.drawLine(int(x + larg / 2), y0 + 60, int(x + larg / 2), y0 + 74)
             p.setPen(COR_CINZA)
-            p.setFont(fonte(8))
+            p.setFont(fonte(8, p=p))
             p.drawText(x, y0 + 78, larg, 14, Qt.AlignLeft | Qt.AlignVCenter,
                        ("SDK \u00b7 vs melhor volta" if d.get("delta_fonte") == "sim"
                         else "~ calc. \u00b7 melhor volta limpa") if d["delta_ok"] else "complete 1 volta limpa")
+            self._fecha(p)
 
-        if self.visivel("volta"):
+        if self._abre(p, "volta"):
             # ---- Coluna 2: voltas -------------------------------------------------
             x = colunas[1]
             rotulo(x, f"VOLTA {d['volta']}")
             p.setPen(QColor(255, 255, 255))
-            p.setFont(fonte(20, QFont.Bold))
+            p.setFont(fonte(20, QFont.Bold, p=p))
             p.drawText(x, y0 + 20, larg, 38, Qt.AlignLeft | Qt.AlignVCenter, fmt_tempo(d["tempo_volta"]))
             linha(x, y0 + 58, "ULTIMA", fmt_tempo(d["ultima_volta"]))
             linha(x, y0 + 76, "MELHOR", fmt_tempo(d["melhor_volta"]), QColor(190, 130, 255))
+            self._fecha(p)
 
-        if self.visivel("combustivel"):
+        if self._abre(p, "combustivel"):
             # ---- Coluna 3: combustivel -------------------------------------------
             x = colunas[2]
             rotulo(x, "COMBUSTIVEL")
             p.setPen(QColor(255, 255, 255))
-            p.setFont(fonte(22, QFont.Bold))
+            p.setFont(fonte(22, QFont.Bold, p=p))
             p.drawText(x, y0 + 20, larg, 38, Qt.AlignLeft | Qt.AlignVCenter, f"{d['combustivel']:.1f} L")
             consumo = d["consumo_volta"]
             restantes = d["voltas_restantes"]
@@ -5977,6 +6340,7 @@ class JanelaVoltas(JanelaBase):
                 else:
                     cor_rest = COR_TEXTO
                 linha(x, y0 + 76, "RESTAM", f"{restantes:.1f} voltas", cor_rest)
+            self._fecha(p)
 
 
 # ---- Janela 3: relativo -------------------------------------------------------------
@@ -5988,7 +6352,7 @@ class JanelaRelativo(JanelaBase):
     # de ser desenhadas (sem compactacao horizontal, como em Voltas). A projecao de iRating/SR segue no interruptor proprio.
     ELEMENTOS = (("cabecalho", "Cabeçalho (pista, SOF e incidentes)"), ("rodape", "Rodapé (volta e tempo restante)"),
                  ("posicao", "Posição na classe e faixa da classe"), ("numero", "Número do carro"),
-                 ("pneu", "Pneu e voltas do pneu"), ("licenca", "Licença"), ("irating", "iRating"), ("gap", "Distância em segundos"))
+                 ("pneu", "Pneu e voltas do pneu"), ("nome", "Nome do piloto"), ("licenca", "Licença"), ("irating", "iRating"), ("gap", "Distância em segundos"))
     SECOES = (("cabecalho", 0, ALTURA_CAB), ("rodape", ALTURA_CAB + ALTURA_LINHA * (SLOTS_FRENTE + 1 + SLOTS_TRAS), ALTURA_RODAPE))
 
     def _com_projecao(self):
@@ -6014,7 +6378,7 @@ class JanelaRelativo(JanelaBase):
         rel = d.get("relativo")
         if not rel:
             p.setPen(COR_CINZA)
-            p.setFont(fonte(12))
+            p.setFont(fonte(12, p=p))
             p.drawText(self._rect_espera(QRectF(self._retangulo_base())), Qt.AlignCenter, "Sem dados dos outros carros")
             return
 
@@ -6054,17 +6418,17 @@ class JanelaRelativo(JanelaBase):
         return "\u25B2 " if valor > limite else ("\u25BC " if valor < -limite else "= ")
 
     def _celula_projecao(self, p, x, y, largura, rotulo, dica, valor, cor, resultado):
-        p.setFont(fonte(8, QFont.DemiBold))
+        p.setFont(fonte(8, QFont.DemiBold, p=p))
         p.setPen(COR_CINZA)
         p.drawText(x, y + 3, largura, 13, Qt.AlignLeft | Qt.AlignVCenter, rotulo)
         if dica:
-            p.setFont(fonte(7))
+            p.setFont(fonte(7, p=p))
             p.drawText(x, y + 3, largura, 13, Qt.AlignRight | Qt.AlignVCenter, dica)
-        p.setFont(fonte(14, QFont.Bold))
+        p.setFont(fonte(14, QFont.Bold, p=p))
         p.setPen(cor)
         p.drawText(x, y + 16, 104, 22, Qt.AlignLeft | Qt.AlignVCenter, valor)
         if resultado:
-            p.setFont(fonte(9, QFont.DemiBold))
+            p.setFont(fonte(9, QFont.DemiBold, p=p))
             p.setPen(COR_TEXTO)
             p.drawText(x + 104, y + 18, largura - 104, 20, Qt.AlignRight | Qt.AlignVCenter, resultado)
 
@@ -6114,11 +6478,11 @@ class JanelaRelativo(JanelaBase):
         self._celula_projecao(p, x2, y0, larg, *args)
 
     def _rotulo_valor(self, p, x, y, rotulo, valor, cor_valor=None):
-        p.setFont(fonte(8, QFont.DemiBold))
+        p.setFont(fonte(8, QFont.DemiBold, p=p))
         p.setPen(COR_CINZA)
         largura_rotulo = QFontMetrics(p.font()).horizontalAdvance(rotulo) + 6
         p.drawText(x, y, largura_rotulo, 18, Qt.AlignLeft | Qt.AlignVCenter, rotulo)
-        p.setFont(fonte(10, QFont.Bold))
+        p.setFont(fonte(10, QFont.Bold, p=p))
         p.setPen(cor_valor or QColor(255, 255, 255))
         p.drawText(x + largura_rotulo, y, 110, 18, Qt.AlignLeft | Qt.AlignVCenter, valor)
 
@@ -6147,9 +6511,9 @@ class JanelaRelativo(JanelaBase):
             rotulo, valor = "RESTAM", f"{rel['voltas_restantes']} voltas"
         else:
             return
-        p.setFont(fonte(8, QFont.DemiBold))
+        p.setFont(fonte(8, QFont.DemiBold, p=p))
         largura_rotulo = QFontMetrics(p.font()).horizontalAdvance(rotulo) + 6
-        p.setFont(fonte(10, QFont.Bold))
+        p.setFont(fonte(10, QFont.Bold, p=p))
         largura_valor = QFontMetrics(p.font()).horizontalAdvance(valor)
         self._rotulo_valor(p, LARGURA_REL - 14 - largura_rotulo - largura_valor, y + 4, rotulo, valor)
 
@@ -6164,52 +6528,59 @@ class JanelaRelativo(JanelaBase):
 
         # Faixa com a cor da classe
         cor_classe = QColor(*d["classe_cor"])
-        if self.visivel("posicao"):
+        if self._abre(p, "posicao"):
             p.setPen(Qt.NoPen)
             p.setBrush(cor_classe)
             p.drawRect(12, y + 4, 4, h - 8)
 
             # Posicao na classe
-            p.setFont(fonte(10, QFont.Bold))
+            p.setFont(fonte(10, QFont.Bold, p=p))
             p.setPen(COR_TEXTO)
             p.drawText(20, y, 24, h, Qt.AlignRight | Qt.AlignVCenter,
                        str(d["pos_classe"]) if d["pos_classe"] else "-")
+            self._fecha(p)
 
         # Numero do carro (na cor da classe)
-        p.setFont(fonte(10, QFont.Bold))
-        if self.visivel("numero"):
+        if self._abre(p, "numero"):
+            p.setFont(fonte(10, QFont.Bold, p=p))
             p.setPen(cor_classe.lighter(120))
             p.drawText(48, y, 40, h, Qt.AlignLeft | Qt.AlignVCenter, f"#{d['numero']}")
+            self._fecha(p)
 
         # Pneu: tipo (barra inclinada na cor do composto) e voltas desde a ultima parada
-        if self.visivel("pneu"):
+        if self._abre(p, "pneu"):
             self._pneu(p, 90, y, d)
+            self._fecha(p)
 
         # Nome (vermelho: uma volta a frente de voce; azul: uma volta atras de voce)
-        fonte_nome = fonte(10, QFont.Bold)
-        p.setFont(fonte_nome)
-        if d["volta_rel"] > 0:
-            p.setPen(QColor(255, 120, 120))
-        elif d["volta_rel"] < 0:
-            p.setPen(QColor(120, 175, 255))
-        else:
-            p.setPen(QColor(255, 255, 255))
-        rotulo_nome = d["nome"]
-        if not d["eu"] and nome_de_amigo(rotulo_nome):                       # v1.7.0: amigo
-            p.setPen(COR_AMIGO)
-            rotulo_nome = "\u2605 " + rotulo_nome
-        nome = QFontMetrics(fonte_nome).elidedText(rotulo_nome, Qt.ElideRight, 116)
-        p.drawText(134, y, 118, h, Qt.AlignLeft | Qt.AlignVCenter, nome)
+        if self._abre(p, "nome"):
+            fonte_nome = fonte(10, QFont.Bold, p=p)
+            p.setFont(fonte_nome)
+            if d["volta_rel"] > 0:
+                p.setPen(QColor(255, 120, 120))
+            elif d["volta_rel"] < 0:
+                p.setPen(QColor(120, 175, 255))
+            else:
+                p.setPen(QColor(255, 255, 255))
+            rotulo_nome = d["nome"]
+            if not d["eu"] and nome_de_amigo(rotulo_nome):                       # v1.7.0: amigo
+                p.setPen(COR_AMIGO)
+                rotulo_nome = "\u2605 " + rotulo_nome
+            nome = QFontMetrics(fonte_nome).elidedText(rotulo_nome, Qt.ElideRight, 116)
+            p.drawText(134, y, 118, h, Qt.AlignLeft | Qt.AlignVCenter, nome)
+            self._fecha(p)
 
         # Licenca e iRating
-        if self.visivel("licenca"):
+        if self._abre(p, "licenca"):
             self._selo(p, 256, y, 46, d["lic"], QColor(*d["lic_cor"]))
-        if self.visivel("irating"):
+            self._fecha(p)
+        if self._abre(p, "irating"):
             self._selo(p, 306, y, 44, fmt_irating(d["irating"]), QColor(255, 255, 255))
+            self._fecha(p)
 
         # Distancia em segundos (ou BOX)
-        if self.visivel("gap"):
-            p.setFont(fonte(10, QFont.Bold))
+        if self._abre(p, "gap"):
+            p.setFont(fonte(10, QFont.Bold, p=p))
             if d["na_box"]:
                 p.setPen(COR_LARANJA)
                 texto = "BOX"
@@ -6217,6 +6588,7 @@ class JanelaRelativo(JanelaBase):
                 p.setPen(COR_TEXTO)
                 texto = f"{abs(d['gap']):.1f}"
             p.drawText(LARGURA_REL - 88, y, 76, h, Qt.AlignRight | Qt.AlignVCenter, texto)
+            self._fecha(p)
         p.setOpacity(1.0)
 
     @staticmethod
@@ -6238,7 +6610,7 @@ class JanelaRelativo(JanelaBase):
         p.setPen(QPen(QColor(cor.red(), cor.green(), cor.blue(), 255 if confiavel else 110), 1.5))
         p.drawEllipse(cx - r, cy - r, 2 * r, 2 * r)
         p.setPen(QColor(255, 255, 255) if confiavel else QColor(150, 150, 160))
-        p.setFont(fonte(8, QFont.Bold))
+        p.setFont(fonte(8, QFont.Bold, p=p))
         p.drawText(cx - r, cy - r, 2 * r, 2 * r, Qt.AlignCenter, str(voltas))
 
     @staticmethod
@@ -6249,7 +6621,7 @@ class JanelaRelativo(JanelaBase):
         p.drawRoundedRect(x, y + (ALTURA_LINHA - altura) // 2, largura, altura, 4, 4)
         luminosidade = 0.299 * cor_fundo.red() + 0.587 * cor_fundo.green() + 0.114 * cor_fundo.blue()
         p.setPen(QColor(20, 20, 25) if luminosidade > 150 else QColor(255, 255, 255))
-        p.setFont(fonte(8, QFont.Bold))
+        p.setFont(fonte(8, QFont.Bold, p=p))
         p.drawText(x, y + (ALTURA_LINHA - altura) // 2, largura, altura, Qt.AlignCenter, texto)
 
 
@@ -6322,7 +6694,7 @@ class JanelaClassificacao(JanelaBase):
         classif = d.get("classificacao")
         if not classif or not self._blocos_atual:
             p.setPen(COR_CINZA)
-            p.setFont(fonte(12))
+            p.setFont(fonte(12, p=p))
             p.drawText(self._retangulo_base(), Qt.AlignCenter, "Sem dados de classificacao")
             return
         self._barra_superior(p, classif)
@@ -6351,7 +6723,7 @@ class JanelaClassificacao(JanelaBase):
         p.setPen(Qt.NoPen)
         p.setBrush(QColor(62, 62, 78))
         p.drawRoundedRect(x, y + 4, w - 4, h - 8, 4, 4)
-        p.setFont(fonte(7, QFont.Bold))
+        p.setFont(fonte(7, QFont.Bold, p=p))
         p.setPen(QColor(210, 210, 222))
         p.drawText(x, y + 4, w - 4, h - 8, Qt.AlignCenter, abreviacao_marca(marca))
 
@@ -6365,7 +6737,7 @@ class JanelaClassificacao(JanelaBase):
             caminho = PASTA_BANDEIRAS / f"{iso2}.png"
             if caminho.is_file():
                 pm = _pixmap_ajustado(caminho, round(20 * self.escala_x), round(15 * self.escala_y))
-        p.setFont(fonte(8, QFont.Bold))
+        p.setFont(fonte(8, QFont.Bold, p=p))
         p.setPen(QColor(210, 210, 222))
         if pm is None:
             p.drawText(x, y + 4, w, h - 8, Qt.AlignCenter, codigo)
@@ -6384,21 +6756,21 @@ class JanelaClassificacao(JanelaBase):
         p.drawText(x + 30, y + 4, w - 32, h - 8, Qt.AlignCenter, codigo)
 
     def _barra_superior(self, p, classif):
-        p.setFont(fonte(8, QFont.DemiBold))
+        p.setFont(fonte(8, QFont.DemiBold, p=p))
         p.setPen(COR_CINZA)
         p.drawText(14, 5, 110, 18, Qt.AlignLeft | Qt.AlignVCenter, "CLASSIFICACAO")
         tipo = classif.get("tipo_sessao")
         if tipo:
-            p.setFont(fonte(10, QFont.Bold))
+            p.setFont(fonte(10, QFont.Bold, p=p))
             p.setPen(QColor(255, 255, 255))
             p.drawText(122, 5, 160, 18, Qt.AlignLeft | Qt.AlignVCenter, tipo)
         total = sum(c["n_carros"] for c in classif["classes"])
-        p.setFont(fonte(8, QFont.DemiBold))
+        p.setFont(fonte(8, QFont.DemiBold, p=p))
         p.setPen(COR_CINZA)
         p.drawText(LARGURA_CLASS - 14 - 200, 5, 200, 18, Qt.AlignRight | Qt.AlignVCenter, f"{total} CARROS")
 
         # Rotulos das colunas
-        p.setFont(fonte(7, QFont.DemiBold))
+        p.setFont(fonte(7, QFont.DemiBold, p=p))
         y = 26
         p.drawText(20, y, 26, 16, Qt.AlignRight | Qt.AlignVCenter, "P")
         p.drawText(50, y, 34, 16, Qt.AlignCenter, "+/\u2212")
@@ -6423,14 +6795,14 @@ class JanelaClassificacao(JanelaBase):
         p.drawRoundedRect(8, y + 2, LARGURA_CLASS - 16, h - 4, 5, 5)
         p.setBrush(cor)
         p.drawRect(8, y + 2, 4, h - 4)
-        p.setFont(fonte(10, QFont.Bold))
+        p.setFont(fonte(10, QFont.Bold, p=p))
         p.setPen(cor.lighter(125))
         p.drawText(20, y, 200, h, Qt.AlignLeft | Qt.AlignVCenter, classe["nome"])
         partes = []
         if classe["sof"]:
             partes.append(f"SOF {fmt_irating(classe['sof'])}")
         partes.append(f"{classe['n_carros']} CARROS")
-        p.setFont(fonte(8, QFont.DemiBold))
+        p.setFont(fonte(8, QFont.DemiBold, p=p))
         p.setPen(COR_TEXTO)
         p.drawText(LARGURA_CLASS - 20 - 240, y, 240, h, Qt.AlignRight | Qt.AlignVCenter, "   ".join(partes))
 
@@ -6448,11 +6820,11 @@ class JanelaClassificacao(JanelaBase):
         p.setPen(Qt.NoPen)
         p.setBrush(cor_classe)
         p.drawRect(12, y + 4, 4, h - 8)
-        p.setFont(fonte(10, QFont.Bold))
+        p.setFont(fonte(10, QFont.Bold, p=p))
         p.setPen(COR_TEXTO)
         p.drawText(20, y, 26, h, Qt.AlignRight | Qt.AlignVCenter, str(d["pos"]))
         self._ganho(p, 50, y, 34, h, d.get("delta"))
-        p.setFont(fonte(10, QFont.Bold))
+        p.setFont(fonte(10, QFont.Bold, p=p))
         p.setPen(cor_classe.lighter(120))
         p.drawText(86, y, 38, h, Qt.AlignLeft | Qt.AlignVCenter, f"#{d['numero']}")
 
@@ -6460,7 +6832,7 @@ class JanelaClassificacao(JanelaBase):
         self._emblema(p, 128, y, 34, h, d["marca"])
 
         # Piloto
-        fonte_nome = fonte(10, QFont.Bold)
+        fonte_nome = fonte(10, QFont.Bold, p=p)
         p.setFont(fonte_nome)
         p.setPen(QColor(255, 255, 255))
         rotulo_nome = d["nome"]
@@ -6479,9 +6851,9 @@ class JanelaClassificacao(JanelaBase):
             p.drawRoundedRect(QRectF(314, y + 4, 52, h - 8), 4, 4)
             lum = 0.299 * cor_lic.red() + 0.587 * cor_lic.green() + 0.114 * cor_lic.blue()
             p.setPen(QColor(20, 20, 25) if lum > 150 else QColor(255, 255, 255))
-            p.setFont(fonte(8, QFont.Bold))
+            p.setFont(fonte(8, QFont.Bold, p=p))
             p.drawText(QRectF(314, y + 4, 52, h - 8), Qt.AlignCenter, lic)
-        p.setFont(fonte(9, QFont.Bold))
+        p.setFont(fonte(9, QFont.Bold, p=p))
         p.setPen(QColor(235, 235, 240) if d.get("irating") else COR_CINZA)
         p.drawText(372, y, 50, h, Qt.AlignCenter, fmt_irating(d["irating"]) if d.get("irating") else "--")
 
@@ -6489,7 +6861,7 @@ class JanelaClassificacao(JanelaBase):
         self._pais(p, 426, y, 70, h, d["pais"])
 
         # Ultima volta (verde = igual a sua melhor) e melhor volta (roxo = melhor da classe)
-        p.setFont(fonte(10, QFont.Bold))
+        p.setFont(fonte(10, QFont.Bold, p=p))
         if d["ultima"] is None:
             p.setPen(COR_CINZA)
         else:
@@ -6524,7 +6896,7 @@ class JanelaClassificacao(JanelaBase):
         p.setBrush(cor)
         p.drawPath(seta)
         p.setPen(cor)
-        p.setFont(fonte(9, QFont.Bold))
+        p.setFont(fonte(9, QFont.Bold, p=p))
         p.drawText(QRectF(x + 15, y, w - 15, h), Qt.AlignLeft | Qt.AlignVCenter, str(abs(int(delta))))
 
 
@@ -6538,6 +6910,9 @@ class JanelaMapa(JanelaBase):
     def __init__(self, config):
         self._geo = None  # (versao, pontos na tela, caminho)
         super().__init__(config)
+
+    # build av: o desenho da pista fica fixo (os carros e a linha dependem dele); campos e textos sao itens
+    ELEMENTOS = (("largada", "Linha de largada/chegada"), ("carros", "Carros (bolinhas e números)"), ("aviso", "Aviso 'Aprendendo o traçado'"))
 
     def tamanho(self):
         return (LARGURA_MAPA, ALTURA_MAPA)
@@ -6581,7 +6956,7 @@ class JanelaMapa(JanelaBase):
         mapa = d.get("mapa")
         if not mapa or not mapa.get("pontos") or not any(q is not None for q in mapa["pontos"]):
             p.setPen(COR_CINZA)
-            p.setFont(fonte(10))
+            p.setFont(fonte(10, p=p))
             texto = "Mapa da pista\nDirija uma volta completa\npara o overlay aprender o tracado"
             p.drawText(self._retangulo_base(), Qt.AlignCenter, texto)
             return
@@ -6597,27 +6972,32 @@ class JanelaMapa(JanelaBase):
         p.drawPath(caminho)
 
         # linha de largada/chegada
-        if completo and tela[0] is not None and tela[1] is not None:
+        if completo and tela[0] is not None and tela[1] is not None and self._abre(p, "largada"):
             (x0, y0), (x1, y1) = tela[0], tela[1]
             dx, dy = x1 - x0, y1 - y0
             norma = math.hypot(dx, dy) or 1.0
             nx, ny = -dy / norma * 9, dx / norma * 9
             p.setPen(QPen(QColor(255, 255, 255), 3))
             p.drawLine(int(x0 - nx), int(y0 - ny), int(x0 + nx), int(y0 + ny))
+            self._fecha(p)
 
         if not completo:
-            progresso = int(mapa.get("progresso", 0.0) * 100)
-            p.setPen(QColor(250, 200, 40))
-            p.setFont(fonte(9, QFont.DemiBold))
-            p.drawText(0, ALTURA_MAPA - 24, LARGURA_MAPA, 18, Qt.AlignCenter,
-                       f"Aprendendo o tracado... {progresso}% (complete uma volta)")
+            if self._abre(p, "aviso"):
+                progresso = int(mapa.get("progresso", 0.0) * 100)
+                p.setPen(QColor(250, 200, 40))
+                p.setFont(fonte(9, QFont.DemiBold, p=p))
+                p.drawText(0, ALTURA_MAPA - 24, LARGURA_MAPA, 18, Qt.AlignCenter,
+                           f"Aprendendo o tracado... {progresso}% (complete uma volta)")
+                self._fecha(p)
+            return
+        if not self._abre(p, "carros"):
             return
 
         # carros
         carros = mapa.get("carros") or []
         raio = 6 if len(carros) > 24 else 8
         n = len(tela)
-        p.setFont(fonte(6 if raio == 6 else 7, QFont.Bold))
+        p.setFont(fonte(6 if raio == 6 else 7, QFont.Bold, p=p))
         for c in carros:
             pos = c["pct"] * n
             i0 = int(pos) % n
@@ -6642,6 +7022,7 @@ class JanelaMapa(JanelaBase):
             p.drawEllipse(int(x - r), int(y - r), 2 * r, 2 * r)
             p.setPen(texto_cor)
             p.drawText(int(x - r - 4), int(y - r), 2 * r + 8, 2 * r, Qt.AlignCenter, str(c["numero"])[:3])
+        self._fecha(p)
 
 
 # ---- Janela 6: radar de proximidade ----------------------------------------------------
@@ -6682,6 +7063,10 @@ class JanelaRadar(JanelaAutomatica):
         self._lat_t = {-1: 0.0, 1: 0.0}        # ultimo instante com carro ao lado (esquerda / direita)
         self._visto_t = 0.0                    # ultimo instante com carro por perto (radar automatico)
         super().__init__(config)
+
+    ELEMENTOS = (("faixa", "Faixa da pista e marcas de distância"), ("brilho", "Brilho vermelho dos lados"), ("aviso", "Aviso de carro ao lado"),
+                 ("carros", "Carros ao redor (e metros)"), ("meu_carro", "Seu carro (verde)"), ("distancias", "Distância à frente e atrás"),
+                 ("nota", "Nota do rodapé (SDK / estimado)"))
 
     def tamanho(self):
         return (LARGURA_RADAR, ALTURA_RADAR)
@@ -6724,7 +7109,7 @@ class JanelaRadar(JanelaAutomatica):
         texto = f"{seta}{fmt_dist_aprox(gap)}"
         if c.get("urgencia", 0) >= 3 and gap < 1.0:
             texto = "AO LADO"                          # a distancia lateral NAO existe no SDK: nao escrever "0,5 m"
-        fnt = fonte(8, QFont.Bold)
+        fnt = fonte(8, QFont.Bold, p=p)
         p.setFont(fnt)
         larg_txt = QFontMetrics(fnt).horizontalAdvance(texto) + 2
         alt_txt = 14.0
@@ -6757,17 +7142,19 @@ class JanelaRadar(JanelaAutomatica):
         escala = (h - 20) / (2.0 * ALCANCE_RADAR)  # pixels por metro
 
         # faixa da pista e marcas de distancia (a cada 10 m)
-        p.setPen(Qt.NoPen)
-        p.setBrush(QColor(255, 255, 255, 14))
-        p.drawRect(int(cx - 5.5 * escala), 10, int(11 * escala), int(h - 20))
-        p.setPen(QPen(QColor(255, 255, 255, 45), 1, Qt.DashLine))
-        for metros in (-ALCANCE_RADAR / 2, ALCANCE_RADAR / 2):
-            y = int(cy - metros * escala)
-            p.drawLine(int(cx - 5.5 * escala), y, int(cx + 5.5 * escala), y)
+        if self._abre(p, "faixa"):
+            p.setPen(Qt.NoPen)
+            p.setBrush(QColor(255, 255, 255, 14))
+            p.drawRect(int(cx - 5.5 * escala), 10, int(11 * escala), int(h - 20))
+            p.setPen(QPen(QColor(255, 255, 255, 45), 1, Qt.DashLine))
+            for metros in (-ALCANCE_RADAR / 2, ALCANCE_RADAR / 2):
+                y = int(cy - metros * escala)
+                p.drawLine(int(cx - 5.5 * escala), y, int(cx + 5.5 * escala), y)
+            self._fecha(p)
 
         if radar is None:
             p.setPen(COR_CINZA)
-            p.setFont(fonte(8))
+            p.setFont(fonte(8, p=p))
             p.drawText(0, h - 22, w, 16, Qt.AlignCenter, "sem dados de carros")
         else:
             # brilho lateral onde ha carro ao lado
@@ -6778,15 +7165,17 @@ class JanelaRadar(JanelaAutomatica):
                 if fade <= 0.0:
                     continue
                 ativos[lado] = n
-                x_borda = 2 if lado < 0 else w - 2
-                grad = QRadialGradient(x_borda, cy, 95)
-                grad.setColorAt(0.0, QColor(255, 30, 30, int((215 if n <= 1 else 245) * fade)))
-                grad.setColorAt(0.55, QColor(255, 30, 30, int(110 * fade)))
-                grad.setColorAt(1.0, QColor(255, 30, 30, 0))
-                p.setPen(Qt.NoPen)
-                p.setBrush(grad)
-                p.drawRect(0, int(cy - 95), w, 190)
-            if ativos:                                     # faixa de alerta: carro AO LADO (confirmado pelo SDK)
+                if self._abre(p, "brilho"):
+                    x_borda = 2 if lado < 0 else w - 2
+                    grad = QRadialGradient(x_borda, cy, 95)
+                    grad.setColorAt(0.0, QColor(255, 30, 30, int((215 if n <= 1 else 245) * fade)))
+                    grad.setColorAt(0.55, QColor(255, 30, 30, int(110 * fade)))
+                    grad.setColorAt(1.0, QColor(255, 30, 30, 0))
+                    p.setPen(Qt.NoPen)
+                    p.setBrush(grad)
+                    p.drawRect(0, int(cy - 95), w, 190)
+                    self._fecha(p)
+            if ativos and self._abre(p, "aviso"):          # faixa de alerta: carro AO LADO (confirmado pelo SDK)
                 if len(ativos) == 2:
                     aviso = "CARROS DOS DOIS LADOS"
                 elif -1 in ativos:
@@ -6797,125 +7186,134 @@ class JanelaRadar(JanelaAutomatica):
                 p.setBrush(QColor(235, 30, 30, 235))
                 p.drawRoundedRect(QRectF(10, 12, w - 20, 20), 6, 6)
                 p.setPen(QColor(255, 255, 255))
-                p.setFont(fonte(9, QFont.Bold))
+                p.setFont(fonte(9, QFont.Bold, p=p))
                 p.drawText(QRectF(10, 12, w - 20, 20), Qt.AlignCenter, aviso)
+                self._fecha(p)
             # o SDK acusou carro ao lado, mas nenhum carro bate com a posicao: avisa sem inventar posicao
             sem_par = radar.get("sem_par") or (0, 0)
-            p.setFont(fonte(7, QFont.Bold))
+            p.setFont(fonte(7, QFont.Bold, p=p))
             p.setPen(QColor(255, 255, 255, 230))
             if sem_par[0] > 0:
                 p.drawText(4, int(cy) - 8, 40, 14, Qt.AlignLeft | Qt.AlignVCenter, "SDK")
             if sem_par[1] > 0:
                 p.drawText(w - 44, int(cy) - 8, 40, 14, Qt.AlignRight | Qt.AlignVCenter, "SDK")
-            # brilho frontal/traseiro quando um carro se aproxima rapido
-            for chave, sinal in (("tras", 1), ("frente", -1)):
-                r = radar.get(chave)
-                # ambar = "chegando" (so longitudinal, NAO e previsao de colisao); vermelho so com ocupacao SDK
-                if r and r["urgencia"] >= 1 and r["aprox"] > 1.0 and abs(r["dist"]) <= ALCANCE_RADAR:
-                    y_borda = h - 4 if sinal > 0 else 4
-                    grad = QRadialGradient(cx, y_borda, 80)
-                    cor = self.CORES[r["urgencia"]]
-                    grad.setColorAt(0.0, QColor(cor.red(), cor.green(), cor.blue(), 200))
-                    grad.setColorAt(1.0, QColor(cor.red(), cor.green(), cor.blue(), 0))
-                    p.setPen(Qt.NoPen)
-                    p.setBrush(grad)
-                    p.drawRect(0, int(y_borda - 80), w, 160)
+            if self._abre(p, "carros"):
+                # brilho frontal/traseiro quando um carro se aproxima rapido
+                for chave, sinal in (("tras", 1), ("frente", -1)):
+                    r = radar.get(chave)
+                    # ambar = "chegando" (so longitudinal, NAO e previsao de colisao); vermelho so com ocupacao SDK
+                    if r and r["urgencia"] >= 1 and r["aprox"] > 1.0 and abs(r["dist"]) <= ALCANCE_RADAR:
+                        y_borda = h - 4 if sinal > 0 else 4
+                        grad = QRadialGradient(cx, y_borda, 80)
+                        cor = self.CORES[r["urgencia"]]
+                        grad.setColorAt(0.0, QColor(cor.red(), cor.green(), cor.blue(), 200))
+                        grad.setColorAt(1.0, QColor(cor.red(), cor.green(), cor.blue(), 0))
+                        p.setPen(Qt.NoPen)
+                        p.setBrush(grad)
+                        p.drawRect(0, int(y_borda - 80), w, 160)
 
-            # outros carros
-            comp, larg = COMPR_CARRO * escala, 2.0 * escala
-            ocupados, pendentes = [], []     # retangulos dos carros e rotulos de metros a desenhar
-            for c in sorted(radar["carros"], key=lambda q: q.get("urgencia", 0)):
-                if abs(c["dist"]) > ALCANCE_RADAR:
-                    continue
-                faixa = c["faixa"]
-                if c.get("lado_fonte") == "inferido" and abs(faixa) >= 0.5:
-                    # ocupacao confirmada pelo SDK: desenhado ENCOSTADO no seu carro (o SDK nao informa a distancia lateral;
-                    # nunca desenhar um espaco que talvez nao exista)
-                    x = cx + (1 if faixa > 0 else -1) * (LAT_VISUAL + (abs(faixa) - 1.0) * 2.4) * escala
-                else:
-                    x = cx + faixa * FAIXA_LATERAL * escala
-                y = cy - c["dist"] * escala
-                cor = self.CORES[c.get("urgencia", 0)]
-                origem = c.get("lado_fonte", "indef")
-                if origem == "lembrado":                 # lado lembrado (<= 3 s): translucido e tracejado
-                    p.setPen(QPen(cor, 1, Qt.DashLine))
-                    p.setBrush(QColor(cor.red(), cor.green(), cor.blue(), 90))
-                elif origem == "indef" and abs(c["dist"]) <= ZONA_LATERAL:   # lado desconhecido e muito perto
-                    p.setPen(QPen(cor, 1, Qt.DotLine))
-                    p.setBrush(QColor(cor.red(), cor.green(), cor.blue(), 120))
-                elif origem == "inferido" and c.get("ident") == "ambigua":   # ocupacao SDK, mas ha mais de um candidato
-                    p.setPen(QPen(cor, 1, Qt.DashDotLine))
-                    p.setBrush(cor)
-                else:                                    # ocupacao SDK (carro inferido) ou longe, na sua linha
+                # outros carros
+                comp, larg = COMPR_CARRO * escala, 2.0 * escala
+                ocupados, pendentes = [], []     # retangulos dos carros e rotulos de metros a desenhar
+                for c in sorted(radar["carros"], key=lambda q: q.get("urgencia", 0)):
+                    if abs(c["dist"]) > ALCANCE_RADAR:
+                        continue
+                    faixa = c["faixa"]
+                    if c.get("lado_fonte") == "inferido" and abs(faixa) >= 0.5:
+                        # ocupacao confirmada pelo SDK: desenhado ENCOSTADO no seu carro (o SDK nao informa a distancia lateral;
+                        # nunca desenhar um espaco que talvez nao exista)
+                        x = cx + (1 if faixa > 0 else -1) * (LAT_VISUAL + (abs(faixa) - 1.0) * 2.4) * escala
+                    else:
+                        x = cx + faixa * FAIXA_LATERAL * escala
+                    y = cy - c["dist"] * escala
+                    cor = self.CORES[c.get("urgencia", 0)]
+                    origem = c.get("lado_fonte", "indef")
+                    if origem == "lembrado":                 # lado lembrado (<= 3 s): translucido e tracejado
+                        p.setPen(QPen(cor, 1, Qt.DashLine))
+                        p.setBrush(QColor(cor.red(), cor.green(), cor.blue(), 90))
+                    elif origem == "indef" and abs(c["dist"]) <= ZONA_LATERAL:   # lado desconhecido e muito perto
+                        p.setPen(QPen(cor, 1, Qt.DotLine))
+                        p.setBrush(QColor(cor.red(), cor.green(), cor.blue(), 120))
+                    elif origem == "inferido" and c.get("ident") == "ambigua":   # ocupacao SDK, mas ha mais de um candidato
+                        p.setPen(QPen(cor, 1, Qt.DashDotLine))
+                        p.setBrush(cor)
+                    else:                                    # ocupacao SDK (carro inferido) ou longe, na sua linha
+                        p.setPen(Qt.NoPen)
+                        p.setBrush(cor)
+                    p.drawRoundedRect(int(x - larg / 2), int(y - comp / 2), int(larg), int(comp), 3, 3)
                     p.setPen(Qt.NoPen)
                     p.setBrush(cor)
-                p.drawRoundedRect(int(x - larg / 2), int(y - comp / 2), int(larg), int(comp), 3, 3)
-                p.setPen(Qt.NoPen)
-                p.setBrush(cor)
-                ocupados.append(QRectF(x - larg / 2, y - comp / 2, larg, comp))
-                # seta indicando que o carro esta se aproximando
-                if c.get("aprox", 0.0) > 2.0 and abs(c["dist"]) > 2.5:
-                    sentido = 1 if c["dist"] > 0 else -1   # aponta para voce: a frente = para baixo
-                    ponta = y + sentido * (comp / 2 + 7)
-                    base = y + sentido * (comp / 2 + 1)
-                    seta = QPainterPath()
-                    seta.moveTo(x, base)
-                    seta.lineTo(x - 4, ponta)
-                    seta.lineTo(x + 4, ponta)
-                    seta.closeSubpath()
-                    p.setBrush(QColor(cor.red(), cor.green(), cor.blue(), 190))
-                    p.drawPath(seta)
-                pendentes.append((c, x, y, cor))
+                    ocupados.append(QRectF(x - larg / 2, y - comp / 2, larg, comp))
+                    # seta indicando que o carro esta se aproximando
+                    if c.get("aprox", 0.0) > 2.0 and abs(c["dist"]) > 2.5:
+                        sentido = 1 if c["dist"] > 0 else -1   # aponta para voce: a frente = para baixo
+                        ponta = y + sentido * (comp / 2 + 7)
+                        base = y + sentido * (comp / 2 + 1)
+                        seta = QPainterPath()
+                        seta.moveTo(x, base)
+                        seta.lineTo(x - 4, ponta)
+                        seta.lineTo(x + 4, ponta)
+                        seta.closeSubpath()
+                        p.setBrush(QColor(cor.red(), cor.green(), cor.blue(), 190))
+                        p.drawPath(seta)
+                    pendentes.append((c, x, y, cor))
 
-            # metros ao lado de cada carro (por ultimo, para ficarem por cima dos brilhos)
-            ocupados.append(QRectF(cx - 1.0 * escala, cy - COMPR_CARRO / 2 * escala,
-                                   2.0 * escala, COMPR_CARRO * escala))
-            for c, x, y, cor in pendentes:
-                self._rotulo_metros(p, c, x, y, larg, cor, w, ocupados)
+                # metros ao lado de cada carro (por ultimo, para ficarem por cima dos brilhos)
+                ocupados.append(QRectF(cx - 1.0 * escala, cy - COMPR_CARRO / 2 * escala,
+                                       2.0 * escala, COMPR_CARRO * escala))
+                for c, x, y, cor in pendentes:
+                    self._rotulo_metros(p, c, x, y, larg, cor, w, ocupados)
+                self._fecha(p)
 
         # o seu carro (verde), no centro
-        p.setBrush(QColor(60, 200, 90))
-        p.setPen(Qt.NoPen)
-        p.drawRoundedRect(int(cx - 1.0 * escala), int(cy - COMPR_CARRO / 2 * escala), int(2.0 * escala),
-                          int(COMPR_CARRO * escala), 3, 3)
+        if self._abre(p, "meu_carro"):
+            p.setBrush(QColor(60, 200, 90))
+            p.setPen(Qt.NoPen)
+            p.drawRoundedRect(int(cx - 1.0 * escala), int(cy - COMPR_CARRO / 2 * escala), int(2.0 * escala),
+                              int(COMPR_CARRO * escala), 3, 3)
+            self._fecha(p)
 
         # rodape: distancia (para-choque a para-choque) ao carro mais proximo a frente e atras
         base_y = ALTURA_RADAR - self.ALTURA_RODAPE
-        p.setPen(QColor(150, 150, 165))
-        p.setFont(fonte(6, QFont.DemiBold))
-        p.drawText(8, base_y + 40, w - 16, 12, Qt.AlignCenter,
-                   "ao lado: SDK  \u00b7  metros: ~ estimado")
+        if self._abre(p, "nota"):
+            p.setPen(QColor(150, 150, 165))
+            p.setFont(fonte(6, QFont.DemiBold, p=p))
+            p.drawText(8, base_y + 40, w - 16, 12, Qt.AlignCenter,
+                       "ao lado: SDK  \u00b7  metros: ~ estimado")
+            self._fecha(p)
         p.setPen(QPen(QColor(255, 255, 255, 40), 1))
         p.drawLine(12, base_y, w - 12, base_y)
-        for k, (rotulo, chave) in enumerate((("FRENTE", "frente"), ("ATRAS", "tras"))):
-            x0 = 10 + k * (w // 2)
-            larg_col = w // 2 - 14
-            r = radar.get(chave) if radar else None
-            p.setPen(COR_CINZA)
-            p.setFont(fonte(7, QFont.DemiBold))
-            p.drawText(x0, base_y + 3, larg_col, 12, Qt.AlignLeft | Qt.AlignVCenter, rotulo)
-            if r is None or r["gap"] > 60:
+        if self._abre(p, "distancias"):
+            for k, (rotulo, chave) in enumerate((("FRENTE", "frente"), ("ATRAS", "tras"))):
+                x0 = 10 + k * (w // 2)
+                larg_col = w // 2 - 14
+                r = radar.get(chave) if radar else None
                 p.setPen(COR_CINZA)
-                p.setFont(fonte(13, QFont.Bold))
-                p.drawText(x0, base_y + 14, larg_col, 22, Qt.AlignLeft | Qt.AlignVCenter, "--")
-                continue
-            p.setPen(self.CORES[r["urgencia"]])
-            lado_a_lado = r["urgencia"] >= 3 and r["gap"] < 1.0
-            p.setFont(fonte(11 if lado_a_lado else 13, QFont.Bold))
-            p.drawText(x0, base_y + 14, larg_col, 22, Qt.AlignLeft | Qt.AlignVCenter,
-                       "AO LADO" if lado_a_lado else fmt_dist_aprox(r["gap"]))
-            if r["aprox"] > 1.0:
-                p.setPen(COR_CINZA)
-                p.setFont(fonte(7))
-                p.drawText(x0, base_y + 3, larg_col, 12, Qt.AlignRight | Qt.AlignVCenter,
-                           f"+{r['aprox'] * 3.6:.0f} km/h")
-                if r["alcance_s"] is not None and r["alcance_s"] < 9.9:
-                    p.setFont(fonte(8, QFont.DemiBold))
-                    p.drawText(x0, base_y + 17, larg_col, 18, Qt.AlignRight | Qt.AlignVCenter,
-                               f"~{r['alcance_s']:.1f} s")
+                p.setFont(fonte(7, QFont.DemiBold, p=p))
+                p.drawText(x0, base_y + 3, larg_col, 12, Qt.AlignLeft | Qt.AlignVCenter, rotulo)
+                if r is None or r["gap"] > 60:
+                    p.setPen(COR_CINZA)
+                    p.setFont(fonte(13, QFont.Bold, p=p))
+                    p.drawText(x0, base_y + 14, larg_col, 22, Qt.AlignLeft | Qt.AlignVCenter, "--")
+                    continue
+                p.setPen(self.CORES[r["urgencia"]])
+                lado_a_lado = r["urgencia"] >= 3 and r["gap"] < 1.0
+                p.setFont(fonte(11 if lado_a_lado else 13, QFont.Bold, p=p))
+                p.drawText(x0, base_y + 14, larg_col, 22, Qt.AlignLeft | Qt.AlignVCenter,
+                           "AO LADO" if lado_a_lado else fmt_dist_aprox(r["gap"]))
+                if r["aprox"] > 1.0:
+                    p.setPen(COR_CINZA)
+                    p.setFont(fonte(7, p=p))
+                    p.drawText(x0, base_y + 3, larg_col, 12, Qt.AlignRight | Qt.AlignVCenter,
+                               f"+{r['aprox'] * 3.6:.0f} km/h")
+                    if r["alcance_s"] is not None and r["alcance_s"] < 9.9:
+                        p.setFont(fonte(8, QFont.DemiBold, p=p))
+                        p.drawText(x0, base_y + 17, larg_col, 18, Qt.AlignRight | Qt.AlignVCenter,
+                                   f"~{r['alcance_s']:.1f} s")
 
 
-# ---- Janela 8: setores vs melhor volta ---------------------------------------------------
+    # ---- Janela 8: setores vs melhor volta ---------------------------------------------------
+            self._fecha(p)
 class JanelaSetores(JanelaBase):
     CHAVE = "setores"
     CHAVE_ATIVO = "mostrar_setores"
@@ -6957,7 +7355,7 @@ class JanelaSetores(JanelaBase):
 
     def _linha(self, p, y, rotulo, tempo, delta, roxo=False, ao_vivo=False, mostrar_delta=True):
         h = ALTURA_LINHA_SETOR
-        p.setFont(fonte(11, QFont.Bold))
+        p.setFont(fonte(11, QFont.Bold, p=p))
         p.setPen(COR_AMARELO)
         p.drawText(16, y, 110, h, Qt.AlignLeft | Qt.AlignVCenter, rotulo)
         p.setPen(COR_CINZA if tempo is None else (self.COR_ROXO if roxo else QColor(255, 255, 255)))
@@ -6975,16 +7373,16 @@ class JanelaSetores(JanelaBase):
         st = d.get("setores")
         if not st:
             p.setPen(COR_CINZA)
-            p.setFont(fonte(11))
+            p.setFont(fonte(11, p=p))
             p.drawText(self._retangulo_base(), Qt.AlignCenter, "Sem dados de setores")
             return
         if self._abre(p, "titulo"):
             # titulo
-            p.setFont(fonte(12, QFont.Bold))
+            p.setFont(fonte(12, QFont.Bold, p=p))
             p.setPen(COR_AMARELO)
             p.drawText(16, 8, LARGURA_SETORES - 32, 22, Qt.AlignLeft | Qt.AlignVCenter, "VS MELHOR VOLTA")
             sub = " | ".join(x for x in (st.get("pista"), st.get("carro")) if x)
-            fnt = fonte(8)
+            fnt = fonte(8, p=p)
             p.setFont(fnt)
             p.setPen(COR_CINZA)
             p.drawText(16, 30, LARGURA_SETORES - 32, 14, Qt.AlignLeft | Qt.AlignVCenter,
@@ -7010,7 +7408,7 @@ class JanelaSetores(JanelaBase):
             self._fecha(p)
         if self._abre(p, "nota"):
             if st.get("estimado") or st.get("melhor") is None:
-                p.setFont(fonte(7))
+                p.setFont(fonte(7, p=p))
                 p.setPen(COR_CINZA)
                 nota = ("setores iguais (o iRacing nao informou os setores)" if st.get("estimado")
                         else "complete 1 volta limpa para criar a referencia")
@@ -7068,10 +7466,10 @@ class JanelaPneus(JanelaBase):
                          est is not None and est.get("pior") == canto, ultima)
 
         # rodape: resumo do pior pneu e origem dos dados
-        if not self.visivel("rodape"):
+        if not self._abre(p, "rodape"):
             return
         p.setPen(COR_TEXTO)
-        p.setFont(fonte(8, QFont.DemiBold))
+        p.setFont(fonte(8, QFont.DemiBold, p=p))
         y_rod = ALTURA_PNEUS - 40
         if est:
             pior = est["pior"]
@@ -7087,7 +7485,7 @@ class JanelaPneus(JanelaBase):
             linha = "sem dados de pneus"
         p.drawText(14, y_rod, LARGURA_PNEUS - 28, 14, Qt.AlignLeft | Qt.AlignVCenter, linha)
         p.setPen(COR_CINZA)
-        p.setFont(fonte(7))
+        p.setFont(fonte(7, p=p))
         if est:
             origem = {"boxes": f"calibrado nos boxes ({est['n_cal']}x)", "1a volta": "ritmo da 1a volta",
                       "padrao": "sem calibracao ainda"}.get(est["origem"], "")
@@ -7095,6 +7493,7 @@ class JanelaPneus(JanelaBase):
         else:
             nota = "o carro/serie pode nao informar dados de pneus"
         p.drawText(14, y_rod + 15, LARGURA_PNEUS - 28, 12, Qt.AlignLeft | Qt.AlignVCenter, nota)
+        self._fecha(p)
 
     def _cartao(self, p, x, y, canto, info, temp_real, ideal_min, ideal_max, destaque=False, ultima=None):
         w, h = self.LARG_CARTAO, self.ALT_CARTAO
@@ -7105,7 +7504,7 @@ class JanelaPneus(JanelaBase):
             p.drawRoundedRect(x, y, w, h, 8, 8)
 
         p.setPen(COR_CINZA)
-        p.setFont(fonte(7, QFont.DemiBold))
+        p.setFont(fonte(7, QFont.DemiBold, p=p))
         p.drawText(x + 10, y + 5, 100, 14, Qt.AlignLeft | Qt.AlignVCenter, self.NOMES[canto])
         t_est = info.get("temp") if info else None
         media = (sum(temp_real) / 3.0) if temp_real else None
@@ -7114,85 +7513,70 @@ class JanelaPneus(JanelaBase):
             antiga = ultima["temp"]
         orig = nucleo.origem_pneu(temp_real, ultima, t_est, info)     # regra unica real x estimado (testada)
         # build w: a temperatura total do pneu ganhou destaque (fonte 10 -> 16, em caixa maior)
-        if self.visivel("temp_total"):
+        if self._abre(p, "temp_total"):
             if orig["temp_cabecalho"] == "real":
                 p.setPen(QColor(*cor_temperatura(media, ideal_min, ideal_max)))
-                p.setFont(fonte(16, QFont.Bold))
+                p.setFont(fonte(16, QFont.Bold, p=p))
                 p.drawText(x + w - 90, y + 1, 80, 24, Qt.AlignRight | Qt.AlignVCenter, f"{media:.0f}\u00b0C")
             elif orig["temp_cabecalho"] == "estimada":            # cabecalho: estimativa ao vivo, com "~"
                 p.setPen(QColor(*cor_temperatura(t_est, ideal_min, ideal_max)))
-                p.setFont(fonte(16, QFont.Bold))
+                p.setFont(fonte(16, QFont.Bold, p=p))
                 p.drawText(x + w - 90, y + 1, 80, 24, Qt.AlignRight | Qt.AlignVCenter, f"~{t_est:.0f}\u00b0C")
+            self._fecha(p)
 
         # zonas da banda de rodagem (so quando o iRacing informa as 3 zonas); senao, bloco estimado
         faixa_l = (w - 20 - 8) / 3.0
-        if not self.visivel("zonas"):
-            pass
-        elif orig["temp_corpo"] in ("real_ao_vivo", "real_antiga"):
-            valores = temp_real or antiga
-            rotulos = ("E", "M", "I") if canto in ("LF", "LR") else ("I", "M", "E")  # externa / meio / interna
-            for i in range(3):
-                bx = x + 10 + i * (faixa_l + 4)
-                by = y + 24
-                cor = QColor(*cor_temperatura(valores[i], ideal_min, ideal_max))
-                if antiga is not None:
-                    cor.setAlpha(110)                    # esmaecido: leitura antiga, nao e o valor de agora
+        if self._abre(p, "zonas"):
+            if orig["temp_corpo"] in ("real_ao_vivo", "real_antiga"):
+                valores = temp_real or antiga
+                rotulos = ("E", "M", "I") if canto in ("LF", "LR") else ("I", "M", "E")  # externa / meio / interna
+                for i in range(3):
+                    bx = x + 10 + i * (faixa_l + 4)
+                    by = y + 24
+                    cor = QColor(*cor_temperatura(valores[i], ideal_min, ideal_max))
+                    if antiga is not None:
+                        cor.setAlpha(110)                    # esmaecido: leitura antiga, nao e o valor de agora
+                    p.setPen(Qt.NoPen)
+                    p.setBrush(cor)
+                    p.drawRoundedRect(int(bx), by, int(faixa_l), 38, 6, 6)
+                    p.setPen(QColor(15, 15, 20) if antiga is None else QColor(235, 235, 240))
+                    p.setFont(fonte(12, QFont.Bold, p=p))
+                    p.drawText(int(bx), by, int(faixa_l), 38, Qt.AlignCenter, f"{valores[i]:.0f}")
+                    if antiga is None:
+                        p.setPen(COR_CINZA)
+                        p.setFont(fonte(7, p=p))
+                        p.drawText(int(bx), by + 39, int(faixa_l), 11, Qt.AlignCenter, rotulos[i])
+                if antiga is not None:                       # quando/onde foi a ultima leitura real
+                    local = ultima.get("local") or ""
+                    p.setPen(COR_AMARELO if (ultima.get("idade") or 0) > 600 else COR_CINZA)
+                    p.setFont(fonte(7, p=p))
+                    p.drawText(x + 10, y + 63, w - 20, 11, Qt.AlignCenter,
+                               f"real, h\u00e1 {nucleo.fmt_idade_medicao(ultima.get('idade'))} ({ultima.get('hora') or '--'}"
+                               + (f", {local}" if local else "") + ")")
+            else:
+                bw = w - 20
+                if t_est is not None:
+                    cor, texto, cor_texto = QColor(*cor_temperatura(t_est, ideal_min, ideal_max)), f"~{t_est:.0f}\u00b0C", QColor(15, 15, 20)
+                else:
+                    cor, texto, cor_texto = QColor(255, 255, 255, 25), "--", COR_CINZA
                 p.setPen(Qt.NoPen)
                 p.setBrush(cor)
-                p.drawRoundedRect(int(bx), by, int(faixa_l), 38, 6, 6)
-                p.setPen(QColor(15, 15, 20) if antiga is None else QColor(235, 235, 240))
-                p.setFont(fonte(12, QFont.Bold))
-                p.drawText(int(bx), by, int(faixa_l), 38, Qt.AlignCenter, f"{valores[i]:.0f}")
-                if antiga is None:
-                    p.setPen(COR_CINZA)
-                    p.setFont(fonte(7))
-                    p.drawText(int(bx), by + 39, int(faixa_l), 11, Qt.AlignCenter, rotulos[i])
-            if antiga is not None:                       # quando/onde foi a ultima leitura real
-                local = ultima.get("local") or ""
-                p.setPen(COR_AMARELO if (ultima.get("idade") or 0) > 600 else COR_CINZA)
-                p.setFont(fonte(7))
-                p.drawText(x + 10, y + 63, w - 20, 11, Qt.AlignCenter,
-                           f"real, h\u00e1 {nucleo.fmt_idade_medicao(ultima.get('idade'))} ({ultima.get('hora') or '--'}"
-                           + (f", {local}" if local else "") + ")")
-        else:
-            bw = w - 20
-            if t_est is not None:
-                cor, texto, cor_texto = QColor(*cor_temperatura(t_est, ideal_min, ideal_max)), f"~{t_est:.0f}\u00b0C", QColor(15, 15, 20)
-            else:
-                cor, texto, cor_texto = QColor(255, 255, 255, 25), "--", COR_CINZA
-            p.setPen(Qt.NoPen)
-            p.setBrush(cor)
-            p.drawRoundedRect(x + 10, y + 24, bw, 38, 6, 6)
-            p.setPen(cor_texto)
-            p.setFont(fonte(14, QFont.Bold))
-            p.drawText(x + 10, y + 24, bw, 38, Qt.AlignCenter, texto)
-            p.setPen(COR_CINZA)
-            p.setFont(fonte(7))
-            p.drawText(x + 10, y + 63, bw, 11, Qt.AlignCenter, "temperatura estimada")
+                p.drawRoundedRect(x + 10, y + 24, bw, 38, 6, 6)
+                p.setPen(cor_texto)
+                p.setFont(fonte(14, QFont.Bold, p=p))
+                p.drawText(x + 10, y + 24, bw, 38, Qt.AlignCenter, texto)
+                p.setPen(COR_CINZA)
+                p.setFont(fonte(7, p=p))
+                p.drawText(x + 10, y + 63, bw, 11, Qt.AlignCenter, "temperatura estimada")
+            self._fecha(p)
 
-        # vida util
-        if not self.visivel("vida"):
-            return
+        # vida util (build av: a linha de detalhes e um item proprio, fora do bloco da vida)
         yb = y + 82
         vida = info.get("vida") if info else None
         est_tag = orig["vida"] == "estimada"
-        p.setPen(COR_CINZA)
-        p.setFont(fonte(7, QFont.DemiBold))
-        p.drawText(x + 10, yb - 3, 34, 14, Qt.AlignLeft | Qt.AlignVCenter, orig["rotulo_vida"])
-        largura_barra = w - 10 - 44 - 52
-        p.setPen(Qt.NoPen)
-        p.setBrush(COR_FUNDO_BARRA)
-        p.drawRoundedRect(x + 44, yb, largura_barra, 8, 4, 4)
+        partes = []
         if vida is not None:
-            v = max(0.0, min(1.0, vida))
-            p.setBrush(QColor(*cor_vida(v)))
-            p.drawRoundedRect(x + 44, yb, max(4, int(largura_barra * v)), 8, 4, 4)
-            p.setPen(QColor(*cor_vida(v)))
-            p.setFont(fonte(10, QFont.Bold))
-            p.drawText(x + w - 56, yb - 5, 48, 18, Qt.AlignRight | Qt.AlignVCenter, f"{v * 100:.0f}%")
-            # linha de baixo: ritmo de desgaste e idade do pneu
             perda, voltas = info.get("perda_volta"), info.get("voltas", 0)
-            partes = []
             if perda:
                 partes.append(f"-{perda * 100:.1f}%/volta")
             if voltas:
@@ -7201,15 +7585,32 @@ class JanelaPneus(JanelaBase):
                 idade_v = (ultima or {}).get("vida_idade")
                 partes.append("real, h\u00e1 " + nucleo.fmt_idade_medicao(idade_v) if idade_v is not None
                               else "leitura real")
-            if self.visivel("detalhes"):
-                p.setPen(COR_CINZA)
-                p.setFont(fonte(7))
-                p.drawText(x + 10, y + 94, w - 20, 12, Qt.AlignLeft | Qt.AlignVCenter, "  |  ".join(partes))
-        else:
+        if self._abre(p, "vida"):
             p.setPen(COR_CINZA)
-            p.setFont(fonte(10, QFont.Bold))
-            p.drawText(x + w - 56, yb - 5, 48, 18, Qt.AlignRight | Qt.AlignVCenter, "--")
-
+            p.setFont(fonte(7, QFont.DemiBold, p=p))
+            p.drawText(x + 10, yb - 3, 34, 14, Qt.AlignLeft | Qt.AlignVCenter, orig["rotulo_vida"])
+            largura_barra = w - 10 - 44 - 52
+            p.setPen(Qt.NoPen)
+            p.setBrush(COR_FUNDO_BARRA)
+            p.drawRoundedRect(x + 44, yb, largura_barra, 8, 4, 4)
+            if vida is not None:
+                v = max(0.0, min(1.0, vida))
+                p.setBrush(QColor(*cor_vida(v)))
+                p.drawRoundedRect(x + 44, yb, max(4, int(largura_barra * v)), 8, 4, 4)
+                p.setPen(QColor(*cor_vida(v)))
+                p.setFont(fonte(10, QFont.Bold, p=p))
+                p.drawText(x + w - 56, yb - 5, 48, 18, Qt.AlignRight | Qt.AlignVCenter, f"{v * 100:.0f}%")
+            else:
+                p.setPen(COR_CINZA)
+                p.setFont(fonte(10, QFont.Bold, p=p))
+                p.drawText(x + w - 56, yb - 5, 48, 18, Qt.AlignRight | Qt.AlignVCenter, "--")
+            self._fecha(p)
+        # linha de baixo: ritmo de desgaste e idade do pneu
+        if partes and self._abre(p, "detalhes"):
+            p.setPen(COR_CINZA)
+            p.setFont(fonte(7, p=p))
+            p.drawText(x + 10, y + 94, w - 20, 12, Qt.AlignLeft | Qt.AlignVCenter, "  |  ".join(partes))
+            self._fecha(p)
 
 # ---- Janela 9: clima e vento ------------------------------------------------------------------
 def vento_relativo(vento_dir, rumo, vel):
@@ -7287,13 +7688,13 @@ class JanelaClima(JanelaBase):
     def _cartao(self, p, y, h, titulo):
         pintar_superficie(p, QRectF(10, y, LARGURA_CLIMA - 20, h), 8, cartao=True, borda_classica=True)
         p.setPen(COR_CINZA)
-        p.setFont(fonte(8, QFont.DemiBold))
+        p.setFont(fonte(8, QFont.DemiBold, p=p))
         p.drawText(22, y + 6, 175, 16, Qt.AlignLeft | Qt.AlignVCenter, titulo)
 
     def _valor(self, p, y, icone, texto):
         icone(p, 24, y + 26)
         p.setPen(QColor(255, 255, 255))
-        p.setFont(fonte(20, QFont.DemiBold))
+        p.setFont(fonte(20, QFont.DemiBold, p=p))
         p.drawText(68, y + 22, 120, 34, Qt.AlignLeft | Qt.AlignVCenter, texto)
 
     def paintEvent(self, _evento):
@@ -7345,7 +7746,7 @@ class JanelaClima(JanelaBase):
         self._icone_chuva(p, 24, y + 26)
         chuva = c.get("chuva")
         p.setPen(QColor(255, 255, 255))
-        p.setFont(fonte(20, QFont.DemiBold))
+        p.setFont(fonte(20, QFont.DemiBold, p=p))
         p.drawText(64, y + 22, 64, 40, Qt.AlignLeft | Qt.AlignVCenter, f"{chuva:.0f}%" if chuva is not None else "--")
         molhada = c.get("pista_molhada")
         pista = self.NIVEIS_PISTA.get(molhada) if molhada else None
@@ -7357,7 +7758,7 @@ class JanelaClima(JanelaBase):
             c.get("tendencia_chuva"), "medindo...")
         if c.get("dinamico") is False:
             tend = "clima fixo"
-        p.setFont(fonte(7, QFont.DemiBold))
+        p.setFont(fonte(7, QFont.DemiBold, p=p))
         cor_pista = QColor(255, 255, 255) if (molhada or 0) >= 4 else COR_CINZA
         p.setPen(cor_pista)
         p.drawText(130, y + 24, 80, 16, Qt.AlignLeft | Qt.AlignVCenter, pista or "pista --")
@@ -7378,7 +7779,7 @@ class JanelaClima(JanelaBase):
             p.drawLine(int(cx + ri * math.sin(a)), int(cy - ri * math.cos(a)),
                        int(cx + (r - 1) * math.sin(a)), int(cy - (r - 1) * math.cos(a)))
         if rumo is not None:
-            p.setFont(fonte(9, QFont.Bold))
+            p.setFont(fonte(9, QFont.Bold, p=p))
             for letra, graus in (("N", 0), ("E", 90), ("S", 180), ("W", 270)):
                 a = math.radians(graus) - h
                 x, y = cx + (r - 17) * math.sin(a), cy - (r - 17) * math.cos(a)
@@ -7417,12 +7818,12 @@ class JanelaClima(JanelaBase):
         self._icone_vento(p, 24, y + 14)
         v = c.get("vento_vel")
         p.setPen(QColor(255, 255, 255))
-        p.setFont(fonte(20, QFont.DemiBold))
+        p.setFont(fonte(20, QFont.DemiBold, p=p))
         texto = f"{v:.1f}" if v is not None else "--"
         p.drawText(64, y + 4, 80, 40, Qt.AlignLeft | Qt.AlignVCenter, texto)
         larg = QFontMetrics(p.font()).horizontalAdvance(texto)
         p.setPen(COR_CINZA)
-        p.setFont(fonte(8, QFont.DemiBold))
+        p.setFont(fonte(8, QFont.DemiBold, p=p))
         p.drawText(64 + larg + 6, y + 4, 60, 40, Qt.AlignLeft | Qt.AlignVCenter, "KM/H")
         # componente: de frente (contra) ou a favor (cauda), e a velocidade do carro
         direcao, rumo = c.get("vento_dir"), c.get("rumo")
@@ -7435,7 +7836,7 @@ class JanelaClima(JanelaBase):
                 linha = "vento lateral"
             else:
                 linha = f"{'a favor' if comp > 0 else 'de frente'} {abs(comp):.1f} km/h"
-        p.setFont(fonte(7))
+        p.setFont(fonte(7, p=p))
         p.setPen(COR_CINZA)
         p.drawText(22, y + 46, 100, 16, Qt.AlignLeft | Qt.AlignVCenter, linha)
         p.setPen(COR_TEXTO)
@@ -7455,6 +7856,9 @@ class JanelaDanos(JanelaBase):
     NOMES_ZONA = {"F": "Frente", "T": "Traseira", "E": "Lado esquerdo", "D": "Lado direito", None: "Local indefinido"}
     NOMES_TIPO = {"contato": "contato com carro", "batida": "batida", "saida": "saida de pista",
                   "pancada": "pancada", "dano": "dano confirmado pelo reparo"}
+    ELEMENTOS = (("titulo", "Título (DANOS DO CARRO)"), ("incidentes", "Contador de incidentes"), ("faixa", "Faixa de situação (reparo / impacto)"),
+                 ("carro", "Desenho do carro com as zonas"), ("reparos", "Reparos e impactos (coluna da direita)"),
+                 ("motor", "Avisos do motor"), ("ultimos", "Últimos impactos"), ("rodape", "Nota de rodapé"))
 
     def tamanho(self):
         return (LARGURA_DANOS, ALTURA_DANOS)
@@ -7470,19 +7874,24 @@ class JanelaDanos(JanelaBase):
         if not self._fundo(p, d["conectado"]):
             return
         dn = d.get("danos")
-        p.setPen(COR_CINZA)
-        p.setFont(fonte(9, QFont.DemiBold))
-        p.drawText(16, 8, 150, 20, Qt.AlignLeft | Qt.AlignVCenter, "DANOS DO CARRO")
+        if self._abre(p, "titulo"):
+            p.setPen(COR_CINZA)
+            p.setFont(fonte(9, QFont.DemiBold, p=p))
+            p.drawText(16, 8, 150, 20, Qt.AlignLeft | Qt.AlignVCenter, "DANOS DO CARRO")
+            self._fecha(p)
         if not dn:
-            p.setFont(fonte(9))
+            p.setPen(COR_CINZA)
+            p.setFont(fonte(9, p=p))
             p.drawText(16, 40, LARGURA_DANOS - 32, 20, Qt.AlignLeft | Qt.AlignVCenter, "Sem dados de danos")
             return
         inc, lim = dn.get("incidentes"), dn.get("limite")
-        if inc is not None:
-            txt = f"Incidentes {inc}" + (f" / {lim}" if lim else "")
-            p.setPen(COR_AMARELO if (lim and inc >= 0.7 * lim) else COR_TEXTO)
-            p.setFont(fonte(9, QFont.Bold))
-            p.drawText(110, 8, LARGURA_DANOS - 126, 20, Qt.AlignRight | Qt.AlignVCenter, txt)
+        if self._abre(p, "incidentes"):
+            if inc is not None:
+                txt = f"Incidentes {inc}" + (f" / {lim}" if lim else "")
+                p.setPen(COR_AMARELO if (lim and inc >= 0.7 * lim) else COR_TEXTO)
+                p.setFont(fonte(9, QFont.Bold, p=p))
+                p.drawText(110, 8, LARGURA_DANOS - 126, 20, Qt.AlignRight | Qt.AlignVCenter, txt)
+            self._fecha(p)
 
         # faixa de situacao
         reparo, opc, reboque = dn.get("reparo", 0.0), dn.get("reparo_opc", 0.0), dn.get("reboque", 0.0)
@@ -7497,101 +7906,113 @@ class JanelaDanos(JanelaBase):
             cor, texto = COR_AMARELO, "IMPACTO REGISTRADO"
         else:
             cor, texto = COR_VERDE, "SEM DANO REGISTRADO"
-        p.setPen(Qt.NoPen)
-        p.setBrush(QColor(cor.red(), cor.green(), cor.blue(), 60))
-        p.drawRoundedRect(12, 34, LARGURA_DANOS - 24, 30, 8, 8)
-        p.setPen(cor)
-        p.setFont(fonte(10, QFont.Bold))
-        p.drawText(12, 34, LARGURA_DANOS - 24, 30, Qt.AlignCenter, texto)
+        if self._abre(p, "faixa"):
+            p.setPen(Qt.NoPen)
+            p.setBrush(QColor(cor.red(), cor.green(), cor.blue(), 60))
+            p.drawRoundedRect(12, 34, LARGURA_DANOS - 24, 30, 8, 8)
+            p.setPen(cor)
+            p.setFont(fonte(10, QFont.Bold, p=p))
+            p.drawText(12, 34, LARGURA_DANOS - 24, 30, Qt.AlignCenter, texto)
+            self._fecha(p)
 
         # carro visto de cima, com as 4 zonas de impacto
-        cx, cy = 78, 160
-        sev = lambda z: zonas.get(z, 0)
-        p.setPen(Qt.NoPen)
-        p.setBrush(self.cor_sev(sev("F")))
-        p.drawRoundedRect(cx - 28, cy - 80, 56, 18, 8, 8)
-        p.setBrush(self.cor_sev(sev("T")))
-        p.drawRoundedRect(cx - 28, cy + 62, 56, 18, 8, 8)
-        p.setBrush(self.cor_sev(sev("E")))
-        p.drawRoundedRect(cx - 50, cy - 52, 16, 104, 8, 8)
-        p.setBrush(self.cor_sev(sev("D")))
-        p.drawRoundedRect(cx + 34, cy - 52, 16, 104, 8, 8)
-        p.setBrush(QColor(95, 95, 108))
-        p.drawRoundedRect(cx - 28, cy - 62, 56, 124, 18, 18)
-        p.setBrush(QColor(14, 14, 20))
-        p.drawRoundedRect(cx - 19, cy - 32, 38, 18, 5, 5)       # parabrisa
-        p.drawRoundedRect(cx - 19, cy + 24, 38, 12, 4, 4)       # vidro traseiro
-        p.setBrush(QColor(60, 60, 70))
-        for dx in (-34, 24):
-            for dy in (-50, 32):
-                p.drawRoundedRect(cx + dx, cy + dy, 10, 20, 3, 3)  # rodas
-        p.setPen(COR_CINZA)
-        p.setFont(fonte(7))
-        p.drawText(cx - 40, cy - 98, 80, 12, Qt.AlignCenter, "FRENTE")
-
-        # coluna da direita: reparos
-        def item(y, rotulo, valor, cor_v=COR_TEXTO):
-            p.setPen(COR_CINZA)
-            p.setFont(fonte(7, QFont.DemiBold))
-            p.drawText(150, y, 100, 12, Qt.AlignLeft | Qt.AlignVCenter, rotulo)
-            p.setPen(cor_v)
-            p.setFont(fonte(13, QFont.Bold))
-            p.drawText(150, y + 12, 100, 22, Qt.AlignLeft | Qt.AlignVCenter, valor)
-        item(78, "REPARO OBRIGATORIO", f"{reparo:.0f} s" if reparo else "0 s", COR_VERMELHO if reparo else COR_TEXTO)
-        item(122, "REPARO OPCIONAL", f"{opc:.0f} s" if opc else "0 s", COR_LARANJA if opc else COR_TEXTO)
-        item(166, "REPAROS RAPIDOS", str(dn.get("rapidos", 0)))
-        item(210, "IMPACTOS", str(dn.get("total", len(eventos))))
-
-        # avisos do motor
-        p.setPen(COR_CINZA)
-        p.setFont(fonte(7, QFont.DemiBold))
-        p.drawText(16, 262, 120, 12, Qt.AlignLeft | Qt.AlignVCenter, "MOTOR")
-        avisos = dn.get("avisos") or []
-        x = 62
-        if not avisos:
-            p.setPen(COR_VERDE)
-            p.setFont(fonte(9, QFont.DemiBold))
-            p.drawText(x, 260, 150, 16, Qt.AlignLeft | Qt.AlignVCenter, "sem avisos")
-        yc = 259
-        for nome in avisos:
-            larg = QFontMetrics(fonte(8, QFont.Bold)).horizontalAdvance(nome) + 14
-            if x + larg > LARGURA_DANOS - 12:           # quebra para a linha de baixo
-                x, yc = 62, yc + 20
+        if self._abre(p, "carro"):
+            cx, cy = 78, 160
+            sev = lambda z: zonas.get(z, 0)
             p.setPen(Qt.NoPen)
-            p.setBrush(QColor(235, 60, 60, 190))
-            p.drawRoundedRect(x, yc, larg, 17, 8, 8)
-            p.setPen(QColor(255, 255, 255))
-            p.setFont(fonte(8, QFont.Bold))
-            p.drawText(x, yc, larg, 17, Qt.AlignCenter, nome)
-            x += larg + 4
+            p.setBrush(self.cor_sev(sev("F")))
+            p.drawRoundedRect(cx - 28, cy - 80, 56, 18, 8, 8)
+            p.setBrush(self.cor_sev(sev("T")))
+            p.drawRoundedRect(cx - 28, cy + 62, 56, 18, 8, 8)
+            p.setBrush(self.cor_sev(sev("E")))
+            p.drawRoundedRect(cx - 50, cy - 52, 16, 104, 8, 8)
+            p.setBrush(self.cor_sev(sev("D")))
+            p.drawRoundedRect(cx + 34, cy - 52, 16, 104, 8, 8)
+            p.setBrush(QColor(95, 95, 108))
+            p.drawRoundedRect(cx - 28, cy - 62, 56, 124, 18, 18)
+            p.setBrush(QColor(14, 14, 20))
+            p.drawRoundedRect(cx - 19, cy - 32, 38, 18, 5, 5)       # parabrisa
+            p.drawRoundedRect(cx - 19, cy + 24, 38, 12, 4, 4)       # vidro traseiro
+            p.setBrush(QColor(60, 60, 70))
+            for dx in (-34, 24):
+                for dy in (-50, 32):
+                    p.drawRoundedRect(cx + dx, cy + dy, 10, 20, 3, 3)  # rodas
+            p.setPen(COR_CINZA)
+            p.setFont(fonte(7, p=p))
+            p.drawText(cx - 40, cy - 98, 80, 12, Qt.AlignCenter, "FRENTE")
+            self._fecha(p)
+
+        if self._abre(p, "reparos"):
+            # coluna da direita: reparos
+            def item(y, rotulo, valor, cor_v=COR_TEXTO):
+                p.setPen(COR_CINZA)
+                p.setFont(fonte(7, QFont.DemiBold, p=p))
+                p.drawText(150, y, 100, 12, Qt.AlignLeft | Qt.AlignVCenter, rotulo)
+                p.setPen(cor_v)
+                p.setFont(fonte(13, QFont.Bold, p=p))
+                p.drawText(150, y + 12, 100, 22, Qt.AlignLeft | Qt.AlignVCenter, valor)
+            item(78, "REPARO OBRIGATORIO", f"{reparo:.0f} s" if reparo else "0 s", COR_VERMELHO if reparo else COR_TEXTO)
+            item(122, "REPARO OPCIONAL", f"{opc:.0f} s" if opc else "0 s", COR_LARANJA if opc else COR_TEXTO)
+            item(166, "REPAROS RAPIDOS", str(dn.get("rapidos", 0)))
+            item(210, "IMPACTOS", str(dn.get("total", len(eventos))))
+            self._fecha(p)
+
+        if self._abre(p, "motor"):
+            # avisos do motor
+            p.setPen(COR_CINZA)
+            p.setFont(fonte(7, QFont.DemiBold, p=p))
+            p.drawText(16, 262, 120, 12, Qt.AlignLeft | Qt.AlignVCenter, "MOTOR")
+            avisos = dn.get("avisos") or []
+            x = 62
+            if not avisos:
+                p.setPen(COR_VERDE)
+                p.setFont(fonte(9, QFont.DemiBold, p=p))
+                p.drawText(x, 260, 150, 16, Qt.AlignLeft | Qt.AlignVCenter, "sem avisos")
+            yc = 259
+            for nome in avisos:
+                larg = QFontMetrics(fonte(8, QFont.Bold, p=p)).horizontalAdvance(nome) + 14
+                if x + larg > LARGURA_DANOS - 12:           # quebra para a linha de baixo
+                    x, yc = 62, yc + 20
+                p.setPen(Qt.NoPen)
+                p.setBrush(QColor(235, 60, 60, 190))
+                p.drawRoundedRect(x, yc, larg, 17, 8, 8)
+                p.setPen(QColor(255, 255, 255))
+                p.setFont(fonte(8, QFont.Bold, p=p))
+                p.drawText(x, yc, larg, 17, Qt.AlignCenter, nome)
+                x += larg + 4
+            self._fecha(p)
 
         # ultimos impactos
-        p.setPen(COR_CINZA)
-        p.setFont(fonte(7, QFont.DemiBold))
-        p.drawText(16, 302, 150, 12, Qt.AlignLeft | Qt.AlignVCenter, "ULTIMOS IMPACTOS")
-        if not eventos:
-            p.setFont(fonte(9))
-            p.drawText(16, 318, LARGURA_DANOS - 32, 18, Qt.AlignLeft | Qt.AlignVCenter, "nenhum nesta sessao")
-        for i, e in enumerate(eventos[:3]):
-            y = 318 + i * 26
+        if self._abre(p, "ultimos"):
             p.setPen(COR_CINZA)
-            p.setFont(fonte(8))
-            p.drawText(16, y, 56, 24, Qt.AlignLeft | Qt.AlignVCenter, fmt_idade(e.get("idade", 0.0)))
-            p.setPen(COR_TEXTO)
-            p.setFont(fonte(9, QFont.DemiBold))
-            p.drawText(74, y, 110, 14, Qt.AlignLeft | Qt.AlignBottom, "Fora da pista" if (e.get("zona") is None and e.get("tipo") == "saida") else self.NOMES_ZONA.get(e.get("zona"), "--"))
-            p.setPen(COR_CINZA)
-            p.setFont(fonte(7))
-            p.drawText(74, y + 13, 120, 11, Qt.AlignLeft | Qt.AlignTop, self.NOMES_TIPO.get(e.get("tipo"), ""))
-            p.setPen(self.cor_sev(e.get("sev", 1)))
-            p.setFont(fonte(11, QFont.Bold))
-            g = e.get("g") or 0.0
-            p.drawText(180, y, 66, 24, Qt.AlignRight | Qt.AlignVCenter, f"{g:.1f} g" if g else "--")
+            p.setFont(fonte(7, QFont.DemiBold, p=p))
+            p.drawText(16, 302, 150, 12, Qt.AlignLeft | Qt.AlignVCenter, "ULTIMOS IMPACTOS")
+            if not eventos:
+                p.setFont(fonte(9, p=p))
+                p.drawText(16, 318, LARGURA_DANOS - 32, 18, Qt.AlignLeft | Qt.AlignVCenter, "nenhum nesta sessao")
+            for i, e in enumerate(eventos[:3]):
+                y = 318 + i * 26
+                p.setPen(COR_CINZA)
+                p.setFont(fonte(8, p=p))
+                p.drawText(16, y, 56, 24, Qt.AlignLeft | Qt.AlignVCenter, fmt_idade(e.get("idade", 0.0)))
+                p.setPen(COR_TEXTO)
+                p.setFont(fonte(9, QFont.DemiBold, p=p))
+                p.drawText(74, y, 110, 14, Qt.AlignLeft | Qt.AlignBottom, "Fora da pista" if (e.get("zona") is None and e.get("tipo") == "saida") else self.NOMES_ZONA.get(e.get("zona"), "--"))
+                p.setPen(COR_CINZA)
+                p.setFont(fonte(7, p=p))
+                p.drawText(74, y + 13, 120, 11, Qt.AlignLeft | Qt.AlignTop, self.NOMES_TIPO.get(e.get("tipo"), ""))
+                p.setPen(self.cor_sev(e.get("sev", 1)))
+                p.setFont(fonte(11, QFont.Bold, p=p))
+                g = e.get("g") or 0.0
+                p.drawText(180, y, 66, 24, Qt.AlignRight | Qt.AlignVCenter, f"{g:.1f} g" if g else "--")
+            self._fecha(p)
 
-        p.setPen(COR_CINZA)
-        p.setFont(fonte(7))
-        p.drawText(16, ALTURA_DANOS - 24, LARGURA_DANOS - 32, 16, Qt.AlignLeft | Qt.AlignVCenter,
-                   "Estimado (aceleracao + reparo); sem dano por peca")
+        if self._abre(p, "rodape"):
+            p.setPen(COR_CINZA)
+            p.setFont(fonte(7, p=p))
+            p.drawText(16, ALTURA_DANOS - 24, LARGURA_DANOS - 32, 16, Qt.AlignLeft | Qt.AlignVCenter,
+                       "Estimado (aceleracao + reparo); sem dano por peca")
+            self._fecha(p)
 
 
 # ---- Janela 11: painel de combustivel e pit -----------------------------------------------------
@@ -7599,6 +8020,9 @@ class JanelaCombustivel(JanelaBase):
     CHAVE = "combustivel"
     CHAVE_ATIVO = "mostrar_combustivel"
     TAXA_HZ = 2.0
+    ELEMENTOS = (("janela", "Janela de pit (ABERTA / FECHADA)"), ("colocar", "Litros a colocar"), ("tanque", "Barra e nível do tanque"),
+                 ("tabela", "Tabela de médias (MÉD / MÁX / MÍN)"), ("pit", "Linha do PIT (voltas)"), ("tempo", "Tempo até acabar"),
+                 ("voltas", "Voltas até acabar"), ("ultimas", "Últimas voltas (tabela da direita)"), ("nota", "Nota de rodapé"))
     COLUNAS = (("USO", 70), ("VOLTAS", 132), ("PARADAS", 198), ("REABAST.", 270), ("T.REABAST.", 346), ("ACABA", 434))
     N_BARRAS = 37
 
@@ -7613,18 +8037,24 @@ class JanelaCombustivel(JanelaBase):
         pn = d.get("painel_combustivel")
         if not pn:
             p.setPen(COR_CINZA)
-            p.setFont(fonte(11))
+            p.setFont(fonte(11, p=p))
             p.drawText(self._retangulo_base(), Qt.AlignCenter, "Sem dados de combust\u00edvel")
             return
         self._topo(p, pn)
-        self._tabela(p, pn)
-        self._barras_pit(p, pn)
+        for eid, metodo in (("tabela", self._tabela), ("pit", self._barras_pit)):
+            if self._abre(p, eid):
+                metodo(p, pn)
+                self._fecha(p)
         self._caixas(p, pn)
-        self._ultimas(p, pn)
-        p.setPen(COR_CINZA)
-        p.setFont(fonte(7))
-        p.drawText(14, ALTURA_COMB - 20, 500, 14, Qt.AlignLeft | Qt.AlignVCenter,
-                   "* linha usada nos c\u00e1lculos (m\u00e9dia das \u00faltimas voltas limpas, sem box)")
+        if self._abre(p, "ultimas"):
+            self._ultimas(p, pn)
+            self._fecha(p)
+        if self._abre(p, "nota"):
+            p.setPen(COR_CINZA)
+            p.setFont(fonte(7, p=p))
+            p.drawText(14, ALTURA_COMB - 20, 500, 14, Qt.AlignLeft | Qt.AlignVCenter,
+                       "* linha usada nos c\u00e1lculos (m\u00e9dia das \u00faltimas voltas limpas, sem box)")
+            self._fecha(p)
 
     # ---- topo: janela de pit, litros a colocar e nivel do tanque ----
     def _topo(self, p, pn):
@@ -7645,53 +8075,59 @@ class JanelaCombustivel(JanelaBase):
             cor, titulo, sub = QColor(120, 120, 130), "PIT", "medindo..."
         if jn and jn.get("urgente"):
             sub = "box AGORA"
-        p.setPen(Qt.NoPen)
-        p.setBrush(QColor(cor.red(), cor.green(), cor.blue(), 235))
-        p.drawRoundedRect(14, 12, 104, 46, 6, 6)
-        p.setPen(QColor(15, 15, 20))
-        p.setFont(fonte(11, QFont.Bold))
-        p.drawText(14, 15, 104, 22, Qt.AlignCenter, titulo)
-        p.setFont(fonte(8, QFont.DemiBold))
-        p.drawText(14, 35, 104, 18, Qt.AlignCenter, sub)
-
-        p.setPen(QPen(QColor(cor.red(), cor.green(), cor.blue(), 220), 1.5))
-        p.setBrush(QColor(255, 255, 255, 12))
-        p.drawRoundedRect(118, 12, 132, 46, 6, 6)
-        r = pn.get("reabastecer")
-        p.setPen(QColor(255, 255, 255))
-        p.setFont(fonte(18, QFont.Bold))
-        p.drawText(118, 12, 132, 46, Qt.AlignCenter, f"+{fmt_dec(r)} L" if r else ("--" if r is None else "+0 L"))
-        p.setPen(COR_CINZA)
-        p.setFont(fonte(7, QFont.DemiBold))
-        p1 = pn.get("parada1")
-        rotulo = "COLOCAR NA PARADA" if not p1 else (f"COLOCAR NA V{p1['volta']}" + ("  \u00b7  AT\u00c9 O TOPO" if p1["ate_o_topo"] else ""))
-        p.drawText(118, 12, 132, 12, Qt.AlignCenter, rotulo)
-
-        # tanque
-        nivel, cap = pn["nivel"], pn.get("capacidade")
-        x, y, w = 268, 16, 250
-        p.setPen(QPen(QColor(255, 255, 255, 120), 1.2))
-        p.setBrush(QColor(255, 255, 255, 14))
-        p.drawRoundedRect(x, y, w, 18, 4, 4)
-        if cap:
-            frac = max(0.0, min(1.0, nivel / cap))
-            voltas = pn["linhas"]["med"]["voltas"] if pn["linhas"].get("med") else None
-            cor_n = COR_VERMELHO if (voltas is not None and voltas < 3) else (COR_AMARELO if (voltas is not None and voltas < 6) else QColor(255, 255, 255))
+        if self._abre(p, "janela"):
             p.setPen(Qt.NoPen)
-            p.setBrush(cor_n)
-            p.drawRoundedRect(x + 2, y + 2, max(3, int((w - 4) * frac)), 14, 3, 3)
-        p.setPen(COR_CINZA)
-        p.setFont(fonte(8))
-        p.drawText(x, y + 22, 40, 16, Qt.AlignLeft | Qt.AlignVCenter, "0")
-        if cap:
-            p.drawText(x + w - 60, y + 22, 60, 16, Qt.AlignRight | Qt.AlignVCenter, f"{cap:.0f} L")
-        p.setPen(QColor(255, 255, 255))
-        p.setFont(fonte(12, QFont.Bold))
-        p.drawText(x + 40, y + 20, w - 100, 20, Qt.AlignCenter, f"{fmt_dec(nivel)} L")
+            p.setBrush(QColor(cor.red(), cor.green(), cor.blue(), 235))
+            p.drawRoundedRect(14, 12, 104, 46, 6, 6)
+            p.setPen(QColor(15, 15, 20))
+            p.setFont(fonte(11, QFont.Bold, p=p))
+            p.drawText(14, 15, 104, 22, Qt.AlignCenter, titulo)
+            p.setFont(fonte(8, QFont.DemiBold, p=p))
+            p.drawText(14, 35, 104, 18, Qt.AlignCenter, sub)
+            self._fecha(p)
+
+        if self._abre(p, "colocar"):
+            p.setPen(QPen(QColor(cor.red(), cor.green(), cor.blue(), 220), 1.5))
+            p.setBrush(QColor(255, 255, 255, 12))
+            p.drawRoundedRect(118, 12, 132, 46, 6, 6)
+            r = pn.get("reabastecer")
+            p.setPen(QColor(255, 255, 255))
+            p.setFont(fonte(18, QFont.Bold, p=p))
+            p.drawText(118, 12, 132, 46, Qt.AlignCenter, f"+{fmt_dec(r)} L" if r else ("--" if r is None else "+0 L"))
+            p.setPen(COR_CINZA)
+            p.setFont(fonte(7, QFont.DemiBold, p=p))
+            p1 = pn.get("parada1")
+            rotulo = "COLOCAR NA PARADA" if not p1 else (f"COLOCAR NA V{p1['volta']}" + ("  \u00b7  AT\u00c9 O TOPO" if p1["ate_o_topo"] else ""))
+            p.drawText(118, 12, 132, 12, Qt.AlignCenter, rotulo)
+            self._fecha(p)
+
+        if self._abre(p, "tanque"):
+            # tanque
+            nivel, cap = pn["nivel"], pn.get("capacidade")
+            x, y, w = 268, 16, 250
+            p.setPen(QPen(QColor(255, 255, 255, 120), 1.2))
+            p.setBrush(QColor(255, 255, 255, 14))
+            p.drawRoundedRect(x, y, w, 18, 4, 4)
+            if cap:
+                frac = max(0.0, min(1.0, nivel / cap))
+                voltas = pn["linhas"]["med"]["voltas"] if pn["linhas"].get("med") else None
+                cor_n = COR_VERMELHO if (voltas is not None and voltas < 3) else (COR_AMARELO if (voltas is not None and voltas < 6) else QColor(255, 255, 255))
+                p.setPen(Qt.NoPen)
+                p.setBrush(cor_n)
+                p.drawRoundedRect(x + 2, y + 2, max(3, int((w - 4) * frac)), 14, 3, 3)
+            p.setPen(COR_CINZA)
+            p.setFont(fonte(8, p=p))
+            p.drawText(x, y + 22, 40, 16, Qt.AlignLeft | Qt.AlignVCenter, "0")
+            if cap:
+                p.drawText(x + w - 60, y + 22, 60, 16, Qt.AlignRight | Qt.AlignVCenter, f"{cap:.0f} L")
+            p.setPen(QColor(255, 255, 255))
+            p.setFont(fonte(12, QFont.Bold, p=p))
+            p.drawText(x + 40, y + 20, w - 100, 20, Qt.AlignCenter, f"{fmt_dec(nivel)} L")
+            self._fecha(p)
 
     # ---- tabela MED / MAX / MIN ----
     def _tabela(self, p, pn):
-        p.setFont(fonte(8, QFont.DemiBold))
+        p.setFont(fonte(8, QFont.DemiBold, p=p))
         p.setPen(COR_CINZA)
         for nome, x in self.COLUNAS:
             p.drawText(x, 72, 70, 16, Qt.AlignLeft | Qt.AlignVCenter, nome)
@@ -7703,7 +8139,7 @@ class JanelaCombustivel(JanelaBase):
                 p.setBrush(QColor(255, 255, 255, 20))
                 p.drawRoundedRect(8, y, 506, 24, 4, 4)
             p.setPen(QColor(255, 255, 255))
-            p.setFont(fonte(9, QFont.Bold))
+            p.setFont(fonte(9, QFont.Bold, p=p))
             p.drawText(14, y, 52, 24, Qt.AlignLeft | Qt.AlignVCenter, rotulo)
             ln = pn["linhas"].get(chave)
             vals = [None] * 6
@@ -7713,7 +8149,7 @@ class JanelaCombustivel(JanelaBase):
                         fmt_dec(ln["reabast"]) if ln["reabast"] else "-",
                         fmt_dec(ln["total"]) if ln["total"] else "-",
                         f"V{ln['acaba']}"]
-            p.setFont(fonte(12, QFont.DemiBold))
+            p.setFont(fonte(12, QFont.DemiBold, p=p))
             for (nome, x), v in zip(self.COLUNAS, vals):
                 p.setPen(QColor(255, 255, 255) if v not in (None, "-") else COR_CINZA)
                 p.drawText(x, y, 70, 24, Qt.AlignLeft | Qt.AlignVCenter, v if v is not None else "-")
@@ -7722,7 +8158,7 @@ class JanelaCombustivel(JanelaBase):
     def _barras_pit(self, p, pn):
         y = 176
         p.setPen(QColor(255, 255, 255))
-        p.setFont(fonte(9, QFont.Bold))
+        p.setFont(fonte(9, QFont.Bold, p=p))
         p.drawText(14, y, 40, 22, Qt.AlignLeft | Qt.AlignVCenter, "PIT")
         atual = pn["volta_atual"]
         jn = pn.get("janela") or {}
@@ -7751,12 +8187,16 @@ class JanelaCombustivel(JanelaBase):
     # ---- tempo e voltas ate acabar ----
     def _caixas(self, p, pn):
         tempo, voltas = pn.get("tempo"), pn.get("voltas")
-        self._caixa(p, 206, "TEMPO AT\u00c9 ACABAR",
-                    fmt_hms(tempo["autonomia"]) if tempo else "--:--:--",
-                    fmt_hms(tempo["dif"], sinal=True) if tempo else "", tempo["dif"] if tempo else None)
-        self._caixa(p, 254, "VOLTAS AT\u00c9 ACABAR",
-                    fmt_dec(voltas["autonomia"]) if voltas else "-",
-                    fmt_dec(voltas["dif"], sinal=True) if voltas else "", voltas["dif"] if voltas else None)
+        if self._abre(p, "tempo"):
+            self._caixa(p, 206, "TEMPO AT\u00c9 ACABAR",
+                        fmt_hms(tempo["autonomia"]) if tempo else "--:--:--",
+                        fmt_hms(tempo["dif"], sinal=True) if tempo else "", tempo["dif"] if tempo else None)
+            self._fecha(p)
+        if self._abre(p, "voltas"):
+            self._caixa(p, 254, "VOLTAS AT\u00c9 ACABAR",
+                        fmt_dec(voltas["autonomia"]) if voltas else "-",
+                        fmt_dec(voltas["dif"], sinal=True) if voltas else "", voltas["dif"] if voltas else None)
+            self._fecha(p)
 
     def _caixa(self, p, y, rotulo, valor, diferenca, dif_num):
         ok = dif_num is None or dif_num >= 0
@@ -7765,30 +8205,30 @@ class JanelaCombustivel(JanelaBase):
         p.setBrush(QColor(255, 255, 255, 10))
         p.drawRoundedRect(14, y, 500, 42, 7, 7)
         p.setPen(QColor(255, 255, 255))
-        p.setFont(fonte(10, QFont.Bold))
+        p.setFont(fonte(10, QFont.Bold, p=p))
         p.drawText(28, y, 200, 42, Qt.AlignLeft | Qt.AlignVCenter, rotulo)
-        p.setFont(QFont("Consolas", 21, QFont.Bold))
+        p.setFont(fonte(21, QFont.Bold, p=p) if _estilo_do_elemento(p) else QFont("Consolas", 21, QFont.Bold))     # build au: estilo do item vale tambem aqui
         p.drawText(220, y, 150, 42, Qt.AlignCenter, valor)
         p.setPen(cor)
-        p.setFont(fonte(11, QFont.Bold))
+        p.setFont(fonte(11, QFont.Bold, p=p))
         p.drawText(370, y, 130, 42, Qt.AlignRight | Qt.AlignVCenter, diferenca)
 
     # ---- ultimas voltas ----
     def _ultimas(self, p, pn):
         x0 = 548
-        p.setFont(fonte(8, QFont.DemiBold))
+        p.setFont(fonte(8, QFont.DemiBold, p=p))
         p.setPen(COR_CINZA)
         for nome, dx in (("VOLTA", 0), ("USO", 62), ("DIF", 110)):
             p.drawText(x0 + dx, 72, 60, 16, Qt.AlignLeft | Qt.AlignVCenter, nome)
         ult = pn.get("ultimas") or []
         if not ult:
-            p.setFont(fonte(9))
+            p.setFont(fonte(9, p=p))
             p.drawText(x0, 100, 150, 40, Qt.AlignLeft | Qt.TextWordWrap, "Conclua uma volta limpa (sem box) para medir o consumo.")
             return
         for i, u in enumerate(ult):
             y = 96 + i * 32
             p.setPen(QColor(255, 255, 255))
-            p.setFont(fonte(12, QFont.DemiBold))
+            p.setFont(fonte(12, QFont.DemiBold, p=p))
             p.drawText(x0, y, 60, 28, Qt.AlignLeft | Qt.AlignVCenter, str(u["volta"]))
             p.drawText(x0 + 62, y, 60, 28, Qt.AlignLeft | Qt.AlignVCenter, fmt_dec(u["uso"]))
             dif = u.get("dif")
@@ -7803,6 +8243,9 @@ class JanelaForcaG(JanelaBase):
     TAXA_HZ = 30.0
     RAIO = 112
     CENTRO = (125, 122)
+    # build av: o disco fica fixo; rotulos, ponto, abas e mensagens sao itens
+    ELEMENTOS = (("aneis", "Anéis e rótulos de G (1g, 2g...)"), ("ponto", "Trilha e ponto de G"), ("aba", "G atual e pico"),
+                 ("pista", "Pista e temperatura"), ("aviso", "Mensagem de espera"))
 
     def __init__(self, config):
         self.trilha = deque(maxlen=45)              # ~1,5 s de pontos (x, y em g)
@@ -7851,22 +8294,31 @@ class JanelaForcaG(JanelaBase):
             raio = int(r * k / gmax)
             p.setPen(QPen(QColor(255, 255, 255, 52), 1))
             p.drawEllipse(cx - raio, cy - raio, 2 * raio, 2 * raio)
-            p.setPen(QColor(255, 255, 255, 90))
-            p.setFont(fonte(7))
-            p.drawText(cx + 3, cy - raio + 1, 28, 11, Qt.AlignLeft | Qt.AlignVCenter, f"{k:g}g")
             k += passo
+        if self._abre(p, "aneis"):
+            k = passo
+            while k < gmax + 1e-9:
+                raio = int(r * k / gmax)
+                p.setPen(QColor(255, 255, 255, 90))
+                p.setFont(fonte(7, p=p))
+                p.drawText(cx + 3, cy - raio + 1, 28, 11, Qt.AlignLeft | Qt.AlignVCenter, f"{k:g}g")
+                k += passo
+            self._fecha(p)
         p.setPen(QPen(QColor(255, 255, 255, 34), 1))
         p.drawLine(cx - r + 6, cy, cx + r - 6, cy)
         p.drawLine(cx, cy - r + 6, cx, cy + r - 6)
 
         gd = d.get("forca_g") if d["conectado"] else None
         if gd is None:
-            p.setPen(COR_CINZA)
-            p.setFont(fonte(10, QFont.DemiBold))
-            p.drawText(cx - r, cy - 12, 2 * r, 24, Qt.AlignCenter,
-                       "Aguardando o iRacing..." if not d["conectado"] else "Sem dados de G")
-        else:
+            if self._abre(p, "aviso"):
+                p.setPen(COR_CINZA)
+                p.setFont(fonte(10, QFont.DemiBold, p=p))
+                p.drawText(cx - r, cy - 12, 2 * r, 24, Qt.AlignCenter,
+                           "Aguardando o iRacing..." if not d["conectado"] else "Sem dados de G")
+                self._fecha(p)
+        elif self._abre(p, "ponto"):
             self._trilha_e_ponto(p, gmax)
+            self._fecha(p)
         self._etiqueta(p, gd)
 
     def _trilha_e_ponto(self, p, gmax):
@@ -7904,22 +8356,26 @@ class JanelaForcaG(JanelaBase):
         """Aba com 'G atual . pico' e, embaixo, pista e temperatura."""
         cx = self.CENTRO[0]
         y0 = self.CENTRO[1] + self.RAIO + 8
-        pintar_superficie(p, QRectF(cx - 52, y0, 104, 22), 9)
-        p.setPen(QColor(255, 255, 255))
-        p.setFont(fonte(11, QFont.Bold))
-        texto = f"{fmt_dec(gd['total'])} \u2022 {fmt_dec(gd['pico'])}" if gd else "-- \u2022 --"
-        p.drawText(cx - 52, y0, 104, 22, Qt.AlignCenter, texto)
+        if self._abre(p, "aba"):
+            pintar_superficie(p, QRectF(cx - 52, y0, 104, 22), 9)
+            p.setPen(QColor(255, 255, 255))
+            p.setFont(fonte(11, QFont.Bold, p=p))
+            texto = f"{fmt_dec(gd['total'])} \u2022 {fmt_dec(gd['pico'])}" if gd else "-- \u2022 --"
+            p.drawText(cx - 52, y0, 104, 22, Qt.AlignCenter, texto)
+            self._fecha(p)
         y1 = y0 + 22
-        pintar_superficie(p, QRectF(8, y1, LARGURA_G - 16, 30), 12)
-        nome = (gd or {}).get("pista") or "--"
-        temp = (gd or {}).get("temp")
-        JanelaClima._mini_pista(p, 18, y1 + 6)
-        p.setPen(QColor(255, 255, 255))
-        p.setFont(fonte(11, QFont.Bold))
-        nome = QFontMetrics(p.font()).elidedText(nome, Qt.ElideRight, 118)
-        p.drawText(40, y1, 124, 30, Qt.AlignLeft | Qt.AlignVCenter, nome)
-        self._termometro(p, 170, y1 + 6)
-        p.drawText(188, y1, 54, 30, Qt.AlignLeft | Qt.AlignVCenter, f"{temp:.0f}\u00b0C" if temp is not None else "--")
+        if self._abre(p, "pista"):
+            pintar_superficie(p, QRectF(8, y1, LARGURA_G - 16, 30), 12)
+            nome = (gd or {}).get("pista") or "--"
+            temp = (gd or {}).get("temp")
+            JanelaClima._mini_pista(p, 18, y1 + 6)
+            p.setPen(QColor(255, 255, 255))
+            p.setFont(fonte(11, QFont.Bold, p=p))
+            nome = QFontMetrics(p.font()).elidedText(nome, Qt.ElideRight, 118)
+            p.drawText(40, y1, 124, 30, Qt.AlignLeft | Qt.AlignVCenter, nome)
+            self._termometro(p, 170, y1 + 6)
+            p.drawText(188, y1, 54, 30, Qt.AlignLeft | Qt.AlignVCenter, f"{temp:.0f}\u00b0C" if temp is not None else "--")
+            self._fecha(p)
 
 
 # --------------------------------------------------------------------------
@@ -7937,6 +8393,9 @@ def _texto_contorno(p, rect, flags, texto, fonte_, cor, contorno=QColor(0, 0, 0,
     x = r.x() + (r.width() - fm.horizontalAdvance(texto)) / 2.0 if flags & Qt.AlignHCenter else r.x()
     y = r.y() + (r.height() + fm.ascent() - fm.descent()) / 2.0
     caminho.addText(x, y, fonte_, texto)
+    ov = _cor_do_elemento(p)                                  # build au: cor escolhida na Central para o item
+    if ov:
+        cor = QColor(ov)
     p.save()
     p.setPen(QPen(contorno, largura, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
     p.setBrush(Qt.NoBrush)
@@ -8001,21 +8460,30 @@ class _JanelaLuz(JanelaBase):
         cor = QColor(*self.cor()) if self.acesa else QColor(95, 98, 108, 190)
         opacidade = float(self.config.get("luz_opacidade", 1.0))
         p.setOpacity(max(0.2, min(1.0, opacidade)))
-        if self.acesa:
+        if self.acesa and self._abre(p, "brilho"):
+            cb = QColor(_cor_do_elemento(p) or cor)                 # build av: a cor escolhida na Central vale tambem para a luz
             brilho = QRadialGradient(self.LADO / 2.0, self.LADO / 2.0, self.LADO / 2.0)
-            c1 = QColor(cor)
+            c1 = QColor(cb)
             c1.setAlpha(110)
-            c2 = QColor(cor)
+            c2 = QColor(cb)
             c2.setAlpha(0)
             brilho.setColorAt(0.0, c1)
             brilho.setColorAt(1.0, c2)
             p.setPen(Qt.NoPen)
             p.setBrush(brilho)
             p.drawEllipse(QRectF(0, 0, self.LADO, self.LADO))
-        self.icone(p, cor)
+            self._fecha(p)
+        if self._abre(p, "icone"):
+            ci = QColor(_cor_do_elemento(p) or cor)
+            if not self.acesa:
+                ci.setAlpha(cor.alpha())
+            self.icone(p, ci)
+            self._fecha(p)
 
     def icone(self, p, cor):
         pass
+
+    ELEMENTOS = (("brilho", "Brilho em volta (quando acesa)"), ("icone", "Ícone da luz"))
 
 
 class JanelaLuzAbs(_JanelaLuz):
@@ -8037,7 +8505,7 @@ class JanelaLuzAbs(_JanelaLuz):
         p.drawArc(QRectF(c - 36, c - 30, 22, 60), 120 * 16, 120 * 16)        # parenteses dos dois lados
         p.drawArc(QRectF(c + 14, c - 30, 22, 60), -60 * 16, 120 * 16)
         p.setPen(cor)
-        p.setFont(fonte(17, QFont.Bold))
+        p.setFont(fonte(17, QFont.Bold, p=p))
         p.drawText(QRectF(c - 26, c - 14, 52, 28), Qt.AlignCenter, "ABS")
 
 
@@ -8081,6 +8549,7 @@ class JanelaRetorno(JanelaBase):
     CHAVE = "retorno"
     CHAVE_ATIVO = "mostrar_retorno"
     TAXA_HZ = 30.0
+    ELEMENTOS = (("palavra", "Aviso PARE / CEDA / LIVRE"), ("segundos", "Segundos até o carro de trás"))
 
     def __init__(self, config):
         self._teste_ate = 0.0
@@ -8126,10 +8595,13 @@ class JanelaRetorno(JanelaBase):
         p.setOpacity(max(0.2, min(1.0, float(self.config.get("retorno_opacidade", 0.95)))))
         cor = QColor(*r["cor"])
         palavra = {"pare": "PARE", "ceda": "CEDA", "livre": "LIVRE"}[r["estado"]]
-        _texto_contorno(p, QRectF(0, 4, 300, 70), Qt.AlignHCenter, palavra, fonte_titulo(52), cor)
-        if r.get("segundos") is not None:
+        if self._abre(p, "palavra"):
+            _texto_contorno(p, QRectF(0, 4, 300, 70), Qt.AlignHCenter, palavra, fonte_titulo(52, p=p), cor)
+            self._fecha(p)
+        if r.get("segundos") is not None and self._abre(p, "segundos"):
             _texto_contorno(p, QRectF(0, 70, 300, 44), Qt.AlignHCenter, f"{fmt_dec(r['segundos'])} s",
-                            fonte(26, QFont.Bold), QColor(255, 255, 255), largura=4.0)
+                            fonte(26, QFont.Bold, p=p), QColor(255, 255, 255), largura=4.0)
+            self._fecha(p)
 
 
 class JanelaEstrategia(JanelaBase):
@@ -8138,6 +8610,9 @@ class JanelaEstrategia(JanelaBase):
     CHAVE_ATIVO = "mostrar_estrategia"
     TAXA_HZ = 15.0
     LARG, ALT = 340, 158
+    ELEMENTOS = (("titulo", "Rótulo (PISTA / PARA A CORRIDA)"), ("tendencia", "Tendência da pista (secando, molhando)"), ("pneu", "Ícone do pneu"),
+                 ("nivel", "Barra do nível da pista"), ("nivel_nome", "Nome e nível (ex.: Pouco molhada 4/7)"),
+                 ("acao", "O que fazer (seguir, trocar...)"), ("detalhes", "Vantagem e rivais"))
 
     def __init__(self, config):
         self._pre = False
@@ -8173,7 +8648,7 @@ class JanelaEstrategia(JanelaBase):
         e = d.get("estrategia")
         if not e or e.get("acao") == "sem_dado":
             p.setPen(COR_CINZA)
-            p.setFont(fonte(12, QFont.DemiBold))
+            p.setFont(fonte(12, QFont.DemiBold, p=p))
             motivo = (e or {}).get("motivo")
             texto = ("Este carro nao tem pneu de chuva" if motivo == "carro_sem_chuva"
                      else "Sem dados de pista molhada")
@@ -8184,28 +8659,37 @@ class JanelaEstrategia(JanelaBase):
         # linha 1: para onde a pista vai + pneu montado
         tend = {"secando": ("SECANDO", COR_VERDE), "molhando": ("MOLHANDO", QColor(90, 160, 255)),
                 "sem_chuva": ("SEM CHUVA", COR_CINZA), "estavel": ("ESTAVEL", COR_CINZA)}.get(e.get("tendencia"))
-        p.setFont(fonte_titulo(11))
-        p.setPen(COR_CINZA)
-        p.drawText(QRectF(14, 8, 150, 18), Qt.AlignLeft | Qt.AlignVCenter, "PARA A CORRIDA" if e.get("pre_largada") else "PISTA")
-        if tend:
+        if self._abre(p, "titulo"):
+            p.setFont(fonte_titulo(11, p=p))
+            p.setPen(COR_CINZA)
+            p.drawText(QRectF(14, 8, 150, 18), Qt.AlignLeft | Qt.AlignVCenter, "PARA A CORRIDA" if e.get("pre_largada") else "PISTA")
+            self._fecha(p)
+        if tend and self._abre(p, "tendencia"):
             p.setPen(tend[1])
-            p.setFont(fonte(11, QFont.Bold))
+            p.setFont(fonte(11, QFont.Bold, p=p))
             p.drawText(QRectF(90, 8, 150, 18), Qt.AlignLeft | Qt.AlignVCenter, tend[0])
-        self._pneu(p, self.LARG - 26, 18, e.get("meu_pneu"))
+            self._fecha(p)
+        if self._abre(p, "pneu"):
+            self._pneu(p, self.LARG - 26, 18, e.get("meu_pneu"))
+            self._fecha(p)
         # linha 2: nivel (7 segmentos) + nome
         nivel = e.get("nivel") or 0
-        for i in range(7):
-            ret = QRectF(14 + i * 25, 34, 22, 10)
-            if i < nivel:
-                f = i / 6.0
-                p.setBrush(QColor(int(200 - 130 * f), int(190 - 40 * f), int(120 + 135 * f)))
-            else:
-                p.setBrush(QColor(255, 255, 255, 30))
-            p.setPen(Qt.NoPen)
-            p.drawRoundedRect(ret, 3, 3)
-        p.setPen(QColor(255, 255, 255))
-        p.setFont(fonte(11, QFont.Bold))
-        p.drawText(QRectF(196, 28, 134, 22), Qt.AlignRight | Qt.AlignVCenter, f"{e.get('nivel_nome') or '-'}  {nivel}/7")
+        if self._abre(p, "nivel"):
+            for i in range(7):
+                ret = QRectF(14 + i * 19, 34, 17, 10)            # build au: segmentos mais curtos (o nome da pista passa a ter espaco e nao encosta na barra)
+                if i < nivel:
+                    f = i / 6.0
+                    p.setBrush(QColor(int(200 - 130 * f), int(190 - 40 * f), int(120 + 135 * f)))
+                else:
+                    p.setBrush(QColor(255, 255, 255, 30))
+                p.setPen(Qt.NoPen)
+                p.drawRoundedRect(ret, 3, 3)
+            self._fecha(p)
+        if self._abre(p, "nivel_nome"):
+            p.setPen(QColor(255, 255, 255))
+            p.setFont(fonte(11, QFont.Bold, p=p))
+            p.drawText(QRectF(152, 28, 178, 22), Qt.AlignRight | Qt.AlignVCenter, f"{e.get('nivel_nome') or '-'}  {nivel}/7")
+            self._fecha(p)
         # linha 3: o que fazer
         acao, alvo = e["acao"], e.get("alvo")
         nome_alvo = {"seco": "SECO", "chuva": "CHUVA"}.get(alvo, "")
@@ -8233,15 +8717,17 @@ class JanelaEstrategia(JanelaBase):
         if cor in (COR_LARANJA, COR_VERMELHO) and acao in ("trocar", "largar_trocar") and pulsa:
             cor = QColor(cor)
             cor.setAlpha(int(255 * pulso))
-        p.setPen(cor)
-        p.setFont(fonte_titulo(19 if len(texto) < 22 else 14))
-        largura_sub = 70 if sub else 0
-        p.drawText(QRectF(14, 56, self.LARG - 28 - largura_sub, 40), Qt.AlignLeft | Qt.AlignVCenter, texto)
-        if sub:
-            p.setFont(fonte(14, QFont.Bold))
-            p.drawText(QRectF(self.LARG - 14 - largura_sub, 56, largura_sub, 40), Qt.AlignRight | Qt.AlignVCenter, sub)
+        if self._abre(p, "acao"):
+            p.setPen(cor)
+            p.setFont(fonte_titulo(19 if len(texto) < 22 else 14, p=p))
+            largura_sub = 70 if sub else 0
+            p.drawText(QRectF(14, 56, self.LARG - 28 - largura_sub, 40), Qt.AlignLeft | Qt.AlignVCenter, texto)
+            if sub:
+                p.setFont(fonte(14, QFont.Bold, p=p))
+                p.drawText(QRectF(self.LARG - 14 - largura_sub, 56, largura_sub, 40), Qt.AlignRight | Qt.AlignVCenter, sub)
+            self._fecha(p)
         # linha 4: vantagem e rivais (so informacao)
-        p.setFont(fonte(11))
+        p.setFont(fonte(11, p=p))
         p.setPen(COR_CINZA)
         linhas = []
         if e.get("pre_largada"):
@@ -8253,8 +8739,12 @@ class JanelaEstrategia(JanelaBase):
                 linhas.append("Vantagem: ~" + (fmt_dec(abs(v), 1) + " s/volta" if v is not None and v > 0 else "-- s/volta"))
             if self.config.get("estrategia_rivais", True) and e.get("rivais_outro"):
                 linhas.append(f"{e['rivais_outro']} da sua classe ja trocaram")
-        for i, t in enumerate(linhas[:2]):
-            p.drawText(QRectF(14, 100 + i * 20, self.LARG - 28, 20), Qt.AlignLeft | Qt.AlignVCenter, t)
+        if self._abre(p, "detalhes"):
+            p.setFont(fonte(11, p=p))
+            p.setPen(COR_CINZA)
+            for i, t in enumerate(linhas[:2]):
+                p.drawText(QRectF(14, 100 + i * 20, self.LARG - 28, 20), Qt.AlignLeft | Qt.AlignVCenter, t)
+            self._fecha(p)
 
 
 # ---- v1.5.0: Bandeiras -----------------------------------------------------------------
@@ -8264,6 +8754,7 @@ class JanelaBandeiras(JanelaAutomatica):
     CHAVE_ATIVO = "mostrar_bandeiras"
     TAXA_HZ = 10.0
     LARG, ALT = 400, 76
+    ELEMENTOS = (("borda", "Borda colorida"), ("bandeira", "Figura da bandeira"), ("titulo", "Nome da bandeira"), ("sub", "Explicação"))
 
     def tamanho(self):
         return (self.LARG, self.ALT)
@@ -8327,18 +8818,26 @@ class JanelaBandeiras(JanelaAutomatica):
         if not b or not self._fundo(p, d["conectado"]):
             return
         cor = QColor(*b["cor"])
-        p.setBrush(Qt.NoBrush)
-        p.setPen(QPen(QColor(cor.red(), cor.green(), cor.blue(), 200), 2))
-        p.drawRoundedRect(self._retangulo_base().adjusted(3, 3, -3, -3), 11, 11)
-        self._desenhar_pano(p, 22, 16, 76, 44, b)
-        p.setFont(fonte(12, QFont.Bold))
-        p.setPen(QColor(255, 255, 255) if b["id"] not in ("amarela_total", "amarela", "amarela_setor", "detritos") else cor)
-        titulo = QFontMetrics(p.font()).elidedText(b["titulo"], Qt.ElideRight, self.LARG - 120 - 12)
-        p.drawText(QRectF(112, 12, self.LARG - 124, 28), Qt.AlignLeft | Qt.AlignVCenter, titulo)
-        p.setFont(fonte(9, QFont.DemiBold))
-        p.setPen(COR_CINZA)
-        sub = QFontMetrics(p.font()).elidedText(b["sub"], Qt.ElideRight, self.LARG - 124)
-        p.drawText(QRectF(112, 40, self.LARG - 124, 20), Qt.AlignLeft | Qt.AlignVCenter, sub)
+        if self._abre(p, "borda"):
+            p.setBrush(Qt.NoBrush)
+            p.setPen(QPen(QColor(cor.red(), cor.green(), cor.blue(), 200), 2))
+            p.drawRoundedRect(self._retangulo_base().adjusted(3, 3, -3, -3), 11, 11)
+            self._fecha(p)
+        if self._abre(p, "bandeira"):
+            self._desenhar_pano(p, 22, 16, 76, 44, b)
+            self._fecha(p)
+        if self._abre(p, "titulo"):
+            p.setFont(fonte(12, QFont.Bold, p=p))
+            p.setPen(QColor(255, 255, 255) if b["id"] not in ("amarela_total", "amarela", "amarela_setor", "detritos") else cor)
+            titulo = QFontMetrics(p.font()).elidedText(b["titulo"], Qt.ElideRight, self.LARG - 120 - 12)
+            p.drawText(QRectF(112, 12, self.LARG - 124, 28), Qt.AlignLeft | Qt.AlignVCenter, titulo)
+            self._fecha(p)
+        if self._abre(p, "sub"):
+            p.setFont(fonte(9, QFont.DemiBold, p=p))
+            p.setPen(COR_CINZA)
+            sub = QFontMetrics(p.font()).elidedText(b["sub"], Qt.ElideRight, self.LARG - 124)
+            p.drawText(QRectF(112, 40, self.LARG - 124, 20), Qt.AlignLeft | Qt.AlignVCenter, sub)
+            self._fecha(p)
 
 
 # ---- v1.5.0: Trafego de outras classes -------------------------------------------------
@@ -8348,6 +8847,7 @@ class JanelaTrafego(JanelaAutomatica):
     CHAVE_ATIVO = "mostrar_trafego"
     TAXA_HZ = 10.0
     LARG, ALT_TOPO, ALT_LINHA = 300, 26, 34
+    ELEMENTOS = (("titulo", "Título"), ("classe", "Etiqueta da classe"), ("carro", "Número e nome do piloto"), ("diferenca", "Diferença em segundos"))
 
     def __init__(self, config):
         self._linhas = []
@@ -8383,38 +8883,46 @@ class JanelaTrafego(JanelaAutomatica):
         d = self.dados
         if not self._linhas or not self._fundo(p, d["conectado"]):
             return
-        p.setFont(fonte(8, QFont.DemiBold))
-        p.setPen(COR_CINZA)
-        p.drawText(QRectF(14, 4, 180, 18), Qt.AlignLeft | Qt.AlignVCenter, "TRÁFEGO DE OUTRAS CLASSES")
+        if self._abre(p, "titulo"):
+            p.setFont(fonte(8, QFont.DemiBold, p=p))
+            p.setPen(COR_CINZA)
+            p.drawText(QRectF(14, 4, 180, 18), Qt.AlignLeft | Qt.AlignVCenter, "TRÁFEGO DE OUTRAS CLASSES")
+            self._fecha(p)
         for k, l in enumerate(self._linhas):
             y = self.ALT_TOPO + k * self.ALT_LINHA
             cor = QColor(*l["cor"])
             # etiqueta da classe
-            p.setPen(Qt.NoPen)
-            p.setBrush(cor)
-            p.drawRoundedRect(QRectF(12, y + 5, 62, 24), 5, 5)
-            lum = 0.299 * cor.red() + 0.587 * cor.green() + 0.114 * cor.blue()
-            p.setPen(QColor(20, 20, 25) if lum > 140 else QColor(255, 255, 255))
-            p.setFont(fonte(9, QFont.Bold))
-            p.drawText(QRectF(12, y + 5, 62, 24), Qt.AlignCenter,
-                       QFontMetrics(p.font()).elidedText(str(l["classe"]), Qt.ElideRight, 56))
+            if self._abre(p, "classe"):
+                p.setPen(Qt.NoPen)
+                p.setBrush(cor)
+                p.drawRoundedRect(QRectF(12, y + 5, 62, 24), 5, 5)
+                lum = 0.299 * cor.red() + 0.587 * cor.green() + 0.114 * cor.blue()
+                p.setPen(QColor(20, 20, 25) if lum > 140 else QColor(255, 255, 255))
+                p.setFont(fonte(9, QFont.Bold, p=p))
+                p.drawText(QRectF(12, y + 5, 62, 24), Qt.AlignCenter,
+                           QFontMetrics(p.font()).elidedText(str(l["classe"]), Qt.ElideRight, 56))
+                self._fecha(p)
             # carro e piloto
-            p.setPen(QColor(255, 255, 255))
-            p.setFont(fonte(11, QFont.Bold))
-            nome = f"#{l['numero']}  {l['nome']}"
-            p.drawText(QRectF(84, y, self.LARG - 84 - 86, self.ALT_LINHA), Qt.AlignLeft | Qt.AlignVCenter,
-                       QFontMetrics(p.font()).elidedText(nome, Qt.ElideRight, self.LARG - 84 - 90))
+            if self._abre(p, "carro"):
+                p.setPen(QColor(255, 255, 255))
+                p.setFont(fonte(11, QFont.Bold, p=p))
+                nome = f"#{l['numero']}  {l['nome']}"
+                p.drawText(QRectF(84, y, self.LARG - 84 - 86, self.ALT_LINHA), Qt.AlignLeft | Qt.AlignVCenter,
+                           QFontMetrics(p.font()).elidedText(nome, Qt.ElideRight, self.LARG - 84 - 90))
+                self._fecha(p)
             # diferenca em segundos: + a frente, - atras
-            urg = l.get("urg", 0)
-            p.setPen(COR_VERMELHO if urg >= 2 else (COR_AMARELO if urg == 1 else QColor(235, 235, 240)))
-            p.setFont(fonte(16, QFont.Bold))
-            seta = "▼ " if l["sinal"] < 0 else "▲ "
-            p.drawText(QRectF(self.LARG - 100, y, 88, self.ALT_LINHA), Qt.AlignRight | Qt.AlignVCenter,
-                       fmt_dec(l["sinal"] * l["gap_s"], 1, sinal=True))
-            p.setFont(fonte(8))
-            p.setPen(COR_CINZA)
-            p.drawText(QRectF(self.LARG - 130, y, 28, self.ALT_LINHA), Qt.AlignRight | Qt.AlignVCenter,
-                       seta.strip())
+            if self._abre(p, "diferenca"):
+                urg = l.get("urg", 0)
+                p.setPen(COR_VERMELHO if urg >= 2 else (COR_AMARELO if urg == 1 else QColor(235, 235, 240)))
+                p.setFont(fonte(16, QFont.Bold, p=p))
+                seta = "▼ " if l["sinal"] < 0 else "▲ "
+                p.drawText(QRectF(self.LARG - 100, y, 88, self.ALT_LINHA), Qt.AlignRight | Qt.AlignVCenter,
+                           fmt_dec(l["sinal"] * l["gap_s"], 1, sinal=True))
+                p.setFont(fonte(8, p=p))
+                p.setPen(COR_CINZA)
+                p.drawText(QRectF(self.LARG - 130, y, 28, self.ALT_LINHA), Qt.AlignRight | Qt.AlignVCenter,
+                           seta.strip())
+                self._fecha(p)
 
 
 # ---- v1.5.0: Minimapa rotativo ---------------------------------------------------------
@@ -8430,6 +8938,8 @@ class JanelaMinimapa(JanelaBase):
     LADO = 220
     RAIOS = (150.0, 260.0, 400.0)
     EXTRAP_MAX_S = 0.12            # no maximo 120 ms de estimativa alem da ultima leitura (nao "foge" se o jogo parar)
+    ELEMENTOS = (("carros", "Outros carros (bolinhas e números)"), ("meu_carro", "Seu carro (seta e posição)"),
+                 ("norte", "Letra N (norte)"), ("aviso", "Mensagem 'Aprendendo o traçado'"))
     QUADRO_MS = 16
 
     def __init__(self, config):
@@ -8555,12 +9065,14 @@ class JanelaMinimapa(JanelaBase):
             pct_est = am[1] + self._taxa_pct * atraso
             geo = self.geometria(pct_est)
         if geo is None:
-            p.setPen(COR_CINZA)
-            p.setFont(fonte(9, QFont.DemiBold))
-            prog = self._prog
-            texto = ("Minimapa\nAprendendo o traçado... %d%%\n(complete uma volta)" % int(prog * 100)) if prog is not None \
-                else "Minimapa\nDirija uma volta completa\npara aprender o traçado"
-            p.drawText(QRectF(20, 20, self.LADO - 40, self.LADO - 40), Qt.AlignCenter, texto)
+            if self._abre(p, "aviso"):
+                p.setPen(COR_CINZA)
+                p.setFont(fonte(9, QFont.DemiBold, p=p))
+                prog = self._prog
+                texto = ("Minimapa\nAprendendo o traçado... %d%%\n(complete uma volta)" % int(prog * 100)) if prog is not None \
+                    else "Minimapa\nDirija uma volta completa\npara aprender o traçado"
+                p.drawText(QRectF(20, 20, self.LADO - 40, self.LADO - 40), Qt.AlignCenter, texto)
+                self._fecha(p)
             return
         ex, ey, tx, ty = geo
         raio_m = float(self.config.get("minimapa_raio", 260.0))
@@ -8587,9 +9099,10 @@ class JanelaMinimapa(JanelaBase):
         lim = (self.LADO / 2.0 - 14) * 1.05
         modo_num = self.modo_numeracao()
         raio_car = 8.0 if modo_num else 5.5                   # com numero dentro, a bolinha cresce para caber
-        fonte_num = fonte(7, QFont.Bold)
-        p.setFont(fonte(6, QFont.Bold))
-        for car in am[2]:
+        ver_carros = self._abre(p, "carros")
+        fonte_num = fonte(7, QFont.Bold, p=p)                       # build av: depois do _abre (o estilo do item vale para o numero)
+        p.setFont(fonte(6, QFont.Bold, p=p))
+        for car in (am[2] if ver_carros else ()):
             if car.get("eu"):
                 continue
             cx, cy = self._xy((float(car["pct"]) % 1.0) * n)
@@ -8606,6 +9119,9 @@ class JanelaMinimapa(JanelaBase):
                     p.setFont(fonte_num)
                     p.setPen(QColor(15, 15, 20) if lum > 150 else QColor(255, 255, 255))
                     p.drawText(QRectF(sx - raio_car, sy - raio_car, 2 * raio_car, 2 * raio_car), Qt.AlignCenter, str(num))
+        if ver_carros:
+            self._fecha(p)
+        ver_meu = self._abre(p, "meu_carro")
         seta = QPainterPath()
         seta.moveTo(0, -9)
         seta.lineTo(-6.5, 7)
@@ -8614,21 +9130,26 @@ class JanelaMinimapa(JanelaBase):
         seta.closeSubpath()
         p.setPen(QPen(QColor(255, 255, 255), 1.6))
         p.setBrush(QColor(255, 220, 0))
-        p.drawPath(seta)
-        if modo_num:                                           # a sua posicao, logo abaixo da seta
+        if ver_meu:
+            p.drawPath(seta)
+        if modo_num and ver_meu:                               # a sua posicao, logo abaixo da seta
             meu_car = next((c for c in am[2] if c.get("eu")), None)
             minha = self.numero_do_carro(meu_car, modo_num) if meu_car else None
             if minha is not None:
                 p.setPen(QColor(255, 220, 0))
-                p.setFont(fonte(9, QFont.Bold))
+                p.setFont(fonte(9, QFont.Bold, p=p))
                 p.drawText(QRectF(-24, 11, 48, 14), Qt.AlignCenter, "P%d" % minha)
+        if ver_meu:
+            self._fecha(p)
         p.restore()
         # "N": onde fica o norte (gira conforme a pista)
-        ang = math.atan2(-tx, ty)
-        nx, ny = c + (r - 9) * math.sin(ang), c - (r - 9) * math.cos(ang)
-        p.setPen(QColor(120, 190, 255))
-        p.setFont(fonte(8, QFont.Bold))
-        p.drawText(QRectF(nx - 8, ny - 8, 16, 16), Qt.AlignCenter, "N")
+        if self._abre(p, "norte"):
+            ang = math.atan2(-tx, ty)
+            nx, ny = c + (r - 9) * math.sin(ang), c - (r - 9) * math.cos(ang)
+            p.setPen(QColor(120, 190, 255))
+            p.setFont(fonte(8, QFont.Bold, p=p))
+            p.drawText(QRectF(nx - 8, ny - 8, 16, 16), Qt.AlignCenter, "N")
+            self._fecha(p)
 
 
 # ---- v1.5.0: Auxiliar de sessao --------------------------------------------------------
@@ -8638,6 +9159,8 @@ class JanelaAuxiliar(JanelaAutomatica):
     CHAVE_ATIVO = "mostrar_auxiliar"
     TAXA_HZ = 4.0
     LARG, ALT = 300, 80
+    ELEMENTOS = (("faixa", "Faixa lateral colorida"), ("rotulo", "Rótulo da etapa"), ("valor", "Título / contagem grande"),
+                 ("sub", "Linha de detalhe"))
 
     def tamanho(self):
         return (self.LARG, self.ALT)
@@ -8663,22 +9186,30 @@ class JanelaAuxiliar(JanelaAutomatica):
         if not a or not self._fundo(p, d["conectado"]):
             return
         acento = {"pre": QColor(255, 200, 60), "corrida": QColor(90, 200, 255), "fim": QColor(235, 235, 240)}.get(a.get("modo"), COR_CINZA)
-        p.setPen(Qt.NoPen)
-        p.setBrush(acento)
-        p.drawRoundedRect(QRectF(12, 14, 4, self.ALT - 28), 2, 2)
-        p.setFont(fonte(8, QFont.DemiBold))
-        p.setPen(COR_CINZA)
-        p.drawText(QRectF(26, 8, self.LARG - 40, 16), Qt.AlignLeft | Qt.AlignVCenter, a["titulo"])
-        valor = ("~" if a.get("estimado") else "") + str(a["valor"])
-        p.setPen(QColor(255, 255, 255))
-        tamanho = 26 if len(valor) <= 9 else (19 if len(valor) <= 16 else 14)
-        p.setFont(fonte(tamanho, QFont.Bold))
-        p.drawText(QRectF(26, 22, self.LARG - 40, 36), Qt.AlignLeft | Qt.AlignVCenter,
-                   QFontMetrics(p.font()).elidedText(valor, Qt.ElideRight, self.LARG - 40))
-        p.setFont(fonte(8))
-        p.setPen(COR_CINZA)
-        p.drawText(QRectF(26, 58, self.LARG - 40, 16), Qt.AlignLeft | Qt.AlignVCenter,
-                   QFontMetrics(p.font()).elidedText(a.get("sub", ""), Qt.ElideRight, self.LARG - 40))
+        if self._abre(p, "faixa"):
+            p.setPen(Qt.NoPen)
+            p.setBrush(acento)
+            p.drawRoundedRect(QRectF(12, 14, 4, self.ALT - 28), 2, 2)
+            self._fecha(p)
+        if self._abre(p, "rotulo"):
+            p.setFont(fonte(8, QFont.DemiBold, p=p))
+            p.setPen(COR_CINZA)
+            p.drawText(QRectF(26, 8, self.LARG - 40, 16), Qt.AlignLeft | Qt.AlignVCenter, a["titulo"])
+            self._fecha(p)
+        if self._abre(p, "valor"):
+            valor = ("~" if a.get("estimado") else "") + str(a["valor"])
+            p.setPen(QColor(255, 255, 255))
+            tamanho = 26 if len(valor) <= 9 else (19 if len(valor) <= 16 else 14)
+            p.setFont(fonte(tamanho, QFont.Bold, p=p))
+            p.drawText(QRectF(26, 22, self.LARG - 40, 36), Qt.AlignLeft | Qt.AlignVCenter,
+                       QFontMetrics(p.font()).elidedText(valor, Qt.ElideRight, self.LARG - 40))
+            self._fecha(p)
+        if self._abre(p, "sub"):
+            p.setFont(fonte(8, p=p))
+            p.setPen(COR_CINZA)
+            p.drawText(QRectF(26, 58, self.LARG - 40, 16), Qt.AlignLeft | Qt.AlignVCenter,
+                       QFontMetrics(p.font()).elidedText(a.get("sub", ""), Qt.ElideRight, self.LARG - 40))
+            self._fecha(p)
 
 
 # ---- v1.6.0: Ultimo contato ------------------------------------------------------------
@@ -8688,6 +9219,8 @@ class JanelaUltimoContato(JanelaAutomatica):
     CHAVE_ATIVO = "mostrar_contato"
     TAXA_HZ = 4.0
     LARG, ALT = 310, 92
+    ELEMENTOS = (("titulo", "Título"), ("numero", "Etiqueta com o número"), ("nome", "Nome do piloto"), ("pontos", "Pontos de incidente (Nx)"),
+                 ("gap", "Gap atual"), ("quando", "Volta, há quanto tempo e box"))
 
     def tamanho(self):
         return (self.LARG, self.ALT)
@@ -8710,43 +9243,53 @@ class JanelaUltimoContato(JanelaAutomatica):
         c = getattr(self, "_c", None)
         if not c or not self._fundo(p, d["conectado"]):
             return
-        p.setFont(fonte(8, QFont.DemiBold))
-        p.setPen(COR_CINZA)
-        p.drawText(QRectF(14, 6, 200, 16), Qt.AlignLeft | Qt.AlignVCenter, "ÚLTIMO CONTATO")
+        if self._abre(p, "titulo"):
+            p.setFont(fonte(8, QFont.DemiBold, p=p))
+            p.setPen(COR_CINZA)
+            p.drawText(QRectF(14, 6, 200, 16), Qt.AlignLeft | Qt.AlignVCenter, "ÚLTIMO CONTATO")
+            self._fecha(p)
         cor = QColor(*c["cor"])
-        p.setPen(Qt.NoPen)
-        p.setBrush(cor)
-        p.drawRoundedRect(QRectF(14, 28, 52, 26), 5, 5)
-        lum = 0.299 * cor.red() + 0.587 * cor.green() + 0.114 * cor.blue()
-        p.setPen(QColor(20, 20, 25) if lum > 140 else QColor(255, 255, 255))
-        p.setFont(fonte(11, QFont.Bold))
-        p.drawText(QRectF(14, 28, 52, 26), Qt.AlignCenter, "#" + str(c["numero"]))
-        p.setPen(QColor(255, 255, 255))
-        p.setFont(fonte(14, QFont.Bold))
+        if self._abre(p, "numero"):
+            p.setPen(Qt.NoPen)
+            p.setBrush(cor)
+            p.drawRoundedRect(QRectF(14, 28, 52, 26), 5, 5)
+            lum = 0.299 * cor.red() + 0.587 * cor.green() + 0.114 * cor.blue()
+            p.setPen(QColor(20, 20, 25) if lum > 140 else QColor(255, 255, 255))
+            p.setFont(fonte(11, QFont.Bold, p=p))
+            p.drawText(QRectF(14, 28, 52, 26), Qt.AlignCenter, "#" + str(c["numero"]))
+            self._fecha(p)
         pontos = c.get("pontos")
-        larg_nome = self.LARG - 80 - (60 if pontos is not None else 0) - 90
-        p.drawText(QRectF(74, 26, larg_nome + 80, 30), Qt.AlignLeft | Qt.AlignVCenter,
-                   QFontMetrics(p.font()).elidedText(str(c["nome"]), Qt.ElideRight, int(larg_nome + 70)))
-        if pontos is not None:
+        if self._abre(p, "nome"):
+            p.setPen(QColor(255, 255, 255))
+            p.setFont(fonte(14, QFont.Bold, p=p))
+            larg_nome = self.LARG - 80 - (60 if pontos is not None else 0) - 90
+            p.drawText(QRectF(74, 26, larg_nome + 80, 30), Qt.AlignLeft | Qt.AlignVCenter,
+                       QFontMetrics(p.font()).elidedText(str(c["nome"]), Qt.ElideRight, int(larg_nome + 70)))
+            self._fecha(p)
+        if pontos is not None and self._abre(p, "pontos"):
             cx = QColor(220, 60, 60) if pontos >= 4 else (QColor(235, 150, 40) if pontos >= 2 else QColor(90, 94, 110))
             p.setPen(Qt.NoPen)
             p.setBrush(cx)
             p.drawRoundedRect(QRectF(self.LARG - 122, 31, 36, 20), 4, 4)
             p.setPen(QColor(255, 255, 255))
-            p.setFont(fonte(10, QFont.Bold))
+            p.setFont(fonte(10, QFont.Bold, p=p))
             p.drawText(QRectF(self.LARG - 122, 31, 36, 20), Qt.AlignCenter, f"{int(pontos)}x")
+            self._fecha(p)
         # gap atual do outro carro (+ a frente, - atras)
-        if c.get("gap_s") is not None:
-            p.setFont(fonte(17, QFont.Bold))
+        if c.get("gap_s") is not None and self._abre(p, "gap"):
+            p.setFont(fonte(17, QFont.Bold, p=p))
             p.setPen(QColor(235, 235, 240))
             p.drawText(QRectF(self.LARG - 84, 24, 72, 32), Qt.AlignRight | Qt.AlignVCenter,
                        fmt_dec(c["sinal"] * c["gap_s"], 1, sinal=True))
-        p.setFont(fonte(8, QFont.DemiBold))
-        p.setPen(COR_CINZA)
-        quando = f"VOLTA {c['volta']} · HÁ {v16.fmt_ha(c['ha_s'])}" if c.get("volta") else f"HÁ {v16.fmt_ha(c['ha_s'])}"
-        if c.get("box"):
-            quando += " · NO BOX"
-        p.drawText(QRectF(14, 62, self.LARG - 28, 20), Qt.AlignLeft | Qt.AlignVCenter, quando)
+            self._fecha(p)
+        if self._abre(p, "quando"):
+            p.setFont(fonte(8, QFont.DemiBold, p=p))
+            p.setPen(COR_CINZA)
+            quando = f"VOLTA {c['volta']} · HÁ {v16.fmt_ha(c['ha_s'])}" if c.get("volta") else f"HÁ {v16.fmt_ha(c['ha_s'])}"
+            if c.get("box"):
+                quando += " · NO BOX"
+            p.drawText(QRectF(14, 62, self.LARG - 28, 20), Qt.AlignLeft | Qt.AlignVCenter, quando)
+            self._fecha(p)
 
 
 # ---- v1.6.0: Entrada do pit ------------------------------------------------------------
@@ -8758,6 +9301,8 @@ class JanelaPitEntrada(JanelaAutomatica):
     TAXA_HZ = 10.0
     LARG, ALT = 150, 176
     CORES = {"verde": (40, 190, 110), "amarelo": (240, 190, 40), "vermelho": (225, 55, 55)}
+    ELEMENTOS = (("titulo", "Título (ENTRADA DO PIT / PIT LANE)"), ("caixa", "Caixa colorida com valor e unidade"),
+                 ("linhas", "Limite, distância de frenagem e box"))
 
     def tamanho(self):
         return (self.LARG, self.ALT)
@@ -8781,38 +9326,44 @@ class JanelaPitEntrada(JanelaAutomatica):
         if not info or not self._fundo(p, d["conectado"]):
             return
         cor = QColor(*self.CORES.get(info["luz"], self.CORES["verde"]))
-        p.setFont(fonte(8, QFont.DemiBold))
-        p.setPen(COR_CINZA)
-        p.drawText(QRectF(10, 4, self.LARG - 20, 16), Qt.AlignCenter, "ENTRADA DO PIT" if info["fase"] == "entrada" else "PIT LANE")
-        caixa = QRectF(25, 24, 100, 100)
-        fundo = QColor(cor)
-        fundo.setAlpha(230)
-        p.setPen(QPen(QColor(255, 255, 255, 90), 2))
-        p.setBrush(fundo)
-        p.drawRoundedRect(caixa, 14, 14)
-        p.setPen(QColor(20, 20, 25) if info["luz"] != "vermelho" else QColor(255, 255, 255))
-        if info["fase"] == "entrada":
-            valor, unid = f"{int(round(info['dist'] / 10.0) * 10)}", "m"
-            if info["luz"] == "vermelho":
-                valor, unid = "FREIE", "agora"
-        else:
-            valor, unid = f"{int(round(info['vel']))}", "km/h"
-        p.setFont(fonte(30 if len(valor) <= 4 else 22, QFont.Bold))
-        p.drawText(QRectF(25, 38, 100, 48), Qt.AlignCenter, valor)
-        p.setFont(fonte(10, QFont.DemiBold))
-        p.drawText(QRectF(25, 86, 100, 24), Qt.AlignCenter, unid)
-        p.setFont(fonte(9, QFont.DemiBold))
-        p.setPen(QColor(235, 235, 240))
-        linhas = []
-        if info.get("limite"):
-            linhas.append(f"LIMITE {int(round(info['limite']))}")
-        if info["fase"] == "entrada" and info.get("freio_m"):
-            linhas.append(f"{int(round(info['freio_m'] / 10.0) * 10)} m p/ frear ~")
-        elif info["fase"] == "entrada":
-            linhas.append(f"{int(round(info['vel']))} km/h")
-        if info["fase"] == "pista" and info.get("dist_box") is not None:
-            linhas.append(f"BOX A {int(round(info['dist_box']))} m")
-        p.drawText(QRectF(6, 128, self.LARG - 12, 44), Qt.AlignCenter, "\n".join(linhas[:3]))
+        if self._abre(p, "titulo"):
+            p.setFont(fonte(8, QFont.DemiBold, p=p))
+            p.setPen(COR_CINZA)
+            p.drawText(QRectF(10, 4, self.LARG - 20, 16), Qt.AlignCenter, "ENTRADA DO PIT" if info["fase"] == "entrada" else "PIT LANE")
+            self._fecha(p)
+        if self._abre(p, "caixa"):
+            caixa = QRectF(25, 24, 100, 100)
+            fundo = QColor(cor)
+            fundo.setAlpha(230)
+            p.setPen(QPen(QColor(255, 255, 255, 90), 2))
+            p.setBrush(fundo)
+            p.drawRoundedRect(caixa, 14, 14)
+            p.setPen(QColor(20, 20, 25) if info["luz"] != "vermelho" else QColor(255, 255, 255))
+            if info["fase"] == "entrada":
+                valor, unid = f"{int(round(info['dist'] / 10.0) * 10)}", "m"
+                if info["luz"] == "vermelho":
+                    valor, unid = "FREIE", "agora"
+            else:
+                valor, unid = f"{int(round(info['vel']))}", "km/h"
+            p.setFont(fonte(30 if len(valor) <= 4 else 22, QFont.Bold, p=p))
+            p.drawText(QRectF(25, 38, 100, 48), Qt.AlignCenter, valor)
+            p.setFont(fonte(10, QFont.DemiBold, p=p))
+            p.drawText(QRectF(25, 86, 100, 24), Qt.AlignCenter, unid)
+            self._fecha(p)
+        if self._abre(p, "linhas"):
+            p.setFont(fonte(9, QFont.DemiBold, p=p))
+            p.setPen(QColor(235, 235, 240))
+            linhas = []
+            if info.get("limite"):
+                linhas.append(f"LIMITE {int(round(info['limite']))}")
+            if info["fase"] == "entrada" and info.get("freio_m"):
+                linhas.append(f"{int(round(info['freio_m'] / 10.0) * 10)} m p/ frear ~")
+            elif info["fase"] == "entrada":
+                linhas.append(f"{int(round(info['vel']))} km/h")
+            if info["fase"] == "pista" and info.get("dist_box") is not None:
+                linhas.append(f"BOX A {int(round(info['dist_box']))} m")
+            p.drawText(QRectF(6, 128, self.LARG - 12, 44), Qt.AlignCenter, "\n".join(linhas[:3]))
+            self._fecha(p)
 
 
 class JanelaTendencia(JanelaBase):
@@ -8835,18 +9386,21 @@ class JanelaTendencia(JanelaBase):
         if not self._fundo(p, d["conectado"]):
             return
         t = d.get("tendencia") if d["conectado"] else None
-        p.setFont(fonte(8, QFont.DemiBold))
+        p.setFont(fonte(8, QFont.DemiBold, p=p))
         p.setPen(COR_CINZA)
-        if self.visivel("titulo"):
+        if self._abre(p, "titulo"):
+            p.setFont(fonte(8, QFont.DemiBold, p=p))
+            p.setPen(COR_CINZA)
             p.drawText(QRectF(14, 6, 200, 16), Qt.AlignLeft | Qt.AlignVCenter, "TENDÊNCIA DE RITMO")
+            self._fecha(p)
         if not t:
-            p.setFont(fonte(10, QFont.DemiBold))
+            p.setFont(fonte(10, QFont.DemiBold, p=p))
             p.drawText(self._rect_espera(QRectF(14, 40, self.LARG - 28, 140)), Qt.AlignCenter,
                        "Aguardando voltas limpas\n(sem boxes e sem bandeira de perigo)")
             return
         rot, cor_n = v16.estado_tendencia(t["inclinacao"])
         cor = self.CORES[cor_n]
-        if self.visivel("selo"):
+        if self._abre(p, "selo"):
             # selo de estado (canto superior direito)
             p.setPen(Qt.NoPen)
             c2 = QColor(cor)
@@ -8854,26 +9408,27 @@ class JanelaTendencia(JanelaBase):
             p.setBrush(c2)
             p.drawRoundedRect(QRectF(self.LARG - 150, 5, 136, 20), 5, 5)
             p.setPen(cor)
-            p.setFont(fonte(9, QFont.Bold))
+            p.setFont(fonte(9, QFont.Bold, p=p))
             p.drawText(QRectF(self.LARG - 150, 5, 136, 20), Qt.AlignCenter, rot.upper())
+            self._fecha(p)
         if self._abre(p, "numeros"):
             # numeros
             def bloco(x, titulo, valor, cor_v=QColor(255, 255, 255), sub=None, larg=96):
-                p.setFont(fonte(7, QFont.DemiBold))
+                p.setFont(fonte(7, QFont.DemiBold, p=p))
                 p.setPen(COR_CINZA)
                 p.drawText(QRectF(x, 28, larg, 12), Qt.AlignLeft | Qt.AlignVCenter, titulo)
-                p.setFont(fonte(13, QFont.Bold))
+                p.setFont(fonte(13, QFont.Bold, p=p))
                 p.setPen(cor_v)
                 p.drawText(QRectF(x, 40, larg, 22), Qt.AlignLeft | Qt.AlignVCenter, valor)
                 if sub:
-                    p.setFont(fonte(8, QFont.DemiBold))
+                    p.setFont(fonte(8, QFont.DemiBold, p=p))
                     p.drawText(QRectF(x, 60, larg, 12), Qt.AlignLeft | Qt.AlignVCenter, sub)
             dr = t["delta_ritmo"]
             cd = COR_VERDE if (dr is not None and dr < 0.3) else (COR_AMARELO if (dr is not None and dr < 1.0) else COR_VERMELHO)
             bloco(14, "RITMO (5 ÚLT.)", fmt_tempo(t["ritmo5"]), larg=104)
             if dr is not None:
                 p.setPen(cd)
-                p.setFont(fonte(8, QFont.DemiBold))
+                p.setFont(fonte(8, QFont.DemiBold, p=p))
                 p.drawText(QRectF(14, 60, 104, 12), Qt.AlignLeft | Qt.AlignVCenter, f"{dr:+.2f} s vs melhor")
             inc = t["inclinacao"]
             bloco(124, "INCLINAÇÃO (~)", f"{inc:+.2f} s/v" if inc is not None else "--", cor_v=cor,
@@ -8888,7 +9443,7 @@ class JanelaTendencia(JanelaBase):
             self._grafico(p, t, QRectF(46, 90, self.LARG - 62, self.ALT - 90 - 26), cor)
             self._fecha(p)
         if self._abre(p, "legenda"):
-            p.setFont(fonte(7))
+            p.setFont(fonte(7, p=p))
             p.setPen(COR_CINZA)
             p.drawText(QRectF(14, self.ALT - 12, self.LARG - 28, 12), Qt.AlignLeft | Qt.AlignVCenter,
                        "Limpa = sem boxes/bandeira, até 130% da melhor · (~) estimativa · roxa = melhor")
@@ -8915,7 +9470,7 @@ class JanelaTendencia(JanelaBase):
             y = r.top() + r.height() * k / 3.0
             p.drawLine(QPointF(r.left(), y), QPointF(r.right(), y))
         p.setPen(COR_CINZA)
-        p.setFont(fonte(7))
+        p.setFont(fonte(7, p=p))
         p.drawText(QRectF(0, r.top() - 6, 44, 12), Qt.AlignRight | Qt.AlignVCenter, fmt_tempo(hi))
         p.drawText(QRectF(0, r.bottom() - 6, 44, 12), Qt.AlignRight | Qt.AlignVCenter, fmt_tempo(lo))
         if melhor:
@@ -8947,7 +9502,7 @@ class JanelaTendencia(JanelaBase):
                 p.setPen(QPen(cor_reta, 1.8))
                 p.drawLine(QPointF(px(idx[0]), py(f(pontos[idx[0]][0]))), QPointF(px(idx[-1]), py(f(pontos[idx[-1]][0]))))
         p.setPen(COR_CINZA)
-        p.setFont(fonte(7))
+        p.setFont(fonte(7, p=p))
         passo = max(1, n // 8)
         for i in range(0, n, passo):
             p.drawText(QRectF(px(i) - 14, r.bottom() + 2, 28, 12), Qt.AlignCenter, f"V{pontos[i][0]}")
@@ -9006,54 +9561,60 @@ class JanelaCurvas(JanelaBase):
         c = d.get("curvas")
         if (not c or c.get("estado") != "ok") and not self.config["travado"]:
             c = self._exemplo()                                  # destravada: mostra um exemplo para voce posicionar a janela
-        p.setFont(fonte_titulo(11))
+        p.setFont(fonte_titulo(11, p=p))
         p.setPen(COR_CINZA)
-        if self.visivel("titulo"):
+        if self._abre(p, "titulo"):
+            p.setFont(fonte_titulo(11, p=p))
+            p.setPen(COR_CINZA)
             p.drawText(QRectF(14, 8, 150, 18), Qt.AlignLeft | Qt.AlignVCenter, "CURVAS")
+            self._fecha(p)
         if not c or c.get("estado") != "ok":
-            p.setFont(fonte(12, QFont.DemiBold))
+            p.setFont(fonte(12, QFont.DemiBold, p=p))
             validas = (c or {}).get("voltas_validas", 0)
             p.drawText(self._rect_espera(QRectF(14, 40, self.LARG - 28, 120)), Qt.AlignCenter | Qt.TextWordWrap,
                        "Dirija uma volta limpa (sem boxes\nnem sair da pista) para mapear as curvas")
-            p.setFont(fonte(11))
+            p.setFont(fonte(11, p=p))
             p.drawText(QRectF(14, 170 if self._altura_oculta() <= 0 else self.tamanho()[1] - 26, self.LARG - 28, 22), Qt.AlignCenter,
                        f"Voltas validas: {validas}")
             return
-        p.setFont(fonte(11, QFont.Bold))
+        p.setFont(fonte(11, QFont.Bold, p=p))
         p.setPen(QColor(255, 255, 255))
         u = c.get("ultima")
-        if u and self.visivel("titulo"):
+        if u and self._abre(p, "titulo"):
+            p.setFont(fonte(11, QFont.Bold, p=p))
+            p.setPen(QColor(255, 255, 255))
             p.drawText(QRectF(self.LARG - 150, 8, 136, 18), Qt.AlignRight | Qt.AlignVCenter, f"C{u['n']} de {c['n']}")
+            self._fecha(p)
         if self._abre(p, "cartao"):
             # cartao da ultima curva concluida
             cab = (("MIN km/h", 14, 110), ("BEST", 128, 76), ("DELTA", 208, 76), ("VOLANTE", 288, 62))
-            p.setFont(fonte(10, QFont.DemiBold))
+            p.setFont(fonte(10, QFont.DemiBold, p=p))
             p.setPen(COR_CINZA)
             for nome, x, w in cab:
                 p.drawText(QRectF(x, 30, w, 14), Qt.AlignLeft | Qt.AlignVCenter, nome)
             if u:
                 p.setPen(QColor(255, 255, 255))
-                p.setFont(fonte(36, QFont.Bold))
+                p.setFont(fonte(36, QFont.Bold, p=p))
                 p.drawText(QRectF(14, 44, 110, 50), Qt.AlignLeft | Qt.AlignVCenter, fmt_dec(u["min"], 0))
-                p.setFont(fonte(22, QFont.DemiBold))
+                p.setFont(fonte(22, QFont.DemiBold, p=p))
                 p.drawText(QRectF(128, 44, 76, 50), Qt.AlignLeft | Qt.AlignVCenter, fmt_dec(u["best"], 0) if u["best"] is not None else "--")
                 p.setPen(self._cor_delta(u["delta"]))
-                p.setFont(fonte(24, QFont.Bold))
+                p.setFont(fonte(24, QFont.Bold, p=p))
                 p.drawText(QRectF(208, 44, 78, 50), Qt.AlignLeft | Qt.AlignVCenter,
                            fmt_dec(u["delta"], 1, sinal=True) if u["delta"] is not None else "--")
                 p.setPen(QColor(235, 235, 240))
-                p.setFont(fonte(15, QFont.DemiBold))
+                p.setFont(fonte(15, QFont.DemiBold, p=p))
                 p.drawText(QRectF(288, 44, 70, 50), Qt.AlignLeft | Qt.AlignVCenter, self._texto_volante(u["volante"]))
             else:
                 p.setPen(COR_CINZA)
-                p.setFont(fonte(13, QFont.DemiBold))
+                p.setFont(fonte(13, QFont.DemiBold, p=p))
                 p.drawText(QRectF(14, 44, self.LARG - 28, 50), Qt.AlignLeft | Qt.AlignVCenter, "Aguardando a primeira curva da volta...")
             self._fecha(p)
         if self._abre(p, "lista"):
             # linhas: as ultimas curvas desta volta (a mais recente em cima)
             p.setPen(QPen(QColor(255, 255, 255, 40), 1))
             p.drawLine(QPointF(14, 100), QPointF(self.LARG - 14, 100))
-            p.setFont(fonte(10, QFont.DemiBold))
+            p.setFont(fonte(10, QFont.DemiBold, p=p))
             p.setPen(COR_CINZA)
             colunas = ((14, 44, Qt.AlignLeft), (70, 64, Qt.AlignRight), (150, 64, Qt.AlignRight), (230, 64, Qt.AlignRight),
                        (300, 46, Qt.AlignRight))
@@ -9066,32 +9627,32 @@ class JanelaCurvas(JanelaBase):
                     p.setBrush(QColor(255, 255, 255, 22))
                     p.setPen(Qt.NoPen)
                     p.drawRoundedRect(QRectF(8, y - 1, self.LARG - 16, 19), 4, 4)
-                p.setFont(fonte(12, QFont.Bold))
+                p.setFont(fonte(12, QFont.Bold, p=p))
                 p.setPen(QColor(255, 255, 255))
                 p.drawText(QRectF(14, y, 44, 18), Qt.AlignLeft | Qt.AlignVCenter, f"C{r['n']}")
-                p.setFont(fonte(12, QFont.DemiBold))
+                p.setFont(fonte(12, QFont.DemiBold, p=p))
                 p.drawText(QRectF(70, y, 64, 18), Qt.AlignRight | Qt.AlignVCenter, fmt_dec(r["min"], 0))
                 p.setPen(COR_CINZA)
                 p.drawText(QRectF(150, y, 64, 18), Qt.AlignRight | Qt.AlignVCenter, fmt_dec(r["best"], 0) if r["best"] is not None else "--")
                 p.setPen(self._cor_delta(r["delta"]))
-                p.setFont(fonte(12, QFont.Bold))
+                p.setFont(fonte(12, QFont.Bold, p=p))
                 p.drawText(QRectF(230, y, 64, 18), Qt.AlignRight | Qt.AlignVCenter,
                            fmt_dec(r["delta"], 1, sinal=True) if r["delta"] is not None else "--")
                 p.setPen(COR_CINZA)
-                p.setFont(fonte(11))
+                p.setFont(fonte(11, p=p))
                 p.drawText(QRectF(300, y, 46, 18), Qt.AlignRight | Qt.AlignVCenter, self._texto_volante(r["volante"]))
             self._fecha(p)
         if self._abre(p, "rodape"):
             # rodape: resumo da volta anterior
             va = c.get("volta_anterior")
-            p.setFont(fonte(11))
+            p.setFont(fonte(11, p=p))
             p.setPen(COR_CINZA)
             if va:
                 p.drawText(QRectF(14, self.ALT - 26, 220, 20), Qt.AlignLeft | Qt.AlignVCenter,
                            f"Volta anterior: -{fmt_dec(va['perda'], 1)} / +{fmt_dec(va['ganho'], 1)} km/h")
                 if va.get("pior_n"):
                     p.setPen(COR_LARANJA)
-                    p.setFont(fonte(11, QFont.Bold))
+                    p.setFont(fonte(11, QFont.Bold, p=p))
                     p.drawText(QRectF(self.LARG - 134, self.ALT - 26, 120, 20), Qt.AlignRight | Qt.AlignVCenter,
                                f"pior C{va['pior_n']} ({fmt_dec(va['pior_delta'], 1, sinal=True)})")
             else:
@@ -9149,22 +9710,25 @@ class JanelaConsumo(JanelaBase):
         c = d.get("consumo")
         if (not c or c.get("estado") == "sem_dados") and not self.config["travado"]:
             c = self._exemplo()
-        p.setFont(fonte_titulo(11))
+        p.setFont(fonte_titulo(11, p=p))
         p.setPen(COR_CINZA)
-        if self.visivel("titulo"):
+        if self._abre(p, "titulo"):
+            p.setFont(fonte_titulo(11, p=p))
+            p.setPen(COR_CINZA)
             p.drawText(QRectF(14, 8, 150, 18), Qt.AlignLeft | Qt.AlignVCenter, "CONSUMO")
+            self._fecha(p)
         if not c or c.get("estado") == "sem_dados":
-            p.setFont(fonte(12, QFont.DemiBold))
+            p.setFont(fonte(12, QFont.DemiBold, p=p))
             p.drawText(self._rect_espera(QRectF(14, 40, self.LARG - 28, 150)), Qt.AlignCenter | Qt.TextWordWrap,
                        "Dirija voltas limpas (sem box,\nsem reabastecer) para medir o consumo\npor trecho da pista")
             return
         if self._abre(p, "numeros"):
             inst, medio, ult = c.get("inst_lh"), c.get("medio_lv"), c.get("ultima_lv")
-            p.setFont(fonte(8, QFont.DemiBold))
+            p.setFont(fonte(8, QFont.DemiBold, p=p))
             p.setPen(COR_CINZA)
             for x, rot in ((14, "AGORA  L/h"), (130, "MEDIA  L/volta"), (250, "ULTIMA  L/volta")):
                 p.drawText(QRectF(x, 30, 116, 14), Qt.AlignLeft | Qt.AlignVCenter, rot)
-            p.setFont(fonte(20, QFont.Bold))
+            p.setFont(fonte(20, QFont.Bold, p=p))
             p.setPen(COR_TEXTO)
             p.drawText(QRectF(14, 44, 112, 30), Qt.AlignLeft | Qt.AlignVCenter, "--" if inst is None else "%.1f" % inst)
             p.drawText(QRectF(130, 44, 116, 30), Qt.AlignLeft | Qt.AlignVCenter, "--" if medio is None else "%.2f" % medio)
@@ -9209,20 +9773,20 @@ class JanelaConsumo(JanelaBase):
                         k = a / ref
                         p.setBrush(COR_VERMELHO if k > 1.15 else (COR_VERDE if k < 0.85 else QColor(150, 150, 165)))
                         p.drawRoundedRect(QRectF(x0 + i * cel + 0.5, y0 + h + 3, cel - 1.0, 5), 1.5, 1.5)
-                p.setFont(fonte(7, QFont.DemiBold))
+                p.setFont(fonte(7, QFont.DemiBold, p=p))
                 p.setPen(COR_CINZA)
                 p.drawText(QRectF(x0, y0 + h + 10, 120, 12), Qt.AlignLeft | Qt.AlignVCenter, "LARGADA")
                 p.drawText(QRectF(x0 + larg - 120, y0 + h + 10, 120, 12), Qt.AlignRight | Qt.AlignVCenter, "CHEGADA")
-                p.setFont(fonte(8, QFont.DemiBold))
+                p.setFont(fonte(8, QFont.DemiBold, p=p))
                 p.drawText(QRectF(x0 + 120, y0 + h + 10, larg - 240, 12), Qt.AlignCenter, "abaixo: esta volta")
                 self._fecha(p)
             if self._abre(p, "trechos"):
                 ops = c.get("oportunidades") or []
                 if ops:
-                    p.setFont(fonte(7, QFont.DemiBold))
+                    p.setFont(fonte(7, QFont.DemiBold, p=p))
                     p.setPen(COR_CINZA)
                     p.drawText(QRectF(14, 146, self.LARG - 28, 12), Qt.AlignLeft | Qt.AlignVCenter, "TRECHOS DE MAIOR CONSUMO (indicativo, nao e economia)")
-                p.setFont(fonte(10, QFont.DemiBold))
+                p.setFont(fonte(10, QFont.DemiBold, p=p))
                 if ops:
                     for k, o in enumerate(ops[:3]):
                         p.setPen(COR_LARANJA)
@@ -9235,7 +9799,7 @@ class JanelaConsumo(JanelaBase):
                     p.drawText(QRectF(14, 148, self.LARG - 28, 18), Qt.AlignLeft | Qt.AlignVCenter, "Consumo uniforme: nenhum trecho se destaca")
                 self._fecha(p)
         else:
-            p.setFont(fonte(11, QFont.DemiBold))
+            p.setFont(fonte(11, QFont.DemiBold, p=p))
             p.setPen(COR_CINZA)
             p.drawText(QRectF(14, 94, self.LARG - 28, 70), Qt.AlignCenter | Qt.TextWordWrap,
                        "Mapeando os trechos: %d/%d voltas limpas" % (c.get("voltas", 0), c.get("minimo", 3)))
@@ -9331,10 +9895,10 @@ class JanelaDeltaTrace(JanelaBase):
         if atual is not None:
             cor = COR_VERDE if atual < -0.005 else (COR_VERMELHO if atual > 0.005 else COR_TEXTO)
         if self.visivel("delta"):
-            p.setFont(fonte(46, QFont.Bold))
+            p.setFont(fonte(46, QFont.Bold, p=p))
             p.setPen(cor)
             p.drawText(QRectF(x0, 22, x1 - x0, 62), Qt.AlignCenter, ("%+.2f" % atual) if atual is not None else "--")
-        if not self.visivel("grafico"):
+        if not self.visivel("grafico") or not self._abre(p, "grafico"):
             return
         yb, hb = 96.0, 18.0
         meia = (x1 - x0) / 2.0 - 4.0
@@ -9352,10 +9916,11 @@ class JanelaDeltaTrace(JanelaBase):
                 p.drawRoundedRect(QRectF(cx, yb, larg, hb), 5, 5)
         p.setPen(QPen(QColor(255, 255, 255, 200), 2))
         p.drawLine(QPointF(cx, yb - 4), QPointF(cx, yb + hb + 4))
-        p.setFont(fonte(7, QFont.DemiBold))
+        p.setFont(fonte(7, QFont.DemiBold, p=p))
         p.setPen(COR_CINZA)
         p.drawText(QRectF(cx - meia, yb + hb + 2, 140, 11), Qt.AlignLeft | Qt.AlignVCenter, "-%.2gs (ganhando)" % esc)
         p.drawText(QRectF(cx + meia - 140, yb + hb + 2, 140, 11), Qt.AlignRight | Qt.AlignVCenter, "+%.2gs (perdendo)" % esc)
+        self._fecha(p)
 
     def _geometria_pista(self, mapa, caixa):
         """Pontos do tracado (do Mapa) ajustados a `caixa` (QRectF), em coordenadas da janela; guardado ate o tracado mudar."""
@@ -9385,13 +9950,13 @@ class JanelaDeltaTrace(JanelaBase):
         alt_total = self._geom()[1]
         if z is None and not (mapa and mapa.get("pontos")):
             return
-        if z is not None and ver_num:
-            p.setFont(fonte(8, QFont.DemiBold))
+        if z is not None and ver_num and self._abre(p, "curva"):
+            p.setFont(fonte(8, QFont.DemiBold, p=p))
             p.setPen(COR_CINZA)
             p.drawText(QRectF(xp, 8, lp, 12), Qt.AlignLeft | Qt.AlignVCenter, "CURVA" if estado == "agora" else "PROXIMA CURVA")
             nd = min(3, len(str(z["n"])))                         # 1, 2 ou 3 digitos: a fonte diminui e o delta cede espaco
             tam_num, larg_num = {1: (34, 52), 2: (30, 58), 3: (24, 62)}[nd]
-            p.setFont(fonte(tam_num, QFont.Bold))
+            p.setFont(fonte(tam_num, QFont.Bold, p=p))
             p.setPen(COR_TEXTO)
             p.drawText(QRectF(xp, 18, larg_num, 40), Qt.AlignLeft | Qt.AlignVCenter, str(z["n"]))
             dc = ons1.delta_na_curva(pts, z, pct) if estado == "agora" else None
@@ -9400,11 +9965,14 @@ class JanelaDeltaTrace(JanelaBase):
                 p.setPen(Qt.NoPen)
                 p.setBrush(QColor(cor.red(), cor.green(), cor.blue(), 60))
                 p.drawRoundedRect(QRectF(xp + larg_num + 2, 26, lp - larg_num - 2, 24), 5, 5)
-                p.setFont(fonte(11, QFont.Bold))
+                p.setFont(fonte(11, QFont.Bold, p=p))
                 p.setPen(cor)
                 p.drawText(QRectF(xp + larg_num + 2, 26, lp - larg_num - 2, 24), Qt.AlignCenter, "%+.2fs" % dc)
+            self._fecha(p)
         # desenho da pista (so se o Mapa ja aprendeu o tracado)
         if not ver_mapa or not mapa or not mapa.get("pontos") or not any(q is not None for q in mapa["pontos"]):
+            return
+        if not self._abre(p, "mapa"):
             return
         topo = 66.0 if ver_num else 12.0
         caixa = QRectF(xp + 2, topo, lp - 4, alt_total - topo - 14)
@@ -9466,6 +10034,7 @@ class JanelaDeltaTrace(JanelaBase):
             p.setPen(QPen(QColor(255, 255, 255), 1.6))
             p.setBrush(QColor(255, 220, 0))
             p.drawEllipse(QPointF(*tela[k]), 5.0, 5.0)
+        self._fecha(p)
 
     def paintEvent(self, _evento):
         p = self._pintor()
@@ -9478,12 +10047,12 @@ class JanelaDeltaTrace(JanelaBase):
             if not d.get("mapa"):
                 d = dict(d)
                 d["mapa"] = {"pontos": _tracado_demo(), "completo": True, "versao": "demo"}        # destravado: exemplo com pista
-        p.setFont(fonte_titulo(11))
+        p.setFont(fonte_titulo(11, p=p))
         p.setPen(COR_CINZA)
         if self.visivel("titulo") or not c or c.get("estado") != "ok":
             p.drawText(QRectF(14, 8, 110, 18), Qt.AlignLeft | Qt.AlignVCenter, "DELTA TRACE")
         if not c or c.get("estado") != "ok":
-            p.setFont(fonte(12, QFont.DemiBold))
+            p.setFont(fonte(12, QFont.DemiBold, p=p))
             p.drawText(QRectF(14, 40, self.tamanho()[0] - 28, max(30, self.tamanho()[1] - 50)), Qt.AlignCenter | Qt.TextWordWrap,
                        "Complete uma volta limpa (sem box,\nsem sair da pista) para criar a referencia")
             return
@@ -9491,15 +10060,17 @@ class JanelaDeltaTrace(JanelaBase):
         atual = c.get("atual")
         # ---- cabecalho: referencia e delta grande
         ref = c.get("ref_total")
-        if ref and self.visivel("titulo"):
-            p.setFont(fonte(8, QFont.DemiBold))
+        if ref and self._abre(p, "titulo"):
+            p.setFont(fonte(8, QFont.DemiBold, p=p))
             p.setPen(COR_CINZA)
             p.drawText(QRectF(124, 8, 220, 18), Qt.AlignLeft | Qt.AlignVCenter, "ref: melhor da sessao  %s" % fmt_tempo(ref))
+            self._fecha(p)
         racelab = self.layout_atual() == "racelab"
-        if atual is not None and not racelab and self.visivel("delta"):
-            p.setFont(fonte(26, QFont.Bold))
+        if atual is not None and not racelab and self._abre(p, "delta"):
+            p.setFont(fonte(26, QFont.Bold, p=p))
             p.setPen(COR_VERDE if atual < -0.005 else (COR_VERMELHO if atual > 0.005 else COR_TEXTO))
             p.drawText(QRectF(self.LARG_GRAF - 150, 2, 136, 34), Qt.AlignRight | Qt.AlignVCenter, "%+.2f" % atual)
+            self._fecha(p)
         # ---- grafico
         esc = self._escala(list(pts) + list(ant) + list(c.get("ideal") or []))
         x0, x1, y0, y1 = 14.0, self.LARG_GRAF - 14.0, 44.0, 122.0
@@ -9518,20 +10089,22 @@ class JanelaDeltaTrace(JanelaBase):
         if racelab:
             self._barra_racelab(p, c, atual, ref, x0, x1)
         elif self.visivel("grafico"):
-            p.setPen(Qt.NoPen)
-            p.setBrush(QColor(255, 255, 255, 12))
-            p.drawRect(QRectF(x_atual, y0, x1 - x_atual, y1 - y0))         # o que ainda vem da volta, levemente destacado
-            p.setPen(QPen(QColor(255, 255, 255, 26), 1))
-            for f in (-1.0, -0.5, 0.5, 1.0):
-                p.drawLine(QPointF(x0, meio + f * meia), QPointF(x1, meio + f * meia))
-            p.setPen(QPen(QColor(255, 255, 255, 110), 1.2))
-            p.drawLine(QPointF(x0, meio), QPointF(x1, meio))
-            p.setFont(fonte(7, QFont.DemiBold))
-            p.setPen(COR_CINZA)
-            p.drawText(QRectF(x0 + 2, y0 - 11, 120, 11), Qt.AlignLeft | Qt.AlignVCenter, "-%.2gs (ganhando)" % esc)
-            p.drawText(QRectF(x0 + 2, y1 + 1, 120, 11), Qt.AlignLeft | Qt.AlignVCenter, "+%.2gs (perdendo)" % esc)
-            p.drawText(QRectF(x1 - 150, y1 + 1, 150, 11), Qt.AlignRight | Qt.AlignVCenter, "tracejado: volta anterior")
-            if ant and len(ant) == len(pts) and self.visivel("anterior"):                # volta anterior, tracejada (sempre contra a referencia vigente)
+            if self._abre(p, "grafico"):
+                p.setPen(Qt.NoPen)
+                p.setBrush(QColor(255, 255, 255, 12))
+                p.drawRect(QRectF(x_atual, y0, x1 - x_atual, y1 - y0))         # o que ainda vem da volta, levemente destacado
+                p.setPen(QPen(QColor(255, 255, 255, 26), 1))
+                for f in (-1.0, -0.5, 0.5, 1.0):
+                    p.drawLine(QPointF(x0, meio + f * meia), QPointF(x1, meio + f * meia))
+                p.setPen(QPen(QColor(255, 255, 255, 110), 1.2))
+                p.drawLine(QPointF(x0, meio), QPointF(x1, meio))
+                p.setFont(fonte(7, QFont.DemiBold, p=p))
+                p.setPen(COR_CINZA)
+                p.drawText(QRectF(x0 + 2, y0 - 11, 120, 11), Qt.AlignLeft | Qt.AlignVCenter, "-%.2gs (ganhando)" % esc)
+                p.drawText(QRectF(x0 + 2, y1 + 1, 120, 11), Qt.AlignLeft | Qt.AlignVCenter, "+%.2gs (perdendo)" % esc)
+                p.drawText(QRectF(x1 - 150, y1 + 1, 150, 11), Qt.AlignRight | Qt.AlignVCenter, "tracejado: volta anterior")
+                self._fecha(p)
+            if ant and len(ant) == len(pts) and self.visivel("anterior") and self._abre(p, "anterior"):                # volta anterior, tracejada (sempre contra a referencia vigente)
                 p.setPen(QPen(QColor(200, 200, 215, 95), 1.2, Qt.DashLine))
                 prev = None
                 for i, v in enumerate(ant):
@@ -9541,8 +10114,9 @@ class JanelaDeltaTrace(JanelaBase):
                     if prev is not None:
                         p.drawLine(QPointF(px(i - 1), py(prev)), QPointF(px(i), py(v)))
                     prev = v
+                self._fecha(p)
             ideal = c.get("ideal")
-            if ideal and len(ideal) == len(pts) and self.visivel("ideal"):               # build s: ritmo ideal ESTIMADO = soma dos seus melhores trechos (nao e uma volta feita)
+            if ideal and len(ideal) == len(pts) and self.visivel("ideal") and self._abre(p, "ideal"):               # build s: ritmo ideal ESTIMADO = soma dos seus melhores trechos (nao e uma volta feita)
                 cor_i = QColor(90, 200, 255, 215)
                 p.setPen(QPen(cor_i, 1.6))
                 for i in range(1, len(ideal)):
@@ -9550,25 +10124,28 @@ class JanelaDeltaTrace(JanelaBase):
                         p.drawLine(QPointF(px(i - 1), py(ideal[i - 1])), QPointF(px(i), py(ideal[i])))
                 it = c.get("ideal_total")
                 if it and ref:
-                    p.setFont(fonte(7, QFont.DemiBold))
+                    p.setFont(fonte(7, QFont.DemiBold, p=p))
                     p.setPen(cor_i)
                     p.drawText(QRectF(x0 + 128, y1 + 1, 200, 11), Qt.AlignLeft | Qt.AlignVCenter, "azul: ritmo ideal estimado (%+.2fs)" % (it - ref))
-            prev = None
-            for i, v in enumerate(pts):
-                if v is None:
-                    prev = None
-                    continue
-                if prev is not None:
-                    cor = COR_VERDE if (v + prev) / 2.0 < 0 else COR_VERMELHO
-                    p.setPen(Qt.NoPen)
-                    p.setBrush(QColor(cor.red(), cor.green(), cor.blue(), 70))
-                    p.drawPolygon(QPolygonF([QPointF(px(i - 1), meio), QPointF(px(i - 1), py(prev)), QPointF(px(i), py(v)), QPointF(px(i), meio)]))
-                    p.setPen(QPen(cor, 2.2))
-                    p.drawLine(QPointF(px(i - 1), py(prev)), QPointF(px(i), py(v)))
-                prev = v
-            if feitos:                                                      # cursor: onde voce esta agora
-                p.setPen(QPen(QColor(255, 255, 255, 190), 1.4))
-                p.drawLine(QPointF(x_atual, y0), QPointF(x_atual, y1))
+                self._fecha(p)
+            if self._abre(p, "grafico"):
+                prev = None
+                for i, v in enumerate(pts):
+                    if v is None:
+                        prev = None
+                        continue
+                    if prev is not None:
+                        cor = COR_VERDE if (v + prev) / 2.0 < 0 else COR_VERMELHO
+                        p.setPen(Qt.NoPen)
+                        p.setBrush(QColor(cor.red(), cor.green(), cor.blue(), 70))
+                        p.drawPolygon(QPolygonF([QPointF(px(i - 1), meio), QPointF(px(i - 1), py(prev)), QPointF(px(i), py(v)), QPointF(px(i), meio)]))
+                        p.setPen(QPen(cor, 2.2))
+                        p.drawLine(QPointF(px(i - 1), py(prev)), QPointF(px(i), py(v)))
+                    prev = v
+                if feitos:                                                      # cursor: onde voce esta agora
+                    p.setPen(QPen(QColor(255, 255, 255, 190), 1.4))
+                    p.drawLine(QPointF(x_atual, y0), QPointF(x_atual, y1))
+                self._fecha(p)
         # ---- painel da curva (numero + desenho da pista), blocos por curva (o que foi ganho/perdido em cada uma)
         zonas = c.get("curvas") or []
         pct_atual = (feitos[-1] / float(n)) if feitos else 0.0
@@ -9577,12 +10154,15 @@ class JanelaDeltaTrace(JanelaBase):
         if not self.visivel("blocos"):
             self.ultimo_layout_blocos = []
             return
+        if not self._abre(p, "blocos"):
+            return
         yb, hb = self._geom()[2], 30.0
         blocos = ons1.delta_por_curva(pts, zonas)
         if not blocos:
-            p.setFont(fonte(8, QFont.DemiBold))
+            p.setFont(fonte(8, QFont.DemiBold, p=p))
             p.setPen(COR_CINZA)
             p.drawText(QRectF(x0, yb, x1 - x0, hb), Qt.AlignCenter, "Os blocos por curva aparecem depois que a janela Curvas mapear a pista (1 volta limpa)")
+            self._fecha(p)
             return
         ult_rot = -100.0
         desej = []
@@ -9611,14 +10191,15 @@ class JanelaDeltaTrace(JanelaBase):
             p.setBrush(cor)
             p.drawRoundedRect(QRectF(bx, yb, larg, hb), 4, 4)
             if txt and larg >= 26:                                       # com muitas curvas o bloco estreito fica so na cor
-                p.setFont(fonte(8, QFont.Bold))
+                p.setFont(fonte(8, QFont.Bold, p=p))
                 p.setPen(QColor(255, 255, 255))
                 p.drawText(QRectF(bx, yb, larg, hb), Qt.AlignCenter, txt)
             if bx - ult_rot >= 16:                                      # numero da curva (sem sobrepor o vizinho)
-                p.setFont(fonte(7, QFont.DemiBold))
+                p.setFont(fonte(7, QFont.DemiBold, p=p))
                 p.setPen(COR_CINZA)
                 p.drawText(QRectF(bx - 4, yb + hb + 2, larg + 8, 11), Qt.AlignCenter, str(b["n"]))
                 ult_rot = bx
+        self._fecha(p)
 
 
 class JanelaCoach(JanelaBase):
@@ -9628,9 +10209,10 @@ class JanelaCoach(JanelaBase):
     CHAVE_ATIVO = "mostrar_coach"
     TAXA_HZ = 30.0
     LARG, ALT = 360, 238
-    ELEMENTOS = (("titulo", "Título e fonte da referência"), ("proxima", "Próxima freada (contagem, marcha, ápice)"),
-                 ("delta", "Delta e avaliação da curva"), ("ritmo", "Ritmo, dica da curva e resumo"), ("rodape", "Aviso / stint (rodapé)"))
-    SECOES = (("proxima", 24, 82), ("delta", 106, 50), ("ritmo", 156, 50), ("rodape", 206, 32))
+    ELEMENTOS = (("titulo", "Título e fonte da referência"), ("proxima", "Próxima freada: contagem grande"), ("freada", "Próxima freada: curva e distância"), ("marcha", "Marcha da curva"), ("apice", "Velocidade no ápice"),
+                 ("delta", "Delta e avaliação da curva"), ("ritmo", "Ritmo (alvo, diferença e poupar)"), ("dica", "Dica da melhor curva"), ("rodape", "Aviso / stint (rodapé)"))
+    SECOES = (("proxima", 24, 82), ("delta", 106, 50), ("ritmo", 156, 26), ("dica", 182, 24), ("rodape", 206, 32))
+    SECAO_GRUPO = {"proxima": ("proxima", "freada", "marcha", "apice")}      # build av: a faixa de cima so some se os 4 itens estiverem desligados
 
     def tamanho(self):
         return (self.LARG, self._alt_util(self.ALT))
@@ -9664,12 +10246,15 @@ class JanelaCoach(JanelaBase):
         c = d.get("coach")
         if (not c or c.get("estado") != "ok") and not self.config["travado"] and not (c and c.get("estado") == "gravando"):
             c = self._exemplo()
-        p.setFont(fonte_titulo(11))
+        p.setFont(fonte_titulo(11, p=p))
         p.setPen(COR_CINZA)
-        if self.visivel("titulo"):
+        if self._abre(p, "titulo"):
+            p.setFont(fonte_titulo(11, p=p))
+            p.setPen(COR_CINZA)
             p.drawText(QRectF(14, 8, 150, 18), Qt.AlignLeft | Qt.AlignVCenter, "COACH")
+            self._fecha(p)
         if not c or c.get("estado") != "ok":
-            p.setFont(fonte(12, QFont.DemiBold))
+            p.setFont(fonte(12, QFont.DemiBold, p=p))
             if c and c.get("estado") == "gravando":
                 msg = "Dirija uma volta limpa para gravar\na sua referencia nesta pista e carro"
             else:
@@ -9677,12 +10262,15 @@ class JanelaCoach(JanelaBase):
             p.drawText(self._rect_espera(QRectF(14, 40, self.LARG - 28, 100)), Qt.AlignCenter | Qt.TextWordWrap, msg)
             return
         fonte_txt = {"propria": "SUA MELHOR", "importada": "IMPORTADA"}.get(c.get("fonte"), "")
-        p.setFont(fonte(10, QFont.DemiBold))
-        if self.visivel("titulo"):
+        p.setFont(fonte(10, QFont.DemiBold, p=p))
+        if self._abre(p, "titulo"):
+            p.setFont(fonte(10, QFont.DemiBold, p=p))
+            p.setPen(COR_CINZA)
             p.drawText(QRectF(self.LARG - 160, 8, 146, 18), Qt.AlignRight | Qt.AlignVCenter, fonte_txt)
+            self._fecha(p)
         pr = c.get("proxima")
-        if self._abre(p, "proxima"):
-            if pr:
+        if pr:
+            if self._abre(p, "proxima"):
                 cont = pr.get("contagem")
                 tirada = pr.get("tipo") == "tirada"
                 if pr.get("fase") == "freando":
@@ -9696,43 +10284,53 @@ class JanelaCoach(JanelaBase):
                 else:
                     cor, grande = QColor(255, 255, 255), f"{pr['dist_m']:.0f} m"
                 p.setPen(cor)
-                p.setFont(fonte(40 if (len(grande) <= 5 or grande.endswith(" m")) else 29, QFont.Bold))
+                p.setFont(fonte(40 if (len(grande) <= 5 or grande.endswith(" m")) else 29, QFont.Bold, p=p))
                 p.drawText(QRectF(14, 28, 196, 56), Qt.AlignLeft | Qt.AlignVCenter, grande)
+                self._fecha(p)
+            # build av: freada, marcha e apice funcionam sozinhos (nao dependem mais do item "proxima")
+            if self._abre(p, "freada"):
                 p.setPen(COR_CINZA)
-                p.setFont(fonte(10, QFont.DemiBold))
+                p.setFont(fonte(10, QFont.DemiBold, p=p))
                 p.drawText(QRectF(14, 84, 190, 14), Qt.AlignLeft | Qt.AlignVCenter, QFontMetrics(p.font()).elidedText(
                                    f"C{pr['n']} de {pr['total']} | {'tirada' if pr.get('tipo') == 'tirada' else 'freada'} {pr['dist_m']:.0f} m"
                                    + (f" | F{pr['plano']['pico_pct']}%" + (" trail" if pr['plano'].get('trail') else "")
                                      + (f" A{pr['plano']['acel_saida_pct']}%" if pr['plano'].get('acel_saida_pct') is not None else "") if pr.get("plano") else ""),
                                    Qt.ElideRight, 192))
-                p.setPen(QColor(255, 255, 255))
-                p.setFont(fonte(10, QFont.DemiBold))
+                self._fecha(p)
+            if self._abre(p, "marcha"):
+                p.setFont(fonte(10, QFont.DemiBold, p=p))
                 p.setPen(COR_CINZA)
                 p.drawText(QRectF(214, 30, 64, 14), Qt.AlignLeft | Qt.AlignVCenter, "MARCHA")
+                p.setPen(QColor(255, 255, 255))
+                p.setFont(fonte(30, QFont.Bold, p=p))
+                p.drawText(QRectF(214, 44, 64, 40), Qt.AlignLeft | Qt.AlignVCenter, str(pr["marcha"]) if pr.get("marcha") else "--")
+                self._fecha(p)
+            if self._abre(p, "apice"):
+                p.setFont(fonte(10, QFont.DemiBold, p=p))
+                p.setPen(COR_CINZA)
                 p.drawText(QRectF(284, 30, 70, 14), Qt.AlignLeft | Qt.AlignVCenter, "APICE")
                 p.setPen(QColor(255, 255, 255))
-                p.setFont(fonte(30, QFont.Bold))
-                p.drawText(QRectF(214, 44, 64, 40), Qt.AlignLeft | Qt.AlignVCenter, str(pr["marcha"]) if pr.get("marcha") else "--")
-                p.setFont(fonte(22, QFont.DemiBold))
+                p.setFont(fonte(22, QFont.DemiBold, p=p))
                 p.drawText(QRectF(284, 44, 72, 40), Qt.AlignLeft | Qt.AlignVCenter, fmt_dec(pr["vel_apice"], 0))
-            else:
-                p.setPen(COR_CINZA)
-                p.setFont(fonte(13, QFont.DemiBold))
-                p.drawText(QRectF(14, 36, self.LARG - 28, 60), Qt.AlignLeft | Qt.AlignVCenter | Qt.TextWordWrap, "Sem zona de frenagem a frente")
+                self._fecha(p)
+        elif self._abre(p, "proxima"):
+            p.setPen(COR_CINZA)
+            p.setFont(fonte(13, QFont.DemiBold, p=p))
+            p.drawText(QRectF(14, 36, self.LARG - 28, 60), Qt.AlignLeft | Qt.AlignVCenter | Qt.TextWordWrap, "Sem zona de frenagem a frente")
             self._fecha(p)
         if self._abre(p, "delta"):
             # delta contra a referencia
             p.setPen(QPen(QColor(255, 255, 255, 40), 1))
             p.drawLine(QPointF(14, 106), QPointF(self.LARG - 14, 106))
             dl = c.get("delta")
-            p.setFont(fonte(10, QFont.DemiBold))
+            p.setFont(fonte(10, QFont.DemiBold, p=p))
             p.setPen(COR_CINZA)
             p.drawText(QRectF(14, 110, 120, 14), Qt.AlignLeft | Qt.AlignVCenter, "DELTA REF.")
-            p.setFont(fonte(20, QFont.Bold))
+            p.setFont(fonte(20, QFont.Bold, p=p))
             p.setPen(COR_VERDE if (dl is not None and dl <= 0) else COR_VERMELHO if dl is not None else COR_CINZA)
             p.drawText(QRectF(14, 124, 120, 28), Qt.AlignLeft | Qt.AlignVCenter, fmt_dec(dl, 2, sinal=True) if dl is not None else "--")
             fb = c.get("feedback")
-            p.setFont(fonte(11, QFont.DemiBold))
+            p.setFont(fonte(11, QFont.DemiBold, p=p))
             if fb:
                 p.setPen(self._cor_nota(fb.get("nota")))
                 p.drawText(QRectF(140, 112, self.LARG - 154, 40), Qt.AlignLeft | Qt.AlignVCenter | Qt.TextWordWrap, fb.get("texto", ""))
@@ -9747,21 +10345,22 @@ class JanelaCoach(JanelaBase):
             rt = c.get("ritmo_texto")
             if rt:
                 p.setPen(QColor(235, 235, 240))
-                p.setFont(fonte(11, QFont.DemiBold))
+                p.setFont(fonte(11, QFont.DemiBold, p=p))
                 p.drawText(QRectF(14, 160, self.LARG - 28, 20), Qt.AlignLeft | Qt.AlignVCenter, rt)
-            ms = (pr or {}).get("melhor_sua")
-            if ms and ms.get("texto"):                                          # 1.7.0: dica "melhor por curva" (so dica, a referencia nao muda)
-                p.setPen(COR_VERDE)
-                p.setFont(fonte(10, QFont.DemiBold))
-                p.drawText(QRectF(14, 182, self.LARG - 28, 18), Qt.AlignLeft | Qt.AlignVCenter,
-                           QFontMetrics(p.font()).elidedText(ms["texto"], Qt.ElideRight, int(self.LARG - 28)))
+            self._fecha(p)
+        ms = (pr or {}).get("melhor_sua")
+        if ms and ms.get("texto") and self._abre(p, "dica"):                   # 1.7.0: dica "melhor por curva" (so dica, a referencia nao muda); build au: item proprio
+            p.setPen(COR_VERDE)
+            p.setFont(fonte(10, QFont.DemiBold, p=p))
+            p.drawText(QRectF(14, 182, self.LARG - 28, 18), Qt.AlignLeft | Qt.AlignVCenter,
+                       QFontMetrics(p.font()).elidedText(ms["texto"], Qt.ElideRight, int(self.LARG - 28)))
             self._fecha(p)
         if self._abre(p, "rodape"):
             rodape = c.get("aviso") or ((c.get("stint") or {}).get("texto") or "")
             if rodape:
                 aviso = bool(c.get("aviso"))
                 p.setPen(COR_LARANJA if aviso else COR_CINZA)
-                p.setFont(fonte(10, QFont.Bold if aviso else QFont.DemiBold))
+                p.setFont(fonte(10, QFont.Bold if aviso else QFont.DemiBold, p=p))
                 p.drawText(QRectF(14, self.ALT - 30, self.LARG - 28, 18), Qt.AlignLeft | Qt.AlignVCenter, rodape.upper() if aviso else rodape)
             self._fecha(p)
 
@@ -9976,7 +10575,7 @@ def criar_icone():
     p.setPen(Qt.NoPen)
     p.drawEllipse(4, 4, 56, 56)
     p.setPen(QColor(255, 255, 255))
-    p.setFont(fonte(28, QFont.Bold))
+    p.setFont(fonte(28, QFont.Bold, p=p))
     p.drawText(pix.rect(), Qt.AlignCenter, "i")
     p.end()
     return QIcon(pix)

@@ -1,0 +1,25 @@
+Anéis e rótulos de G (1g, 2g...)¦G rings and labels (1g, 2g...)¦Anillos y etiquetas de G (1g, 2g...)¦G-Ringe und Beschriftungen (1g, 2g...)¦Anneaux et libellés de G (1g, 2g...)¦Anelli ed etichette di G (1g, 2g...)
+Aviso 'Aprendendo o traçado'¦'Learning the track layout' notice¦Aviso 'Aprendiendo el trazado'¦Hinweis 'Strecke wird gelernt'¦Avis « Apprentissage du tracé »¦Avviso 'Apprendimento del tracciato'
+Barra superior (fundo)¦Top bar (background)¦Barra superior (fondo)¦Obere Leiste (Hintergrund)¦Barre supérieure (fond)¦Barra superiore (sfondo)
+Brilho em volta (quando acesa)¦Surrounding glow (when lit)¦Brillo alrededor (cuando está encendida)¦Leuchten ringsum (wenn an)¦Halo autour (quand allumée)¦Alone intorno (quando accesa)
+Caixa colorida com valor e unidade¦Colored box with value and unit¦Caja de color con valor y unidad¦Farbiges Feld mit Wert und Einheit¦Boîte colorée avec valeur et unité¦Riquadro colorato con valore e unità
+Carros (bolinhas e números)¦Cars (dots and numbers)¦Coches (puntos y números)¦Autos (Punkte und Nummern)¦Voitures (points et numéros)¦Auto (punti e numeri)
+Etiqueta com o número¦Number tag¦Etiqueta con el número¦Nummernschild¦Étiquette du numéro¦Etichetta del numero
+Etiqueta da classe¦Class tag¦Etiqueta de la clase¦Klassenetikett¦Étiquette de la classe¦Etichetta della classe
+G atual e pico¦Current and peak G¦G actual y pico¦Aktuelles und Spitzen-G¦G actuel et pic¦G attuale e picco
+Gap atual¦Current gap¦Diferencia actual¦Aktueller Abstand¦Écart actuel¦Distacco attuale
+Letra N (norte)¦Letter N (north)¦Letra N (norte)¦Buchstabe N (Norden)¦Lettre N (nord)¦Lettera N (nord)
+Limite, distância de frenagem e box¦Limit, braking distance and pit box¦Límite, distancia de frenada y box¦Limit, Bremsweg und Box¦Limite, distance de freinage et stand¦Limite, distanza di frenata e box
+Linha de largada/chegada¦Start/finish line¦Línea de salida/meta¦Start-/Ziellinie¦Ligne de départ/arrivée¦Linea di partenza/arrivo
+Mensagem 'Aprendendo o traçado'¦'Learning the track layout' message¦Mensaje 'Aprendiendo el trazado'¦Meldung 'Strecke wird gelernt'¦Message « Apprentissage du tracé »¦Messaggio 'Apprendimento del tracciato'
+Mensagem de espera¦Waiting message¦Mensaje de espera¦Wartemeldung¦Message d'attente¦Messaggio di attesa
+Número e nome do piloto¦Driver number and name¦Número y nombre del piloto¦Fahrernummer und -name¦Numéro et nom du pilote¦Numero e nome del pilota
+Outros carros (bolinhas e números)¦Other cars (dots and numbers)¦Otros coches (puntos y números)¦Andere Autos (Punkte und Nummern)¦Autres voitures (points et numéros)¦Altre auto (punti e numeri)
+Pista e temperatura¦Track and temperature¦Pista y temperatura¦Strecke und Temperatur¦Piste et température¦Pista e temperatura
+Pontos de incidente (Nx)¦Incident points (Nx)¦Puntos de incidente (Nx)¦Zwischenfallpunkte (Nx)¦Points d'incident (Nx)¦Punti di incidente (Nx)
+Seu carro (seta e posição)¦Your car (arrow and position)¦Tu coche (flecha y posición)¦Dein Auto (Pfeil und Position)¦Votre voiture (flèche et position)¦La tua auto (freccia e posizione)
+Trilha e ponto de G¦G trail and dot¦Rastro y punto de G¦G-Spur und Punkt¦Traînée et point de G¦Scia e punto di G
+Título (ENTRADA DO PIT / PIT LANE)¦Title (PIT ENTRY / PIT LANE)¦Título (ENTRADA DE PIT / PIT LANE)¦Titel (BOXENEINFAHRT / BOXENGASSE)¦Titre (ENTRÉE DES STANDS / PIT LANE)¦Titolo (INGRESSO PIT / PIT LANE)
+Volta, há quanto tempo e box¦Lap, how long ago and pit¦Vuelta, hace cuánto y box¦Runde, wie lange her und Box¦Tour, il y a combien de temps et stand¦Giro, quanto tempo fa e box
+Ícone da luz¦Light icon¦Icono de la luz¦Lichtsymbol¦Icône du voyant¦Icona della luce
+{}  (depende de: {})¦{}  (depends on: {})¦{}  (depende de: {})¦{}  (abhängig von: {})¦{}  (dépend de : {})¦{}  (dipende da: {})

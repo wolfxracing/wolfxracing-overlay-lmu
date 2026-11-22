@@ -420,6 +420,10 @@ def construir(base):
                      ("tempo", "Tempo decorrido / total"), ("ar", "Temperatura do ar"), ("pista", "Temperatura da pista"),
                      ("umidade", "Umidade"), ("inc", "Incidentes"), ("clima", "Clima da pista"),
                      ("titulos", "Títulos das colunas (POS, DRIVER, GAP...)"))
+        # build au: itens com posicao e estilo livres na Central (alem das colunas e do cabecalho que ja ligam/desligam)
+        ELEMENTOS = (("barra", "Barra superior (fundo)"), ("sessao", "Tipo da sessão (RACE, QUALY...)"),
+                     ("contadores", "Volta, tempo, temperaturas e umidade"), ("clima", "Clima da pista"), ("incidentes", "Incidentes (INC)"),
+                     ("titulos", "Títulos das colunas"), ("classes", "Faixa de cada classe (GTP, GT3...)"), ("linhas", "Linhas dos pilotos"))
         RESERVA_DIREITA = 0                 # px que a barra superior deixa livres a direita (o LMU escreve 'N CARS' ali)
         LARGURA_BASE = LARGURA_FOTO
         FIM_COLUNAS = 840                   # x onde termina a ultima coluna (stint 800 + 40)
@@ -542,21 +546,26 @@ def construir(base):
             classif = d.get("classificacao")
             if not classif or not self._blocos_atual:
                 p.setPen(base.COR_CINZA)
-                p.setFont(base.fonte(12))
+                p.setFont(base.fonte(12, p=p))
                 p.drawText(self._retangulo_base(), Qt.AlignCenter, self._tx["sem_dados"])
                 return
             if classif.get("sessao_encerrada") and self.config.get("classif_bandeira_fundo", True):
                 self._fundo_quadriculada(p)
             if "barra" not in self._cab_off:
-                self._barra(p, classif.get("cabecalho") or {})
-            if "titulos" not in self._cab_off:
+                self._barra(p, classif.get("cabecalho") or {})        # build av: o item "barra" e so o fundo; sessao, contadores, clima e incidentes sao independentes
+            if "titulos" not in self._cab_off and self._abre(p, "titulos"):
                 self._rotulos(p)
+                self._fecha(p)
             y = self._topo
             for classe, linhas in self._blocos_atual:
-                self._faixa_classe(p, y, classe)
+                if self._abre(p, "classes"):
+                    self._faixa_classe(p, y, classe)
+                    self._fecha(p)
                 y += ALTURA_LINHA_FOTO
                 for linha, salto in linhas:
-                    self._linha_foto(p, y, linha, salto, QColor(*classe["cor"]))
+                    if self._abre(p, "linhas"):
+                        self._linha_foto(p, y, linha, salto, QColor(*classe["cor"]))
+                        self._fecha(p)
                     y += ALTURA_LINHA_FOTO
 
         # bandeira quadriculada (build am) ----------------------------------------------------
@@ -610,19 +619,31 @@ def construir(base):
         # barra superior ------------------------------------------------------------------
         def _barra(self, p, cab):
             h = ALTURA_BARRA
-            p.setPen(Qt.NoPen)
-            p.setBrush(QColor(255, 255, 255, 16))
-            p.drawRoundedRect(QRectF(8, 6, self._largura - 16, h - 6), 8, 8)
+            if self._abre(p, "barra"):
+                p.setPen(Qt.NoPen)
+                p.setBrush(QColor(255, 255, 255, 16))
+                p.drawRoundedRect(QRectF(8, 6, self._largura - 16, h - 6), 8, 8)
+                self._fecha(p)
             # lado direito primeiro (clima e incidentes): ele define ate onde os itens da esquerda podem ir
             xd = self._largura - 16
             off = self._cab_off
+
+            def medir(eid, texto, tam, peso=QFont.Bold):
+                """Largura do texto COM o estilo do item (fonte, negrito, tamanho %), para o espaco reservado bater com o desenho."""
+                if not self.visivel(eid) or not self._abre(p, eid):
+                    return None
+                try:
+                    return QFontMetrics(base.fonte(tam, peso, p=p)).horizontalAdvance(texto) + 8
+                finally:
+                    self._fecha(p)
             if cab.get("clima") and "clima" not in off:
-                f = base.fonte(10, QFont.Bold)
-                larg = QFontMetrics(f).horizontalAdvance(cab["clima"]) + 8
-                p.setFont(f)
-                p.setPen(QColor(235, 235, 240))
-                p.drawText(QRectF(xd - larg, 11, larg, 20), Qt.AlignRight | Qt.AlignVCenter, cab["clima"])
-                xd -= larg + 14
+                larg = medir("clima", cab["clima"], 10)
+                if larg is not None and self._abre(p, "clima"):
+                    p.setFont(base.fonte(10, QFont.Bold, p=p))
+                    p.setPen(QColor(235, 235, 240))
+                    p.drawText(QRectF(xd - larg, 11, larg, 20), Qt.AlignRight | Qt.AlignVCenter, cab["clima"])
+                    self._fecha(p)
+                    xd -= larg + 14
             if cab.get("inc") is not None and "inc" not in off:
                 lim = cab.get("inc_limite")
                 txt = "%d/%d" % (cab["inc"], lim) if lim else "%d" % cab["inc"]
@@ -631,28 +652,35 @@ def construir(base):
                     cor = base.COR_VERMELHO
                 elif lim and cab["inc"] >= 0.5 * lim:
                     cor = base.COR_AMARELO
-                f = base.fonte(10, QFont.Bold)
-                larg = QFontMetrics(f).horizontalAdvance(txt) + 8
-                p.setFont(f)
-                p.setPen(cor)
-                p.drawText(QRectF(xd - larg, 11, larg, 20), Qt.AlignRight | Qt.AlignVCenter, txt)
-                xd -= larg
-                p.setFont(base.fonte(8, QFont.DemiBold))
-                p.setPen(base.COR_CINZA)
-                p.drawText(QRectF(xd - 34, 11, 32, 20), Qt.AlignRight | Qt.AlignVCenter, "INC")
-                xd -= 36
+                larg = medir("incidentes", txt, 10)
+                if larg is not None and self._abre(p, "incidentes"):
+                    p.setFont(base.fonte(10, QFont.Bold, p=p))
+                    p.setPen(cor)
+                    p.drawText(QRectF(xd - larg, 11, larg, 20), Qt.AlignRight | Qt.AlignVCenter, txt)
+                    rot_w = QFontMetrics(base.fonte(8, QFont.DemiBold, p=p)).horizontalAdvance("INC") + 6
+                    p.setFont(base.fonte(8, QFont.DemiBold, p=p))
+                    p.setPen(base.COR_CINZA)
+                    p.drawText(QRectF(xd - larg - rot_w - 2, 11, rot_w, 20), Qt.AlignRight | Qt.AlignVCenter, "INC")
+                    self._fecha(p)
+                    xd -= larg + rot_w + 4
             limite = xd - 10 - self._reserva   # com colunas escondidas a janela fica mais estreita: o que nao couber some, sem sobrepor
             x = 16
             sessao = cab.get("sessao") or (self.dados.get("classificacao") or {}).get("tipo_sessao") or ""
+            parar = False
             if sessao and "sessao" not in off:
-                f = base.fonte(9, QFont.Bold)
-                larg = QFontMetrics(f).horizontalAdvance(sessao) + 18
-                p.setPen(Qt.NoPen)
-                p.setBrush(QColor(176, 40, 56))
-                p.drawRoundedRect(QRectF(x, 11, larg, 20), 5, 5)
-                p.setFont(f)
-                p.setPen(QColor(255, 255, 255))
-                p.drawText(QRectF(x, 11, larg, 20), Qt.AlignCenter, sessao)
+                larg = (medir("sessao", sessao, 9) or 8) + 10
+                ocupa = getattr(self, "_ncars_ocupa", None)   # so o LMU define, inclusive 0 quando o contador nao aparece
+                if ocupa is not None and x + larg > xd - 10 - ocupa:
+                    parar = True                              # sessao nao cabe ao lado do contador: some inteira, e os itens seguintes tambem (ordem de prioridade)
+                elif self._abre(p, "sessao"):
+                    f = base.fonte(9, QFont.Bold, p=p)
+                    p.setPen(Qt.NoPen)
+                    p.setBrush(QColor(176, 40, 56))
+                    p.drawRoundedRect(QRectF(x, 11, larg, 20), 5, 5)
+                    p.setFont(f)
+                    p.setPen(QColor(255, 255, 255))
+                    p.drawText(QRectF(x, 11, larg, 20), Qt.AlignCenter, sessao)
+                    self._fecha(p)
                 x += larg + 16
             itens = []
             if cab.get("volta") is not None and "volta" not in off:
@@ -672,14 +700,22 @@ def construir(base):
             if cab.get("umidade") is not None and "umidade" not in off:
                 itens.append(("HUM %d%%" % round(cab["umidade"]), base.COR_CINZA, 9, 0))
             for texto, cor, tam, larg_min in itens:          # em ordem de prioridade; parou de caber, os demais ficam de fora
-                larg = max(larg_min, QFontMetrics(base.fonte(tam, QFont.Bold)).horizontalAdvance(texto) + 8)
+                if parar:
+                    break
+                larg = medir("contadores", texto, tam)
+                if larg is None:
+                    break
+                larg = max(larg_min, larg)
                 if x + larg > limite:
                     break
-                x = self._item(p, x, texto, cor=cor, tam=tam, larg_min=larg_min)
+                if self._abre(p, "contadores"):
+                    self._item(p, x, texto, cor=cor, tam=tam, larg_min=larg_min)
+                    self._fecha(p)
+                x = x + larg + 12
 
         @staticmethod
         def _item(p, x, texto, cor, tam, larg_min=0):
-            f = base.fonte(tam, QFont.Bold)
+            f = base.fonte(tam, QFont.Bold, p=p)
             larg = max(larg_min, QFontMetrics(f).horizontalAdvance(texto) + 8)
             p.setFont(f)
             p.setPen(cor)
@@ -693,7 +729,7 @@ def construir(base):
         def _rotulos(self, p):
             t, X = self._tx, self.X
             y = self._y_rotulos()
-            p.setFont(base.fonte(7, QFont.DemiBold))
+            p.setFont(base.fonte(7, QFont.DemiBold, p=p))
             p.setPen(base.COR_CINZA)
             h = ALTURA_ROTULOS
 
@@ -728,7 +764,7 @@ def construir(base):
         def _faixa_classe(self, p, y, classe):
             h = ALTURA_LINHA_FOTO
             cor = QColor(*classe["cor"])
-            f = base.fonte(9, QFont.Bold)
+            f = base.fonte(9, QFont.Bold, p=p)
             larg = QFontMetrics(f).horizontalAdvance(classe["nome"]) + 20
             p.setPen(Qt.NoPen)
             p.setBrush(cor)
@@ -739,11 +775,11 @@ def construir(base):
             p.drawText(QRectF(12, y + 4, larg, h - 8), Qt.AlignCenter, classe["nome"])
             x = 12 + larg + 12
             if classe.get("sof"):
-                p.setFont(base.fonte(9, QFont.DemiBold))
+                p.setFont(base.fonte(9, QFont.DemiBold, p=p))
                 p.setPen(base.COR_TEXTO)
                 p.drawText(QRectF(x, y, 120, h), Qt.AlignLeft | Qt.AlignVCenter,
                            "%s %s" % (self._tx["sof"], int(round(classe["sof"]))))
-            p.setFont(base.fonte(8, QFont.DemiBold))
+            p.setFont(base.fonte(8, QFont.DemiBold, p=p))
             p.setPen(base.COR_CINZA)
             p.drawText(QRectF(self._largura - 16 - 120, y, 120, h), Qt.AlignRight | Qt.AlignVCenter,
                        "%d" % classe["n_carros"])
@@ -768,7 +804,7 @@ def construir(base):
                 p.setPen(QPen(QColor(255, 255, 255, 60), 1))
                 p.setBrush(QColor(0, 0, 0, 110) if not d["eu"] else QColor(255, 255, 255, 40))
                 p.drawRoundedRect(QRectF(X["pos"], y + 3, 26, h - 6), 5, 5)
-                p.setFont(base.fonte(10, QFont.Bold))
+                p.setFont(base.fonte(10, QFont.Bold, p=p))
                 p.setPen(texto)
                 p.drawText(QRectF(X["pos"], y + 3, 26, h - 6), Qt.AlignCenter, str(d["pos"]))
 
@@ -782,7 +818,7 @@ def construir(base):
                 p.setBrush(cor_classe)
                 p.drawRoundedRect(QRectF(X["num"], y + 3, larg_num, h - 6), 5, 5)
                 lum = 0.299 * cor_classe.red() + 0.587 * cor_classe.green() + 0.114 * cor_classe.blue()
-                p.setFont(base.fonte(10, QFont.Bold))
+                p.setFont(base.fonte(10, QFont.Bold, p=p))
                 p.setPen(QColor(20, 20, 25) if lum > 150 else QColor(255, 255, 255))
                 p.drawText(QRectF(X["num"], y + 3, larg_num, h - 6), Qt.AlignCenter, "#" + str(d["numero"]))
 
@@ -798,16 +834,16 @@ def construir(base):
                 p.drawRoundedRect(QRectF(X["lic"], y + 4, 46, h - 8), 4, 4)
                 lum = 0.299 * cor_lic.red() + 0.587 * cor_lic.green() + 0.114 * cor_lic.blue()
                 p.setPen(QColor(20, 20, 25) if lum > 150 else QColor(255, 255, 255))
-                p.setFont(base.fonte(8, QFont.Bold))
+                p.setFont(base.fonte(8, QFont.Bold, p=p))
                 p.drawText(QRectF(X["lic"], y + 4, 46, h - 8), Qt.AlignCenter, fmt_licenca(lic))
             if "ir" in vis:
-                p.setFont(base.fonte(9, QFont.Bold))
+                p.setFont(base.fonte(9, QFont.Bold, p=p))
                 p.setPen(texto if d.get("irating") else base.COR_CINZA)
                 p.drawText(QRectF(X["ir"], y, 42, h), Qt.AlignLeft | Qt.AlignVCenter, fmt_ir_k(d.get("irating")))
                 ird = d.get("ir_delta")
                 if ird:
                     sobe = ird > 0
-                    p.setFont(base.fonte(8, QFont.Bold))
+                    p.setFont(base.fonte(8, QFont.Bold, p=p))
                     p.setPen(QColor(60, 220, 110) if sobe else QColor(255, 85, 85))
                     p.drawText(QRectF(X["ird"], y, 32, h), Qt.AlignLeft | Qt.AlignVCenter,
                                ("▲" if sobe else "▼") + str(abs(ird)))
@@ -817,21 +853,21 @@ def construir(base):
             if "pais" in vis:
                 self._bandeira(p, X["pais"], y, h, d["pais"])
 
-            f = base.fonte(10, QFont.Bold)
+            f = base.fonte(10, QFont.Bold, p=p)
             p.setFont(f)
             p.setPen(texto)
             p.drawText(QRectF(X["piloto"], y, 138, h), Qt.AlignLeft | Qt.AlignVCenter,
                        QFontMetrics(f).elidedText(d["nome"], Qt.ElideRight, 136))
 
             # gap / intervalo / melhor / ultima
-            p.setFont(base.fonte(10, QFont.DemiBold))
+            p.setFont(base.fonte(10, QFont.DemiBold, p=p))
             for chave, larg in (("gap", 58), ("int", 56)):
                 if chave not in vis:
                     continue
                 v = d.get(chave)
                 p.setPen(base.COR_CINZA if v is None else texto)
                 p.drawText(QRectF(X[chave], y, larg, h), Qt.AlignRight | Qt.AlignVCenter, fmt_gap(v))
-            p.setFont(base.fonte(10, QFont.Bold))
+            p.setFont(base.fonte(10, QFont.Bold, p=p))
             if "melhor" in vis:
                 p.setPen(base.COR_CINZA if d["melhor"] is None else
                          (QColor(190, 130, 255) if d["melhor_da_classe"] and not d["eu"] else texto))
@@ -850,7 +886,7 @@ def construir(base):
 
             # paradas e stint
             n = d.get("paradas")
-            p.setFont(base.fonte(10, QFont.Bold))
+            p.setFont(base.fonte(10, QFont.Bold, p=p))
             if "pit" in vis:
                 if na_box:
                     p.setPen(QColor(255, 165, 60))
@@ -879,7 +915,7 @@ def construir(base):
             p.setPen(QPen(QColor(cor.red(), cor.green(), cor.blue(), 255 if (voltas is None or confiavel) else 110), 2.0))
             p.setBrush(QColor(0, 0, 0, 120))
             p.drawEllipse(QRectF(cx - r, cy - r, 2 * r, 2 * r))
-            p.setFont(base.fonte(8, QFont.Bold))
+            p.setFont(base.fonte(8, QFont.Bold, p=p))
             if voltas is None:
                 p.setPen(cor)
                 texto = pneu["letra"]
@@ -897,7 +933,7 @@ def construir(base):
                     pm = base._pixmap_ajustado(caminho, round(22 * self.escala_x), round(16 * self.escala_y))
             fy = y + (h - 16) / 2.0
             if pm is None:
-                p.setFont(base.fonte(7, QFont.Bold))
+                p.setFont(base.fonte(7, QFont.Bold, p=p))
                 p.setPen(base.COR_CINZA)
                 p.drawText(QRectF(x - 2, y, 30, h), Qt.AlignCenter, str(codigo or ""))
                 return

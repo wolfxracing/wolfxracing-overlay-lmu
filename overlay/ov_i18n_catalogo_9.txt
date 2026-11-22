@@ -1,0 +1,58 @@
+Aviso PARE / CEDA / LIVRE¦STOP / YIELD / CLEAR notice¦Aviso PARE / CEDA / LIBRE¦Hinweis STOPP / VORFAHRT / FREI¦Avis STOP / CÉDEZ / LIBRE¦Avviso STOP / DAI PRECEDENZA / LIBERO
+Aviso de carro ao lado¦Car-alongside warning¦Aviso de coche al lado¦Warnung: Auto daneben¦Alerte voiture à côté¦Avviso auto a fianco
+Avisos do motor¦Engine warnings¦Avisos del motor¦Motorwarnungen¦Alertes moteur¦Avvisi motore
+Barra do nível da pista¦Track level bar¦Barra del nivel de la pista¦Streckenniveau-Balken¦Barre du niveau de piste¦Barra del livello pista
+Barra e nível do tanque¦Tank bar and level¦Barra y nivel del depósito¦Tankbalken und -stand¦Barre et niveau du réservoir¦Barra e livello serbatoio
+Barra superior (fundo e todo o cabeçalho)¦Top bar (background and whole header)¦Barra superior (fondo y toda la cabecera)¦Obere Leiste (Hintergrund und ganzer Kopf)¦Barre supérieure (fond et en-tête complet)¦Barra superiore (sfondo e intera intestazione)
+Borda colorida¦Colored border¦Borde de color¦Farbiger Rand¦Bordure colorée¦Bordo colorato
+Brilho vermelho dos lados¦Red side glow¦Brillo rojo de los lados¦Rotes Seitenleuchten¦Lueur rouge latérale¦Bagliore rosso laterale
+Carros ao redor (e metros)¦Nearby cars (and meters)¦Coches alrededor (y metros)¦Umliegende Autos (und Meter)¦Voitures autour (et mètres)¦Auto intorno (e metri)
+Contador de incidentes¦Incident counter¦Contador de incidentes¦Zwischenfallzähler¦Compteur d'incidents¦Contatore incidenti
+Cor¦Color¦Color¦Farbe¦Couleur¦Colore
+Cálculo: combustível necessário¦Calculation: fuel needed¦Cálculo: combustible necesario¦Berechnung: benötigter Kraftstoff¦Calcul : carburant nécessaire¦Calcolo: carburante necessario
+Cálculo: quanto adicionar¦Calculation: how much to add¦Cálculo: cuánto añadir¦Berechnung: wie viel nachtanken¦Calcul : quantité à ajouter¦Calcolo: quanto aggiungere
+Cálculo: voltas até o fim¦Calculation: laps to the end¦Cálculo: vueltas hasta el final¦Berechnung: Runden bis zum Ende¦Calcul : tours jusqu'à la fin¦Calcolo: giri alla fine
+Desenho do carro com as zonas¦Car drawing with zones¦Dibujo del coche con las zonas¦Autozeichnung mit Zonen¦Dessin de la voiture avec les zones¦Disegno dell'auto con le zone
+Dica da melhor curva¦Best-corner tip¦Consejo de la mejor curva¦Tipp zur besten Kurve¦Conseil du meilleur virage¦Suggerimento della curva migliore
+Distância à frente e atrás¦Distance ahead and behind¦Distancia delante y detrás¦Abstand vorne und hinten¦Distance devant et derrière¦Distanza davanti e dietro
+Faixa da pista e marcas de distância¦Track lane and distance marks¦Franja de la pista y marcas de distancia¦Fahrbahnstreifen und Distanzmarken¦Bande de piste et repères de distance¦Corsia pista e segni di distanza
+Faixa de cada classe (GTP, GT3...)¦Class strip (GTP, GT3...)¦Franja de cada clase (GTP, GT3...)¦Klassenband (GTP, GT3...)¦Bandeau de chaque classe (GTP, GT3...)¦Fascia di ogni classe (GTP, GT3...)
+Faixa de situação (reparo / impacto)¦Status strip (repair / impact)¦Franja de situación (reparación / impacto)¦Statusband (Reparatur / Einschlag)¦Bandeau de situation (réparation / impact)¦Fascia di stato (riparazione / impatto)
+Faixa lateral colorida¦Colored side strip¦Franja lateral de color¦Farbiger Seitenstreifen¦Bande latérale colorée¦Fascia laterale colorata
+Figura da bandeira¦Flag graphic¦Figura de la bandera¦Flaggengrafik¦Figure du drapeau¦Figura della bandiera
+Gráfico das voltas¦Laps chart¦Gráfico de las vueltas¦Rundendiagramm¦Graphique des tours¦Grafico dei giri
+Incidentes (INC)¦Incidents (INC)¦Incidentes (INC)¦Zwischenfälle (INC)¦Incidents (INC)¦Incidenti (INC)
+Janela de pit (ABERTA / FECHADA)¦Pit window (OPEN / CLOSED)¦Ventana de pit (ABIERTA / CERRADA)¦Boxenfenster (OFFEN / GESCHLOSSEN)¦Fenêtre de stand (OUVERTE / FERMÉE)¦Finestra pit (APERTA / CHIUSA)
+Linha de detalhe¦Detail line¦Línea de detalle¦Detailzeile¦Ligne de détail¦Riga di dettaglio
+Linha do PIT (voltas)¦PIT line (laps)¦Línea del PIT (vueltas)¦PIT-Zeile (Runden)¦Ligne PIT (tours)¦Riga PIT (giri)
+Linhas dos pilotos¦Driver rows¦Filas de los pilotos¦Fahrerzeilen¦Lignes des pilotes¦Righe dei piloti
+Litros a colocar¦Liters to add¦Litros a poner¦Zu tankende Liter¦Litres à ajouter¦Litri da aggiungere
+Marcha da curva¦Corner gear¦Marcha de la curva¦Kurvengang¦Rapport du virage¦Marcia della curva
+Nome e nível (ex.: Pouco molhada 4/7)¦Name and level (e.g. Slightly wet 4/7)¦Nombre y nivel (p. ej.: Poco mojada 4/7)¦Name und Stufe (z. B. Leicht nass 4/7)¦Nom et niveau (ex. : Peu mouillée 4/7)¦Nome e livello (es.: Poco bagnata 4/7)
+Nota de rodapé¦Footnote¦Nota al pie¦Fußnote¦Note de pied¦Nota a piè di pagina
+Nota do rodapé (SDK / estimado)¦Footer note (SDK / estimated)¦Nota del pie (SDK / estimado)¦Fußnote (SDK / geschätzt)¦Note de pied (SDK / estimé)¦Nota a piè (SDK / stimato)
+O que fazer (seguir, trocar...)¦What to do (stay out, change...)¦Qué hacer (seguir, cambiar...)¦Was zu tun ist (weiter, wechseln...)¦Que faire (continuer, changer...)¦Cosa fare (proseguire, cambiare...)
+Posição e estilo¦Position and style¦Posición y estilo¦Position und Stil¦Position et style¦Posizione e stile
+Próxima freada: contagem grande¦Next braking: big countdown¦Próxima frenada: cuenta grande¦Nächste Bremsung: großer Countdown¦Prochain freinage : grand décompte¦Prossima frenata: conto alla rovescia grande
+Próxima freada: curva e distância¦Next braking: corner and distance¦Próxima frenada: curva y distancia¦Nächste Bremsung: Kurve und Abstand¦Prochain freinage : virage et distance¦Prossima frenata: curva e distanza
+Reparos e impactos (coluna da direita)¦Repairs and impacts (right column)¦Reparaciones e impactos (columna derecha)¦Reparaturen und Einschläge (rechte Spalte)¦Réparations et impacts (colonne de droite)¦Riparazioni e impatti (colonna destra)
+Ritmo (alvo, diferença e poupar)¦Pace (target, difference and saving)¦Ritmo (objetivo, diferencia y ahorro)¦Pace (Ziel, Differenz und Sparen)¦Rythme (cible, écart et économie)¦Ritmo (obiettivo, differenza e risparmio)
+Rótulo (PISTA / PARA A CORRIDA)¦Label (TRACK / FOR THE RACE)¦Etiqueta (PISTA / PARA LA CARRERA)¦Beschriftung (STRECKE / FÜRS RENNEN)¦Libellé (PISTE / POUR LA COURSE)¦Etichetta (PISTA / PER LA GARA)
+Rótulo da etapa¦Stage label¦Etiqueta de la etapa¦Etappenbeschriftung¦Libellé de l'étape¦Etichetta della fase
+Segundos até o carro de trás¦Seconds to the car behind¦Segundos hasta el coche de atrás¦Sekunden bis zum Auto dahinter¦Secondes jusqu'à la voiture derrière¦Secondi all'auto dietro
+Seu carro (verde)¦Your car (green)¦Tu coche (verde)¦Dein Auto (grün)¦Votre voiture (verte)¦La tua auto (verde)
+Tabela de médias (MÉD / MÁX / MÍN)¦Averages table (AVG / MAX / MIN)¦Tabla de medias (MED / MÁX / MÍN)¦Mittelwerttabelle (MITTEL / MAX / MIN)¦Tableau des moyennes (MOY / MAX / MIN)¦Tabella delle medie (MED / MAX / MIN)
+Tempo até acabar¦Time to the end¦Tiempo hasta el final¦Zeit bis zum Ende¦Temps jusqu'à la fin¦Tempo alla fine
+Tendência da pista (secando, molhando)¦Track trend (drying, getting wet)¦Tendencia de la pista (secándose, mojándose)¦Streckentrend (trocknet, wird nass)¦Tendance de la piste (sèche, se mouille)¦Tendenza della pista (si asciuga, si bagna)
+Título (DANOS DO CARRO)¦Title (CAR DAMAGE)¦Título (DAÑOS DEL COCHE)¦Titel (FAHRZEUGSCHÄDEN)¦Titre (DOMMAGES DE LA VOITURE)¦Titolo (DANNI DELL'AUTO)
+Título / contagem grande¦Title / big countdown¦Título / cuenta grande¦Titel / großer Countdown¦Titre / grand décompte¦Titolo / conto alla rovescia grande
+Títulos das colunas¦Column titles¦Títulos de las columnas¦Spaltenüberschriften¦Titres des colonnes¦Titoli delle colonne
+Vantagem e rivais¦Advantage and rivals¦Ventaja y rivales¦Vorteil und Rivalen¦Avantage et rivaux¦Vantaggio e rivali
+Velocidade no ápice¦Apex speed¦Velocidad en el vértice¦Geschwindigkeit am Scheitelpunkt¦Vitesse au point de corde¦Velocità al punto di corda
+Volta, tempo, temperaturas e umidade¦Lap, time, temperatures and humidity¦Vuelta, tiempo, temperaturas y humedad¦Runde, Zeit, Temperaturen und Feuchtigkeit¦Tour, temps, températures et humidité¦Giro, tempo, temperature e umidità
+Voltas até acabar¦Laps to the end¦Vueltas hasta el final¦Runden bis zum Ende¦Tours jusqu'à la fin¦Giri alla fine
+iRating¦iRating¦iRating¦iRating¦iRating¦iRating
+Ícone do pneu¦Tire icon¦Icono del neumático¦Reifensymbol¦Icône du pneu¦Icona del pneumatico
+Última, melhor e ótima¦Last, best and optimal¦Última, mejor y óptima¦Letzte, beste und optimale¦Dernier, meilleur et optimal¦Ultimo, migliore e ottimo
+Últimas voltas (tabela da direita)¦Recent laps (right table)¦Últimas vueltas (tabla derecha)¦Letzte Runden (rechte Tabelle)¦Derniers tours (tableau de droite)¦Ultimi giri (tabella destra)
+Últimos impactos¦Latest impacts¦Últimos impactos¦Letzte Einschläge¦Derniers impacts¦Ultimi impatti

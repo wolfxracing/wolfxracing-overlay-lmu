@@ -62,7 +62,7 @@ from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 from ov_janela_lmu import JanelaClassificacaoLMU, JanelaClimaLMU, classe_classificacao      # classificacao com mais colunas (so no LMU)
 import ov_janelas_extra_lmu as extra_lmu              # janelas novas (energia, pneus, danos, alertas, stints, tendencia)
 
-VERSAO = "LMU 1.8.0 Glass/Sport (base iRacing 1.8.0)"
+VERSAO = "LMU 1.8.1 Glass/Sport (base iRacing 1.8.1)"
 NOME_JOGO = "Le Mans Ultimate"
 DEMO = "--demo" in sys.argv
 DIAGNOSTICO = "--diagnostico" in sys.argv
@@ -996,7 +996,7 @@ def criar_icone():
     p.setPen(Qt.NoPen)
     p.drawEllipse(4, 4, 56, 56)
     p.setPen(QColor(255, 255, 255))
-    p.setFont(base.fonte(26, QFont.Bold))
+    p.setFont(base.fonte(26, QFont.Bold, p=p))
     p.drawText(pix.rect(), Qt.AlignCenter, "LM")
     p.end()
     return QIcon(pix)
@@ -1403,7 +1403,7 @@ def principal(leitor=None, config_extra=None, ao_iniciar=None, api_teclas=None):
         base.definir_tema(config.get("tema_moderno", True), config.get("opacidade_fundo", 0.80), config.get("tema_sport", False), config.get("tema_vidro", True))
         for j in janelas:
             j.recarregar_layout()
-    base.montar_menu_backup(menu, config, "lmu", "1.8.0", aplicar_backup)
+    base.montar_menu_backup(menu, config, "lmu", "1.8.1", aplicar_backup)
     base.montar_menu_amigos(menu, config)
     menu.addSeparator()
     adicionar("Visual moderno (desmarque para voltar ao visual classico)", config["tema_moderno"],

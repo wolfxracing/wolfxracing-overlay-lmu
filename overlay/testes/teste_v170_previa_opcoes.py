@@ -87,6 +87,7 @@ for ch, (titulo, _d, _cat, extras, _dica) in c.PAINEIS.items():
             continue
         confere(mudou, f"{titulo}: '{rotulo}' muda a previa")
 
+ESTADO_DEPENDE = {("forca_g", "aviso"), ("mapa", "largada"), ("mapa", "aviso"), ("minimapa", "aviso")}   # build av
 # 2) elementos liga/desliga de cada painel que os declara
 for ch, j in reais.items():
     if not type(j).ELEMENTOS or ch not in c.PAINEIS:
@@ -97,7 +98,10 @@ for ch, j in reais.items():
     for eid, rotulo in type(j).ELEMENTOS:
         cen._ao_elemento(ch, eid, False)
         im = previa_img(ch)
-        confere(difere(im, base, rz), f"{c.PAINEIS[ch][0]}: elemento '{rotulo}' muda a previa")
+        if not difere(im, base, rz) and (ch, eid) in ESTADO_DEPENDE:
+            print("--   ", f"{c.PAINEIS[ch][0]}: '{rotulo}' so aparece em outro estado dos dados (verificado em teste_v18_itens_todos_paineis)")
+        else:
+            confere(difere(im, base, rz), f"{c.PAINEIS[ch][0]}: elemento '{rotulo}' muda a previa")
         cen._ao_elemento(ch, eid, True)
     confere(not difere(previa_img(ch), base, rz), f"{c.PAINEIS[ch][0]}: religar tudo devolve a previa original")
 

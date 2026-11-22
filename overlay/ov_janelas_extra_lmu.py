@@ -35,17 +35,17 @@ TAM_TENDENCIA = (540, 296)
 # --------------------------------------------------------------------------------------------------------------
 def _titulo(p, texto, largura, direita=None, cor_direita=None):
     p.setPen(COR_TEXTO if (base.TEMA["sport"] or base.TEMA["vidro"]) and base.TEMA["moderno"] else COR_CINZA)
-    p.setFont(base.fonte_titulo(9))
+    p.setFont(base.fonte_titulo(9, p=p))
     p.drawText(16, 8, int(largura * 0.62) if direita else largura - 32, 20, Qt.AlignLeft | Qt.AlignVCenter, texto)
     if direita:
         p.setPen(cor_direita or COR_CINZA)
-        p.setFont(fonte(8, QFont.Bold))
+        p.setFont(fonte(8, QFont.Bold, p=p))
         p.drawText(int(largura * 0.45), 8, int(largura * 0.55) - 16, 20, Qt.AlignRight | Qt.AlignVCenter, direita)
 
 
 def _rotulo(p, x, y, w, texto, alinh=Qt.AlignLeft, h=12):
     p.setPen(COR_CINZA)
-    p.setFont(fonte(7, QFont.DemiBold))
+    p.setFont(fonte(7, QFont.DemiBold, p=p))
     p.drawText(x, y, w, h, alinh | Qt.AlignVCenter, texto)
 
 
@@ -62,7 +62,7 @@ def _barra(p, x, y, w, h, frac, cor):
 
 def _rodape(p, largura, altura, linhas):
     p.setPen(COR_CINZA)
-    p.setFont(fonte(7))
+    p.setFont(fonte(7, p=p))
     n = len(linhas)
     for i, t in enumerate(linhas):
         p.drawText(16, altura - 8 - 12 * (n - i), largura - 32, 12, Qt.AlignLeft | Qt.AlignVCenter, t)
@@ -70,7 +70,7 @@ def _rodape(p, largura, altura, linhas):
 
 def _sem_dados(p, largura, texto="Sem dados"):
     p.setPen(COR_CINZA)
-    p.setFont(fonte(10))
+    p.setFont(fonte(10, p=p))
     p.drawText(16, 44, largura - 32, 24, Qt.AlignLeft | Qt.AlignVCenter, texto)
 
 
@@ -79,7 +79,7 @@ def _faixa(p, x, y, w, h, cor, texto, fonte_pt=11):
     p.setBrush(QColor(cor.red(), cor.green(), cor.blue(), 60))
     p.drawRoundedRect(x, y, w, h, 8, 8)
     p.setPen(cor)
-    p.setFont(fonte(fonte_pt, QFont.Bold))
+    p.setFont(fonte(fonte_pt, QFont.Bold, p=p))
     p.drawText(x, y, w, h, Qt.AlignCenter, texto)
 
 
@@ -94,6 +94,10 @@ class JanelaEnergiaLMU(base.JanelaBase):
     CHAVE = "lmu_energia"
     CHAVE_ATIVO = "mostrar_lmu_energia"
     TAXA_HZ = 4.0
+    # build aw: itens com posicao, fonte, tamanho e cor livres na Central (o desenho padrao nao muda)
+    ELEMENTOS = (("titulo", "Título e aviso do que limita"), ("energia", "Bloco da energia virtual"), ("combustivel", "Bloco do combustível"),
+                 ("situacao", "Faixa de situação (chega ao fim, paradas)"), ("alvos", "Voltas até o fim e alvos por volta"),
+                 ("rodape", "Nota de rodapé"), ("aviso", "Mensagem de espera (sem dados)"))
 
     def tamanho(self):
         return TAM_ENERGIA
@@ -116,41 +120,48 @@ class JanelaEnergiaLMU(base.JanelaBase):
         L, A = TAM_ENERGIA
         e = d.get("lmu_energia")
         limitante = (e or {}).get("limitante")
-        _titulo(p, "ENERGIA VIRTUAL E COMBUSTIVEL", L,
-                None if not limitante else "LIMITA: " + ("ENERGIA" if limitante == "energia" else "COMBUSTIVEL"),
-                COR_AMARELO)
+        if self._abre(p, "titulo"):
+            _titulo(p, "ENERGIA VIRTUAL E COMBUSTIVEL", L,
+                    None if not limitante else "LIMITA: " + ("ENERGIA" if limitante == "energia" else "COMBUSTIVEL"),
+                    COR_AMARELO)
+            self._fecha(p)
         if not e:
-            _sem_dados(p, L)
+            if self._abre(p, "aviso"):
+                _sem_dados(p, L)
+                self._fecha(p)
             return
         margem = float(e.get("margem") or 1.0)
         en, cb = e.get("energia") or {}, e.get("combustivel") or {}
 
-        def bloco(x, nome, valor_txt, frac, por_volta_txt, alcance, limita):
+        def bloco(eid, x, nome, valor_txt, frac, por_volta_txt, alcance, limita):
+            if not self._abre(p, eid):
+                return
             if limita:
                 p.setBrush(Qt.NoBrush)
                 p.setPen(QPen(QColor(250, 200, 40, 200), 1.5))
                 p.drawRoundedRect(x - 6, 32, 170, 112, 8, 8)
             _rotulo(p, x, 36, 150, nome)
             p.setPen(BRANCO if valor_txt != "--" else COR_CINZA)
-            p.setFont(fonte(28, QFont.Bold))
+            p.setFont(fonte(28, QFont.Bold, p=p))
             p.drawText(x, 48, 156, 40, Qt.AlignLeft | Qt.AlignVCenter, valor_txt)
             cor = self._cor_alcance(alcance, margem)
             _barra(p, x, 92, 150, 10, frac, cor)
             p.setPen(COR_TEXTO)
-            p.setFont(fonte(9, QFont.DemiBold))
+            p.setFont(fonte(9, QFont.DemiBold, p=p))
             p.drawText(x, 106, 156, 16, Qt.AlignLeft | Qt.AlignVCenter, por_volta_txt)
             p.setPen(cor)
-            p.setFont(fonte(10, QFont.Bold))
+            p.setFont(fonte(10, QFont.Bold, p=p))
             p.drawText(x, 122, 156, 18, Qt.AlignLeft | Qt.AlignVCenter,
                        "alcance --" if alcance is None else f"alcance ~{alcance:.1f} V")
+            self._fecha(p)
 
         nivel_en = en.get("nivel_pct")
-        bloco(16, "ENERGIA VIRTUAL", "--" if nivel_en is None else f"{nivel_en:.1f}%",
+        bloco("energia", 16, "ENERGIA VIRTUAL", "--" if nivel_en is None else f"{nivel_en:.1f}%",
               None if nivel_en is None else nivel_en / 100.0,
               "consumo --" if en.get("por_volta") is None else f"~{en['por_volta']:.2f} %/volta",
               en.get("alcance"), limitante == "energia")
         litros, cap = cb.get("litros"), cb.get("capacidade")
-        bloco(194, "COMBUSTIVEL", "--" if litros is None else f"{litros:.1f} L",
+        bloco("combustivel", 194, "COMBUSTIVEL", "--" if litros is None else f"{litros:.1f} L",
               None if (litros is None or not cap) else litros / cap,
               "consumo --" if cb.get("por_volta") is None else f"~{cb['por_volta']:.2f} L/volta",
               cb.get("alcance"), limitante == "combustivel")
@@ -158,38 +169,44 @@ class JanelaEnergiaLMU(base.JanelaBase):
         # situacao (parada necessaria?)
         msg = e.get("mensagem")
         fim = e.get("voltas_fim")
-        if msg == "chega":
-            folga = e["alcance"] - fim
-            _faixa(p, 12, 156, L - 24, 40, COR_VERDE, f"CHEGA AO FIM  (folga ~{folga:.1f} V)")
-        elif msg in ("parada", "paradas") and e.get("paradas"):
-            n = e["paradas"]
-            titulo = "1 PARADA NECESSARIA" if n == 1 else f"~{n} PARADAS NECESSARIAS"
-            if e.get("janela"):
-                a, b = e["janela"]
-                titulo += f"\nparar entre as voltas {a} e {b}"
-            _faixa(p, 12, 156, L - 24, 40, COR_LARANJA if n == 1 else COR_VERMELHO, titulo, 10)
-        elif msg == "parada":
-            _faixa(p, 12, 156, L - 24, 40, COR_LARANJA, "PARADA NECESSARIA", 10)
-        elif msg == "sem_fim":
-            _faixa(p, 12, 156, L - 24, 40, COR_CINZA, "SESSAO SEM FIM CONHECIDO", 10)
-        else:
-            _faixa(p, 12, 156, L - 24, 40, COR_CINZA, "Aguardando voltas limpas...", 10)
+        if self._abre(p, "situacao"):
+            if msg == "chega":
+                folga = e["alcance"] - fim
+                _faixa(p, 12, 156, L - 24, 40, COR_VERDE, f"CHEGA AO FIM  (folga ~{folga:.1f} V)")
+            elif msg in ("parada", "paradas") and e.get("paradas"):
+                n = e["paradas"]
+                titulo = "1 PARADA NECESSARIA" if n == 1 else f"~{n} PARADAS NECESSARIAS"
+                if e.get("janela"):
+                    a, b = e["janela"]
+                    titulo += f"\nparar entre as voltas {a} e {b}"
+                _faixa(p, 12, 156, L - 24, 40, COR_LARANJA if n == 1 else COR_VERMELHO, titulo, 10)
+            elif msg == "parada":
+                _faixa(p, 12, 156, L - 24, 40, COR_LARANJA, "PARADA NECESSARIA", 10)
+            elif msg == "sem_fim":
+                _faixa(p, 12, 156, L - 24, 40, COR_CINZA, "SESSAO SEM FIM CONHECIDO", 10)
+            else:
+                _faixa(p, 12, 156, L - 24, 40, COR_CINZA, "Aguardando voltas limpas...", 10)
+            self._fecha(p)
 
         # alvo por volta para chegar ao fim e dados de apoio
         y = 206
-        _rotulo(p, 16, y, 110, "VOLTAS ATE O FIM")
-        _rotulo(p, 134, y, 110, "ALVO ENERGIA")
-        _rotulo(p, 252, y, 110, "ALVO COMBUSTIVEL")
-        p.setPen(COR_TEXTO)
-        p.setFont(fonte(13, QFont.Bold))
-        p.drawText(16, y + 12, 110, 24, Qt.AlignLeft | Qt.AlignVCenter, "--" if fim is None else (f"{fim}" if float(fim).is_integer() else f"~{fim:.1f}"))
-        p.drawText(134, y + 12, 112, 24, Qt.AlignLeft | Qt.AlignVCenter,
-                   _num(e.get("alvo_energia"), "~{:.2f} %/V"))
-        p.drawText(252, y + 12, 112, 24, Qt.AlignLeft | Qt.AlignVCenter,
-                   _num(e.get("alvo_comb"), "~{:.2f} L/V"))
-        _rodape(p, L, A, ["Nivel: medido pelo jogo. Consumo, alcance, alvo e janela:",
-                          f"~ calculados (media das voltas limpas; margem {margem:g} volta(s))."
-                          + ("" if e.get("ve_informada") else "  Energia virtual indisponivel.")])
+        if self._abre(p, "alvos"):
+            _rotulo(p, 16, y, 110, "VOLTAS ATE O FIM")
+            _rotulo(p, 134, y, 110, "ALVO ENERGIA")
+            _rotulo(p, 252, y, 110, "ALVO COMBUSTIVEL")
+            p.setPen(COR_TEXTO)
+            p.setFont(fonte(13, QFont.Bold, p=p))
+            p.drawText(16, y + 12, 110, 24, Qt.AlignLeft | Qt.AlignVCenter, "--" if fim is None else (f"{fim}" if float(fim).is_integer() else f"~{fim:.1f}"))
+            p.drawText(134, y + 12, 112, 24, Qt.AlignLeft | Qt.AlignVCenter,
+                       _num(e.get("alvo_energia"), "~{:.2f} %/V"))
+            p.drawText(252, y + 12, 112, 24, Qt.AlignLeft | Qt.AlignVCenter,
+                       _num(e.get("alvo_comb"), "~{:.2f} L/V"))
+            self._fecha(p)
+        if self._abre(p, "rodape"):
+            _rodape(p, L, A, ["Nivel: medido pelo jogo. Consumo, alcance, alvo e janela:",
+                              f"~ calculados (media das voltas limpas; margem {margem:g} volta(s))."
+                              + ("" if e.get("ve_informada") else "  Energia virtual indisponivel.")])
+            self._fecha(p)
 
 
 # --------------------------------------------------------------------------------------------------------------
@@ -200,6 +217,11 @@ class JanelaPneusLMU(base.JanelaBase):
     CHAVE_ATIVO = "mostrar_pneus"
     TAXA_HZ = 4.0
     LARG, ALT = 170, 118
+    # build aw: itens com posicao, fonte, tamanho e cor livres na Central; o que se repete nas 4 rodas (temperatura, pressao...) anda junto
+    ELEMENTOS = (("titulo", "Título"), ("cartoes", "Fundo dos cartões das rodas"), ("nome", "Nome de cada roda"), ("composto", "Composto (círculo S/M/H/W)"),
+                 ("temperatura", "Temperatura do pneu"), ("pressao", "Pressão do pneu"), ("vida", "Vida do pneu (barra e %)"),
+                 ("freio", "Temperatura do freio"), ("falha", "Aviso de roda furada ou solta"), ("motor", "Óleo e água do motor"),
+                 ("rodape", "Nota de rodapé"), ("aviso", "Mensagem de espera (sem dados)"))
     NOMES = {"FL": "DIANTEIRO ESQ.", "FR": "DIANTEIRO DIR.", "RL": "TRASEIRO ESQ.", "RR": "TRASEIRO DIR."}
     FAIXA_IDEAL_C = 10.0                  # definicao do overlay: ideal = temperatura otima do jogo +- 10 C
 
@@ -233,9 +255,13 @@ class JanelaPneusLMU(base.JanelaBase):
             return
         L, A = TAM_PNEUS
         pn = d.get("lmu_pneus")
-        _titulo(p, "PNEUS E FREIOS", L)
+        if self._abre(p, "titulo"):
+            _titulo(p, "PNEUS E FREIOS", L)
+            self._fecha(p)
         if not pn:
-            _sem_dados(p, L)
+            if self._abre(p, "aviso"):
+                _sem_dados(p, L)
+                self._fecha(p)
             return
         posicoes = {"FL": (12, 30), "FR": (12 + self.LARG + 12, 30),
                     "RL": (12, 30 + self.ALT + 8), "RR": (12 + self.LARG + 12, 30 + self.ALT + 8)}
@@ -243,48 +269,66 @@ class JanelaPneusLMU(base.JanelaBase):
             self._cartao(p, *posicoes[r["roda"]], r)
         # oleo e agua do motor
         y = 30 + 2 * self.ALT + 14
-        _rotulo(p, 16, y, 60, "OLEO")
-        _rotulo(p, 112, y, 60, "AGUA")
-        p.setPen(COR_TEXTO)
-        p.setFont(fonte(11, QFont.Bold))
-        p.drawText(46, y - 3, 60, 18, Qt.AlignLeft | Qt.AlignVCenter, _num(pn.get("oleo"), "{:.0f}°C"))
-        p.drawText(142, y - 3, 60, 18, Qt.AlignLeft | Qt.AlignVCenter, _num(pn.get("agua"), "{:.0f}°C"))
-        _rodape(p, L, A, ["Pneu = camada interna (mais proxima do MFD do jogo; ajustavel",
-                          "em TEMP_PNEU_FONTE). Freio convertido de Kelvin. Ideal = otima do jogo ±10 °C",
-                          "(regra do overlay). Vida = leitura do jogo (mWear)."])
+        if self._abre(p, "motor"):
+            _rotulo(p, 16, y, 60, "OLEO")
+            _rotulo(p, 112, y, 60, "AGUA")
+            p.setPen(COR_TEXTO)
+            p.setFont(fonte(11, QFont.Bold, p=p))
+            p.drawText(46, y - 3, 60, 18, Qt.AlignLeft | Qt.AlignVCenter, _num(pn.get("oleo"), "{:.0f}°C"))
+            p.drawText(142, y - 3, 60, 18, Qt.AlignLeft | Qt.AlignVCenter, _num(pn.get("agua"), "{:.0f}°C"))
+            self._fecha(p)
+        if self._abre(p, "rodape"):
+            _rodape(p, L, A, ["Pneu = camada interna (mais proxima do MFD do jogo; ajustavel",
+                              "em TEMP_PNEU_FONTE). Freio convertido de Kelvin. Ideal = otima do jogo ±10 °C",
+                              "(regra do overlay). Vida = leitura do jogo (mWear)."])
+            self._fecha(p)
 
     def _cartao(self, p, x, y, r):
-        base.pintar_superficie(p, QRectF(x, y, self.LARG, self.ALT), 8, cartao=True)
-        _rotulo(p, x + 10, y + 6, 110, self.NOMES[r["roda"]])
+        if self._abre(p, "cartoes"):
+            base.pintar_superficie(p, QRectF(x, y, self.LARG, self.ALT), 8, cartao=True)
+            self._fecha(p)
+        if self._abre(p, "nome"):
+            _rotulo(p, x + 10, y + 6, 110, self.NOMES[r["roda"]])
+            self._fecha(p)
         # composto
-        if r["composto"]:
+        if r["composto"] and self._abre(p, "composto"):
             cor = {"S": COR_VERMELHO, "M": COR_AMARELO, "H": BRANCO, "W": COR_AZUL}[r["composto"]]
             p.setPen(QPen(cor, 2))
             p.setBrush(Qt.NoBrush)
             p.drawEllipse(x + self.LARG - 26, y + 6, 18, 18)
             p.setPen(cor)
-            p.setFont(fonte(9, QFont.Bold))
+            p.setFont(fonte(9, QFont.Bold, p=p))
             p.drawText(x + self.LARG - 26, y + 6, 18, 18, Qt.AlignCenter, r["composto"])
+            self._fecha(p)
         # temperatura grande
-        p.setPen(self._cor_temp(r))
-        p.setFont(fonte(24, QFont.Bold))
-        p.drawText(x + 10, y + 20, 100, 34, Qt.AlignLeft | Qt.AlignVCenter, _num(r["temp"], "{:.0f}°"))
-        p.setPen(COR_TEXTO)
-        p.setFont(fonte(9, QFont.DemiBold))
-        p.drawText(x + 92, y + 28, 70, 22, Qt.AlignRight | Qt.AlignVCenter, _num(r["pressao"], "{:.0f} kPa"))
+        if self._abre(p, "temperatura"):
+            p.setPen(self._cor_temp(r))
+            p.setFont(fonte(24, QFont.Bold, p=p))
+            p.drawText(x + 10, y + 20, 100, 34, Qt.AlignLeft | Qt.AlignVCenter, _num(r["temp"], "{:.0f}°"))
+            self._fecha(p)
+        if self._abre(p, "pressao"):
+            p.setPen(COR_TEXTO)
+            p.setFont(fonte(9, QFont.DemiBold, p=p))
+            p.drawText(x + 92, y + 28, 70, 22, Qt.AlignRight | Qt.AlignVCenter, _num(r["pressao"], "{:.0f} kPa"))
+            self._fecha(p)
         # vida
-        _rotulo(p, x + 10, y + 56, 40, "VIDA")
-        _barra(p, x + 10, y + 70, self.LARG - 20, 8, None if r["vida"] is None else r["vida"] / 100.0, self._cor_vida(r["vida"]))
-        p.setPen(self._cor_vida(r["vida"]))
-        p.setFont(fonte(9, QFont.Bold))
-        p.drawText(x + self.LARG - 70, y + 54, 60, 14, Qt.AlignRight | Qt.AlignVCenter, _num(r["vida"], "{:.0f}%"))
+        if self._abre(p, "vida"):
+            _rotulo(p, x + 10, y + 56, 40, "VIDA")
+            _barra(p, x + 10, y + 70, self.LARG - 20, 8, None if r["vida"] is None else r["vida"] / 100.0, self._cor_vida(r["vida"]))
+            p.setPen(self._cor_vida(r["vida"]))
+            p.setFont(fonte(9, QFont.Bold, p=p))
+            p.drawText(x + self.LARG - 70, y + 54, 60, 14, Qt.AlignRight | Qt.AlignVCenter, _num(r["vida"], "{:.0f}%"))
+            self._fecha(p)
         # freio
-        _rotulo(p, x + 10, y + 86, 60, "FREIO")
-        p.setPen(COR_TEXTO)
-        p.setFont(fonte(10, QFont.Bold))
-        p.drawText(x + 56, y + 84, 60, 16, Qt.AlignLeft | Qt.AlignVCenter, _num(r["freio"], "{:.0f}°C"))
-        if r["furado"] or r["solta"]:
+        if self._abre(p, "freio"):
+            _rotulo(p, x + 10, y + 86, 60, "FREIO")
+            p.setPen(COR_TEXTO)
+            p.setFont(fonte(10, QFont.Bold, p=p))
+            p.drawText(x + 56, y + 84, 60, 16, Qt.AlignLeft | Qt.AlignVCenter, _num(r["freio"], "{:.0f}°C"))
+            self._fecha(p)
+        if (r["furado"] or r["solta"]) and self._abre(p, "falha"):
             _faixa(p, x + 8, y + 100, self.LARG - 16, 14, COR_VERMELHO, "FURADO" if r["furado"] else "RODA SOLTA", 8)
+            self._fecha(p)
 
 
 # --------------------------------------------------------------------------------------------------------------
@@ -294,6 +338,11 @@ class JanelaDanosLMU(base.JanelaBase):
     CHAVE = "danos"
     CHAVE_ATIVO = "mostrar_danos"
     TAXA_HZ = 4.0
+    # build aw: itens com posicao, fonte, tamanho e cor livres na Central
+    ELEMENTOS = (("titulo", "Título"), ("faixa", "Faixa de situação do dano"), ("carro", "Carro visto de cima (zonas e rodas)"),
+                 ("frente", "Rótulo FRENTE"), ("lado", "Lado do último impacto"), ("impacto", "Último impacto (há quanto tempo)"),
+                 ("forca", "Força do impacto"), ("peca", "Peça solta"), ("furadas", "Rodas furadas"), ("motor", "Estado do motor"),
+                 ("farol", "Farol"), ("rodape", "Nota de rodapé"), ("aviso", "Mensagem de espera (sem dados)"))
 
     def tamanho(self):
         return TAM_DANOS
@@ -309,9 +358,13 @@ class JanelaDanosLMU(base.JanelaBase):
             return
         L, A = TAM_DANOS
         dn = d.get("lmu_danos")
-        _titulo(p, "DANOS DO CARRO", L)
+        if self._abre(p, "titulo"):
+            _titulo(p, "DANOS DO CARRO", L)
+            self._fecha(p)
         if not dn:
-            _sem_dados(p, L)
+            if self._abre(p, "aviso"):
+                _sem_dados(p, L)
+                self._fecha(p)
             return
         z = dn["zonas"]
         forte = any(s >= 2 for s in z) or any(dn["furados"]) or any(dn["rodas_soltas"])
@@ -321,46 +374,56 @@ class JanelaDanosLMU(base.JanelaBase):
             cor, txt = COR_AMARELO, "IMPACTO REGISTRADO"
         else:
             cor, txt = COR_VERDE, "SEM DANO REGISTRADO"
-        _faixa(p, 12, 32, L - 24, 28, cor, txt, 10)
+        if self._abre(p, "faixa"):
+            _faixa(p, 12, 32, L - 24, 28, cor, txt, 10)
+            self._fecha(p)
 
         # carro visto de cima, frente para cima: ordem das zonas = ov_lmu.ZONAS_DANO (frente e sentido ANTI-horario)
         cx, cy = 92, 164
         formas = [(cx - 24, cy - 84, 48, 16), (cx - 48, cy - 68, 22, 30), (cx - 48, cy - 34, 14, 68),
                   (cx - 48, cy + 38, 22, 30), (cx - 24, cy + 68, 48, 16), (cx + 26, cy + 38, 22, 30),
                   (cx + 34, cy - 34, 14, 68), (cx + 26, cy - 68, 22, 30)]
-        p.setPen(Qt.NoPen)
-        for sev, (x, y, w, h) in zip(z, formas):
-            p.setBrush(self.cor_sev(sev))
-            p.drawRoundedRect(x, y, w, h, 6, 6)
-        p.setBrush(QColor(95, 95, 108))
-        p.drawRoundedRect(cx - 24, cy - 62, 48, 124, 16, 16)
-        p.setBrush(QColor(14, 14, 20))
-        p.drawRoundedRect(cx - 16, cy - 30, 32, 18, 5, 5)
-        p.drawRoundedRect(cx - 16, cy + 22, 32, 12, 4, 4)
-        # rodas (vermelhas se furadas ou soltas): FL, FR, RL, RR
-        for i, (x, y) in enumerate(((cx - 66, cy - 58), (cx + 56, cy - 58), (cx - 66, cy + 36), (cx + 56, cy + 36))):
-            ruim = dn["furados"][i] or dn["rodas_soltas"][i]
-            p.setBrush(COR_VERMELHO if ruim else QColor(60, 60, 70))
-            p.drawRoundedRect(x, y, 10, 22, 3, 3)
-        _rotulo(p, cx - 40, cy - 102, 80, "FRENTE", Qt.AlignHCenter)
+        if self._abre(p, "carro"):
+            p.setPen(Qt.NoPen)
+            for sev, (x, y, w, h) in zip(z, formas):
+                p.setBrush(self.cor_sev(sev))
+                p.drawRoundedRect(x, y, w, h, 6, 6)
+            p.setBrush(QColor(95, 95, 108))
+            p.drawRoundedRect(cx - 24, cy - 62, 48, 124, 16, 16)
+            p.setBrush(QColor(14, 14, 20))
+            p.drawRoundedRect(cx - 16, cy - 30, 32, 18, 5, 5)
+            p.drawRoundedRect(cx - 16, cy + 22, 32, 12, 4, 4)
+            # rodas (vermelhas se furadas ou soltas): FL, FR, RL, RR
+            for i, (x, y) in enumerate(((cx - 66, cy - 58), (cx + 56, cy - 58), (cx - 66, cy + 36), (cx + 56, cy + 36))):
+                ruim = dn["furados"][i] or dn["rodas_soltas"][i]
+                p.setBrush(COR_VERMELHO if ruim else QColor(60, 60, 70))
+                p.drawRoundedRect(x, y, 10, 22, 3, 3)
+            self._fecha(p)
+        if self._abre(p, "frente"):
+            _rotulo(p, cx - 40, cy - 102, 80, "FRENTE", Qt.AlignHCenter)
+            self._fecha(p)
         lado = dn.get("impacto_lado")
-        if lado:                                              # lado do ULTIMO impacto, pela posicao medida pelo jogo
+        if lado and self._abre(p, "lado"):                    # lado do ULTIMO impacto, pela posicao medida pelo jogo
             _rotulo(p, 12, cy + 90, 160, "LADO DO ULTIMO IMPACTO", Qt.AlignLeft)
             p.setPen(COR_TEXTO)
-            p.setFont(fonte(11, QFont.Bold))
+            p.setFont(fonte(11, QFont.Bold, p=p))
             p.drawText(12, cy + 102, 170, 20, Qt.AlignLeft | Qt.AlignVCenter, lado.upper().replace("-", " "))
+            self._fecha(p)
 
         # coluna da direita: situacao medida pelo jogo
-        def item(y, rotulo, valor, cor_v=COR_TEXTO):
+        def item(eid, y, rotulo, valor, cor_v=COR_TEXTO):
+            if not self._abre(p, eid):
+                return
             _rotulo(p, 176, y, 116, rotulo)
             p.setPen(cor_v)
-            p.setFont(fonte(12, QFont.Bold))
+            p.setFont(fonte(12, QFont.Bold, p=p))
             p.drawText(176, y + 12, 118, 22, Qt.AlignLeft | Qt.AlignVCenter, valor)
+            self._fecha(p)
         desde, forca = dn.get("impacto_desde"), dn.get("impacto_forca")
-        item(72, "ULTIMO IMPACTO", "nenhum" if desde is None else f"ha {estr.fmt_duracao(desde)}")
-        item(108, "FORCA DO IMPACTO", "--" if (forca is None or desde is None) else f"{forca:.0f}")
-        item(144, "PECA SOLTA", "SIM" if dn["solta"] else "nao", COR_LARANJA if dn["solta"] else COR_TEXTO)
-        item(180, "RODAS FURADAS", str(sum(dn["furados"])) if any(dn["furados"]) else "nenhuma",
+        item("impacto", 72, "ULTIMO IMPACTO", "nenhum" if desde is None else f"ha {estr.fmt_duracao(desde)}")
+        item("forca", 108, "FORCA DO IMPACTO", "--" if (forca is None or desde is None) else f"{forca:.0f}")
+        item("peca", 144, "PECA SOLTA", "SIM" if dn["solta"] else "nao", COR_LARANJA if dn["solta"] else COR_TEXTO)
+        item("furadas", 180, "RODAS FURADAS", str(sum(dn["furados"])) if any(dn["furados"]) else "nenhuma",
              COR_VERMELHO if any(dn["furados"]) else COR_TEXTO)
         if dn.get("motor_parado"):
             txt_motor, cor_motor = "PARADO", COR_VERMELHO
@@ -368,11 +431,13 @@ class JanelaDanosLMU(base.JanelaBase):
             txt_motor, cor_motor = "SUPERAQUECENDO", COR_VERMELHO
         else:
             txt_motor, cor_motor = "ok", COR_VERDE
-        item(216, "MOTOR", txt_motor, cor_motor)
-        item(252, "FAROL", "ligado" if dn.get("farois") else "apagado")
-        _rodape(p, L, A, ["Dados do jogo. O LMU nao informa % de dano",
-                          "nem tempo de reparo. Zonas: leve ou forte; ordem",
-                          "conferida: frente-esq., frente-dir., tras.-dir."])
+        item("motor", 216, "MOTOR", txt_motor, cor_motor)
+        item("farol", 252, "FAROL", "ligado" if dn.get("farois") else "apagado")
+        if self._abre(p, "rodape"):
+            _rodape(p, L, A, ["Dados do jogo. O LMU nao informa % de dano",
+                              "nem tempo de reparo. Zonas: leve ou forte; ordem",
+                              "conferida: frente-esq., frente-dir., tras.-dir."])
+            self._fecha(p)
 
 
 # --------------------------------------------------------------------------------------------------------------
@@ -383,6 +448,10 @@ class JanelaAlertasLMU(base.JanelaBase):
     CHAVE_ATIVO = "mostrar_lmu_alertas"
     TAXA_HZ = 10.0
     ALT_LINHA = 34
+    # build aw: itens com posicao, fonte, tamanho e cor livres na Central; o que se repete em cada alerta anda junto
+    ELEMENTOS = (("titulo", "Título e limite dos boxes"), ("vazio", "Faixa SEM ALERTAS"), ("fundo", "Fundo e barra lateral de cada alerta"),
+                 ("alerta_titulo", "Título de cada alerta"), ("alerta_detalhe", "Detalhe de cada alerta"),
+                 ("rodape", "Nota de rodapé"), ("aviso", "Mensagem de espera (sem dados)"))
     CORES = {alt.NIVEL_INFO: COR_AZUL, alt.NIVEL_ATENCAO: COR_AMARELO, alt.NIVEL_PERIGO: COR_VERMELHO}
 
     def tamanho(self):
@@ -398,30 +467,43 @@ class JanelaAlertasLMU(base.JanelaBase):
         direita = None
         if a and a.get("limite_pit"):
             direita = f"LIMITE BOXES {a['limite_pit']:.0f} km/h (medido)"
-        _titulo(p, "ALERTAS NA PISTA", L, direita)
+        if self._abre(p, "titulo"):
+            _titulo(p, "ALERTAS NA PISTA", L, direita)
+            self._fecha(p)
         if a is None:
-            _sem_dados(p, L)
+            if self._abre(p, "aviso"):
+                _sem_dados(p, L)
+                self._fecha(p)
             return
         lista = a.get("lista") or []
-        if not lista:
+        if not lista and self._abre(p, "vazio"):
             _faixa(p, 12, 36, L - 24, 40, COR_VERDE, "SEM ALERTAS", 12)
+            self._fecha(p)
         y = 32
         for al in lista:
             cor = self.CORES.get(al["nivel"], COR_CINZA)
-            p.setPen(Qt.NoPen)
-            p.setBrush(QColor(cor.red(), cor.green(), cor.blue(), 55 if al["nivel"] else 35))
-            p.drawRoundedRect(12, y, L - 24, self.ALT_LINHA - 3, 6, 6)
-            p.setBrush(cor)
-            p.drawRect(12, y + 2, 4, self.ALT_LINHA - 7)
-            p.setPen(cor if al["nivel"] else COR_TEXTO)
-            p.setFont(fonte(10, QFont.Bold))
-            p.drawText(24, y, L - 40, 18, Qt.AlignLeft | Qt.AlignVCenter, al["titulo"])
-            p.setPen(COR_TEXTO)
-            p.setFont(fonte(8))
-            p.drawText(24, y + 15, L - 40, 14, Qt.AlignLeft | Qt.AlignVCenter, al["detalhe"])
+            if self._abre(p, "fundo"):
+                p.setPen(Qt.NoPen)
+                p.setBrush(QColor(cor.red(), cor.green(), cor.blue(), 55 if al["nivel"] else 35))
+                p.drawRoundedRect(12, y, L - 24, self.ALT_LINHA - 3, 6, 6)
+                p.setBrush(cor)
+                p.drawRect(12, y + 2, 4, self.ALT_LINHA - 7)
+                self._fecha(p)
+            if self._abre(p, "alerta_titulo"):
+                p.setPen(cor if al["nivel"] else COR_TEXTO)
+                p.setFont(fonte(10, QFont.Bold, p=p))
+                p.drawText(24, y, L - 40, 18, Qt.AlignLeft | Qt.AlignVCenter, al["titulo"])
+                self._fecha(p)
+            if self._abre(p, "alerta_detalhe"):
+                p.setPen(COR_TEXTO)
+                p.setFont(fonte(8, p=p))
+                p.drawText(24, y + 15, L - 40, 14, Qt.AlignLeft | Qt.AlignVCenter, al["detalhe"])
+                self._fecha(p)
             y += self.ALT_LINHA
-        _rodape(p, L, A, ["Bandeiras/boxes: medidos pelo jogo. Distancias e tempos: ~ calculados.",
-                          "Limiares de aviso: definicao do overlay (config_lmu.json)."])
+        if self._abre(p, "rodape"):
+            _rodape(p, L, A, ["Bandeiras/boxes: medidos pelo jogo. Distancias e tempos: ~ calculados.",
+                              "Limiares de aviso: definicao do overlay (config_lmu.json)."])
+            self._fecha(p)
 
 
 # --------------------------------------------------------------------------------------------------------------
@@ -432,6 +514,12 @@ class JanelaStintsLMU(base.JanelaBase):
     CHAVE_ATIVO = "mostrar_lmu_stints"
     TAXA_HZ = 2.0
     MAX_LINHAS = 6
+    # build aw: itens com posicao, fonte, tamanho e cor livres na Central
+    ELEMENTOS = (("titulo", "Título"), ("rotulos", "Títulos das colunas"), ("destaque", "Destaque do stint atual"),
+                 ("stint", "Stint, voltas e tempo"), ("consumo", "Energia e combustível do stint"), ("pneu", "Pneu e desgaste"),
+                 ("ritmo", "Ritmo e diferença para o melhor"), ("rodape", "Nota de rodapé"), ("aviso", "Mensagem de espera (sem stints)"))
+    GRUPO_COLUNA = {"STINT": "stint", "VOLTAS": "stint", "TEMPO": "stint", "ENERGIA": "consumo", "COMB.": "consumo",
+                    "PNEU": "pneu", "DESG.": "pneu", "RITMO": "ritmo", "VS MELHOR": "ritmo"}
     # (rotulo, x, largura, alinhamento)
     COLUNAS = (("STINT", 16, 40, Qt.AlignLeft), ("VOLTAS", 58, 48, Qt.AlignRight), ("TEMPO", 110, 62, Qt.AlignRight),
                ("ENERGIA", 176, 64, Qt.AlignRight), ("COMB.", 244, 60, Qt.AlignRight), ("PNEU", 308, 44, Qt.AlignHCenter),
@@ -447,33 +535,45 @@ class JanelaStintsLMU(base.JanelaBase):
             return
         L, A = TAM_STINTS
         s = d.get("lmu_stints")
-        _titulo(p, "HISTORICO DE STINTS", L)
+        if self._abre(p, "titulo"):
+            _titulo(p, "HISTORICO DE STINTS", L)
+            self._fecha(p)
         if not s or not s.get("stints"):
-            _sem_dados(p, L, "Sem stints ainda (um stint comeca na saida dos boxes)")
+            if self._abre(p, "aviso"):
+                _sem_dados(p, L, "Sem stints ainda (um stint comeca na saida dos boxes)")
+                self._fecha(p)
             return
-        for rot, x, w, al in self.COLUNAS:
-            _rotulo(p, x, 32, w, rot, al)
-        p.setPen(QPen(QColor(255, 255, 255, 40), 1))
-        p.drawLine(14, 46, L - 14, 46)
+        if self._abre(p, "rotulos"):
+            for rot, x, w, al in self.COLUNAS:
+                _rotulo(p, x, 32, w, rot, al)
+            p.setPen(QPen(QColor(255, 255, 255, 40), 1))
+            p.drawLine(14, 46, L - 14, 46)
+            self._fecha(p)
         y = 50
         for st in s["stints"][:self.MAX_LINHAS]:
             self._linha(p, y, st)
             y += 28
-        _rodape(p, L, A, ["Energia e combustivel por stint: nivel no inicio - nivel no fim (jogo). Ritmo: media das voltas limpas (~).",
-                          "* = stint parcial (overlay aberto no meio do stint). Desgaste: pontos de vida do pneu (sentido a confirmar)."])
+        if self._abre(p, "rodape"):
+            _rodape(p, L, A, ["Energia e combustivel por stint: nivel no inicio - nivel no fim (jogo). Ritmo: media das voltas limpas (~).",
+                              "* = stint parcial (overlay aberto no meio do stint). Desgaste: pontos de vida do pneu (sentido a confirmar)."])
+            self._fecha(p)
 
     def _linha(self, p, y, st):
-        if st["atual"]:
+        if st["atual"] and self._abre(p, "destaque"):
             p.setPen(Qt.NoPen)
             p.setBrush(QColor(176, 140, 42, 150) if base.TEMA["moderno"] else QColor(45, 90, 190, 150))
             p.drawRoundedRect(8, y, TAM_STINTS[0] - 16, 26, 5, 5)
+            self._fecha(p)
         c = {n: (x, w, al) for n, x, w, al in self.COLUNAS}
 
         def t(chave, texto, cor=COR_TEXTO, tam=10, peso=QFont.Bold):
+            if not self._abre(p, self.GRUPO_COLUNA[chave]):
+                return
             x, w, al = c[chave]
             p.setPen(cor)
-            p.setFont(fonte(tam, peso))
+            p.setFont(fonte(tam, peso, p=p))
             p.drawText(x, y, w, 26, al | Qt.AlignVCenter, texto)
+            self._fecha(p)
         t("STINT", f"{st['n']}{'*' if st['parcial'] else ''}" + (" >" if st["atual"] else ""))
         t("VOLTAS", str(st["voltas"]))
         t("TEMPO", estr.fmt_duracao(st["tempo"]))
@@ -497,6 +597,11 @@ class JanelaTendenciaLMU(base.JanelaBase):
     CHAVE_ATIVO = "mostrar_lmu_tendencia"
     TAXA_HZ = 2.0
     ESTAVEL = 0.03                       # |inclinacao| abaixo disto = ritmo estavel (definicao do overlay, s/volta)
+    # build aw: itens com posicao, fonte, tamanho e cor livres na Central
+    ELEMENTOS = (("titulo", "Título"), ("ritmo", "Ritmo das últimas 5 voltas limpas"), ("tendencia", "Tendência do stint"),
+                 ("pista", "Temperatura da pista"), ("grafico", "Gráfico (grade, linhas, pontos e reta de tendência)"),
+                 ("escala", "Escala de tempos e números das voltas"), ("rodape", "Nota de rodapé"),
+                 ("aviso", "Mensagem de espera (sem voltas limpas)"))
 
     def tamanho(self):
         return TAM_TENDENCIA
@@ -508,51 +613,62 @@ class JanelaTendenciaLMU(base.JanelaBase):
             return
         L, A = TAM_TENDENCIA
         t = d.get("lmu_tendencia")
-        _titulo(p, "TENDENCIA DE RITMO", L)
+        if self._abre(p, "titulo"):
+            _titulo(p, "TENDENCIA DE RITMO", L)
+            self._fecha(p)
         if not t or not t["voltas"]:
-            _sem_dados(p, L, "Aguardando voltas limpas (sem boxes, sem bandeira)")
+            if self._abre(p, "aviso"):
+                _sem_dados(p, L, "Aguardando voltas limpas (sem boxes, sem bandeira)")
+                self._fecha(p)
             return
         # resumo
         ritmo, delta, inc = t["ritmo5"], t["delta_ritmo"], t["inclinacao"]
-        _rotulo(p, 16, 30, 120, "RITMO (ULT. 5 LIMPAS)")
-        p.setPen(BRANCO)
-        p.setFont(fonte(15, QFont.Bold))
-        p.drawText(16, 42, 150, 24, Qt.AlignLeft | Qt.AlignVCenter, base.fmt_tempo(ritmo))
-        if delta is not None:
-            p.setPen(COR_VERDE if delta < 0.3 else (COR_AMARELO if delta < 1.0 else COR_VERMELHO))
-            p.setFont(fonte(9, QFont.Bold))
-            p.drawText(16, 64, 150, 14, Qt.AlignLeft | Qt.AlignVCenter, f"{delta:+.2f} s vs melhor")
-        _rotulo(p, 190, 30, 160, "TENDENCIA DO STINT")
-        if inc is None:
-            p.setPen(COR_CINZA)
-            p.setFont(fonte(10, QFont.DemiBold))
-            p.drawText(190, 42, 190, 24, Qt.AlignLeft | Qt.AlignVCenter, f"precisa de {estr.MINIMO_VOLTAS_TENDENCIA} voltas limpas")
-        else:
-            if abs(inc) < self.ESTAVEL:
-                cor, rot = COR_VERDE, "estavel"
-            elif inc > 0:
-                cor, rot = (COR_AMARELO if inc < 0.15 else COR_VERMELHO), "piorando"
+        if self._abre(p, "ritmo"):
+            _rotulo(p, 16, 30, 120, "RITMO (ULT. 5 LIMPAS)")
+            p.setPen(BRANCO)
+            p.setFont(fonte(15, QFont.Bold, p=p))
+            p.drawText(16, 42, 150, 24, Qt.AlignLeft | Qt.AlignVCenter, base.fmt_tempo(ritmo))
+            if delta is not None:
+                p.setPen(COR_VERDE if delta < 0.3 else (COR_AMARELO if delta < 1.0 else COR_VERMELHO))
+                p.setFont(fonte(9, QFont.Bold, p=p))
+                p.drawText(16, 64, 150, 14, Qt.AlignLeft | Qt.AlignVCenter, f"{delta:+.2f} s vs melhor")
+            self._fecha(p)
+        if self._abre(p, "tendencia"):
+            _rotulo(p, 190, 30, 160, "TENDENCIA DO STINT")
+            if inc is None:
+                p.setPen(COR_CINZA)
+                p.setFont(fonte(10, QFont.DemiBold, p=p))
+                p.drawText(190, 42, 190, 24, Qt.AlignLeft | Qt.AlignVCenter, f"precisa de {estr.MINIMO_VOLTAS_TENDENCIA} voltas limpas")
             else:
-                cor, rot = COR_VERDE, "melhorando"
-            p.setPen(cor)
-            p.setFont(fonte(15, QFont.Bold))
-            p.drawText(190, 42, 190, 24, Qt.AlignLeft | Qt.AlignVCenter, f"~{inc:+.2f} s/volta")
-            p.setFont(fonte(9, QFont.Bold))
-            p.drawText(190, 64, 190, 14, Qt.AlignLeft | Qt.AlignVCenter, rot)
-        _rotulo(p, 390, 30, 130, "PISTA", Qt.AlignRight)
-        p.setPen(COR_TEXTO)
-        p.setFont(fonte(15, QFont.Bold))
-        p.drawText(390, 42, 134, 24, Qt.AlignRight | Qt.AlignVCenter, _num(t["temp_pista"], "{:.0f}°C"))
-        if t["temp_variacao"] is not None and abs(t["temp_variacao"]) >= 1.0:
-            p.setPen(COR_CINZA)
-            p.setFont(fonte(9, QFont.DemiBold))
-            p.drawText(390, 64, 134, 14, Qt.AlignRight | Qt.AlignVCenter, f"{t['temp_variacao']:+.0f}°C no periodo")
+                if abs(inc) < self.ESTAVEL:
+                    cor, rot = COR_VERDE, "estavel"
+                elif inc > 0:
+                    cor, rot = (COR_AMARELO if inc < 0.15 else COR_VERMELHO), "piorando"
+                else:
+                    cor, rot = COR_VERDE, "melhorando"
+                p.setPen(cor)
+                p.setFont(fonte(15, QFont.Bold, p=p))
+                p.drawText(190, 42, 190, 24, Qt.AlignLeft | Qt.AlignVCenter, f"~{inc:+.2f} s/volta")
+                p.setFont(fonte(9, QFont.Bold, p=p))
+                p.drawText(190, 64, 190, 14, Qt.AlignLeft | Qt.AlignVCenter, rot)
+            self._fecha(p)
+        if self._abre(p, "pista"):
+            _rotulo(p, 390, 30, 130, "PISTA", Qt.AlignRight)
+            p.setPen(COR_TEXTO)
+            p.setFont(fonte(15, QFont.Bold, p=p))
+            p.drawText(390, 42, 134, 24, Qt.AlignRight | Qt.AlignVCenter, _num(t["temp_pista"], "{:.0f}°C"))
+            if t["temp_variacao"] is not None and abs(t["temp_variacao"]) >= 1.0:
+                p.setPen(COR_CINZA)
+                p.setFont(fonte(9, QFont.DemiBold, p=p))
+                p.drawText(390, 64, 134, 14, Qt.AlignRight | Qt.AlignVCenter, f"{t['temp_variacao']:+.0f}°C no periodo")
+            self._fecha(p)
         self._grafico(p, t, QRectF(54, 90, L - 72, A - 90 - 58))
-        _rodape(p, L, A, ["Volta limpa = sem boxes e ate 130% da melhor. Tendencia (~) = regressao linear",
-                          "das voltas limpas do stint atual. Linha roxa = melhor volta da sessao."])
+        if self._abre(p, "rodape"):
+            _rodape(p, L, A, ["Volta limpa = sem boxes e ate 130% da melhor. Tendencia (~) = regressao linear",
+                              "das voltas limpas do stint atual. Linha roxa = melhor volta da sessao."])
+            self._fecha(p)
 
-    @staticmethod
-    def _grafico(p, t, r):
+    def _grafico(self, p, t, r):
         pontos = t["voltas"]
         tempos = [x[1] for x in pontos]
         melhor = t["melhor"]
@@ -567,14 +683,21 @@ class JanelaTendenciaLMU(base.JanelaBase):
 
         def py(v):
             return r.bottom() - (v - lo) / (hi - lo) * r.height()
-        p.setPen(QPen(QColor(255, 255, 255, 40), 1))
-        for k in range(5):
-            y = r.top() + r.height() * k / 4.0
-            p.drawLine(QPointF(r.left(), y), QPointF(r.right(), y))
-        p.setPen(COR_CINZA)
-        p.setFont(fonte(7))
-        p.drawText(2, int(r.top()) - 6, 50, 12, Qt.AlignRight | Qt.AlignVCenter, base.fmt_tempo(hi))
-        p.drawText(2, int(r.bottom()) - 6, 50, 12, Qt.AlignRight | Qt.AlignVCenter, base.fmt_tempo(lo))
+        if self._abre(p, "grafico"):
+            p.setPen(QPen(QColor(255, 255, 255, 40), 1))
+            for k in range(5):
+                y = r.top() + r.height() * k / 4.0
+                p.drawLine(QPointF(r.left(), y), QPointF(r.right(), y))
+            self._fecha(p)
+        if self._abre(p, "escala"):
+            p.setPen(COR_CINZA)
+            p.setFont(fonte(7, p=p))
+            p.drawText(2, int(r.top()) - 6, 50, 12, Qt.AlignRight | Qt.AlignVCenter, base.fmt_tempo(hi))
+            p.drawText(2, int(r.bottom()) - 6, 50, 12, Qt.AlignRight | Qt.AlignVCenter, base.fmt_tempo(lo))
+            self._fecha(p)
+        if not self._abre(p, "grafico"):
+            self._numeros_voltas(p, pontos, n, px, r)
+            return
         if melhor:
             p.setPen(QPen(COR_ROXO, 1.2, Qt.DashLine))
             p.drawLine(QPointF(r.left(), py(melhor)), QPointF(r.right(), py(melhor)))
@@ -605,12 +728,19 @@ class JanelaTendenciaLMU(base.JanelaBase):
             f = lambda volta: my + t["inclinacao"] * (volta - mx)
             p.setPen(QPen(COR_AMARELO, 1.6))
             p.drawLine(QPointF(px(idx[0]), py(f(pontos[idx[0]][0]))), QPointF(px(idx[-1]), py(f(pontos[idx[-1]][0]))))
-        # numeros das voltas (a cada N)
+        self._fecha(p)
+        self._numeros_voltas(p, pontos, n, px, r)
+
+    def _numeros_voltas(self, p, pontos, n, px, r):
+        """Numeros das voltas (a cada N), no item 'escala'."""
+        if not self._abre(p, "escala"):
+            return
         p.setPen(COR_CINZA)
-        p.setFont(fonte(7))
+        p.setFont(fonte(7, p=p))
         passo = max(1, n // 8)
         for i in range(0, n, passo):
             p.drawText(int(px(i)) - 14, int(r.bottom()) + 2, 28, 12, Qt.AlignCenter, f"V{pontos[i][0]}")
+        self._fecha(p)
 
 
 JANELAS_EXTRA = (JanelaEnergiaLMU, JanelaPneusLMU, JanelaDanosLMU, JanelaAlertasLMU, JanelaStintsLMU, JanelaTendenciaLMU)

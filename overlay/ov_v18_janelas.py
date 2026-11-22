@@ -19,8 +19,8 @@ def construir(B):
     def Q(*a):
         return B.QColor(*a)
 
-    def ft(tam, peso=QFont.Normal):
-        return B.fonte(tam, peso)
+    def ft(tam, peso=QFont.Normal, p=None):
+        return B.fonte(tam, peso, p=p)
 
     def mistura(c1, c2, t):
         t = max(0.0, min(1.0, t))
@@ -45,11 +45,18 @@ def construir(B):
 
     def titulo(p, texto, largura, direita=""):
         p.setPen(B.COR_TEXTO)
-        p.setFont(ft(10, QFont.Bold))
+        p.setFont(ft(10, QFont.Bold, p=p))
         p.drawText(QRectF(14, 6, largura - 28, 20), Qt.AlignLeft | Qt.AlignVCenter, texto)
         if direita:
             p.setPen(B.COR_CINZA)
-            p.setFont(ft(8, QFont.DemiBold))
+            p.setFont(ft(8, QFont.DemiBold, p=p))
+            p.drawText(QRectF(14, 6, largura - 28, 20), Qt.AlignRight | Qt.AlignVCenter, direita)
+
+    def titulo_direita(p, direita, largura):
+        """So o texto pequeno do canto direito do titulo (build au: item proprio, com posicao e estilo)."""
+        if direita:
+            p.setPen(B.COR_CINZA)
+            p.setFont(ft(8, QFont.DemiBold, p=p))
             p.drawText(QRectF(14, 6, largura - 28, 20), Qt.AlignRight | Qt.AlignVCenter, direita)
 
     def cfg_bool(j, chave, padrao):
@@ -86,6 +93,7 @@ def construir(B):
                      ("cursor", "Marcador da posição atual"), ("trilha", "Trilha da posição recente"),
                      ("legenda", "Legenda de cores (mín. e máx.)"))
         SECOES = (("titulo", 0, 26), ("resumo", 26, 42), ("mapa", 68, 228), ("legenda", 296, 28))
+        DEPENDE = {"cursor": "mapa", "trilha": "mapa"}          # build av: marcador e trilha sao desenhados sobre o mapa de calor
 
         def tamanho(self):
             return (self.LARG, self._alt_util(324))
@@ -112,21 +120,21 @@ def construir(B):
                 for i, (rot, val, un, dec) in enumerate(itens):
                     x = xs[i]
                     p.setPen(B.COR_CINZA)
-                    p.setFont(ft(7, QFont.DemiBold))
+                    p.setFont(ft(7, QFont.DemiBold, p=p))
                     p.drawText(QRectF(x, 29, 110, 12), Qt.AlignLeft | Qt.AlignVCenter, rot)
                     p.setPen(B.COR_TEXTO)
-                    p.setFont(ft(15, QFont.Bold))
+                    p.setFont(ft(15, QFont.Bold, p=p))
                     txt = "--" if val is None else (f"{val:.{dec}f}" if isinstance(val, float) else str(val))
                     p.drawText(QRectF(x, 41, 110, 24), Qt.AlignLeft | Qt.AlignVCenter, txt)
                     if un:
                         w = p.fontMetrics().horizontalAdvance(txt)
                         p.setPen(B.COR_CINZA)
-                        p.setFont(ft(8, QFont.DemiBold))
+                        p.setFont(ft(8, QFont.DemiBold, p=p))
                         p.drawText(QRectF(x + w + 4, 46, 40, 18), Qt.AlignLeft | Qt.AlignVCenter, un)
                 self._fecha(p)
             if self._abre(p, "mapa"):
                 rpm_max = r.get("rpm_max") or v18d(d).get("rpm_max")
-                p.setFont(ft(7, QFont.DemiBold))
+                p.setFont(ft(7, QFont.DemiBold, p=p))
                 p.setPen(B.COR_CINZA)
                 p.drawText(QRectF(4, 70, x0 - 8, 18), Qt.AlignRight | Qt.AlignVCenter, "ACEL. %")
                 lims = v18.limites_rpm(rpm_max) if rpm_max else None
@@ -139,7 +147,7 @@ def construir(B):
                         p.drawRoundedRect(ret, 3, 3)
                     if lims:
                         p.setPen(Q(15, 18, 24) if ativo else Q(235, 238, 245))
-                        p.setFont(ft(8, QFont.Bold))
+                        p.setFont(ft(8, QFont.Bold, p=p))
                         p.drawText(ret, Qt.AlignCenter, kfmt(lims[ci][0]))
                 for ci in range(5, v18.N_COLS):                                # barra de zona de RPM alto (verde -> amarelo -> vermelho)
                     t = (ci - 5) / 4.0
@@ -156,7 +164,7 @@ def construir(B):
                         p.setBrush(Q(255, 255, 255))
                         p.drawRoundedRect(ret_l, 3, 3)
                     p.setPen(Q(15, 18, 24) if ativo_l else Q(235, 238, 245))
-                    p.setFont(ft(8, QFont.Bold))
+                    p.setFont(ft(8, QFont.Bold, p=p))
                     p.drawText(ret_l, Qt.AlignCenter, str(ri * 10))
                     for ci in range(v18.N_COLS):
                         v = linha[ci] if ci < len(linha) else None
@@ -167,7 +175,7 @@ def construir(B):
                             p.drawRoundedRect(ret, 2, 2)
                             if cfg_bool(self, "vazao_valores", True):
                                 p.setPen(Q(255, 255, 255, 70))
-                                p.setFont(ft(7))
+                                p.setFont(ft(7, p=p))
                                 p.drawText(ret, Qt.AlignCenter, "-")
                             continue
                         t = 0.5 if mx <= mn else (v - mn) / (mx - mn)
@@ -176,11 +184,11 @@ def construir(B):
                         p.drawRoundedRect(ret, 2, 2)
                         if cfg_bool(self, "vazao_valores", True):
                             p.setPen(texto_sobre(cor))
-                            p.setFont(ft(7, QFont.Bold))
+                            p.setFont(ft(7, QFont.Bold, p=p))
                             p.drawText(ret, Qt.AlignCenter, f"{v:.0f}")
                 def centro(li, co):
                     return QPointF(x0 + co * cw + cw / 2.0, y0 + (nl - 1 - li) * ch + ch / 2.0)
-                if self.visivel("trilha"):
+                if self._abre(p, "trilha"):
                     pts = [(li, co) for li, co in (r.get("trilha") or []) if co is not None]
                     if atual is not None and atual[1] is not None and (not pts or pts[-1] != tuple(atual)):
                         pts.append(tuple(atual))
@@ -193,13 +201,15 @@ def construir(B):
                         p.setPen(Qt.NoPen)
                         p.setBrush(Q(255, 255, 255, 230))
                         p.drawEllipse(centro(*pts[0]), 3.2, 3.2)
-                if self.visivel("cursor") and atual is not None and atual[1] is not None:
+                    self._fecha(p)
+                if atual is not None and atual[1] is not None and self._abre(p, "cursor"):
                     li, co = atual
                     p.setBrush(Qt.NoBrush)
                     p.setPen(QPen(Q(0, 0, 0, 120), 4))
                     p.drawRoundedRect(QRectF(x0 + co * cw, y0 + (nl - 1 - li) * ch, cw, ch), 3, 3)
                     p.setPen(QPen(Q(255, 255, 255), 2))
                     p.drawRoundedRect(QRectF(x0 + co * cw, y0 + (nl - 1 - li) * ch, cw, ch), 3, 3)
+                    self._fecha(p)
                 self._fecha(p)
             if self._abre(p, "legenda"):
                 bx, bw = x0, 170
@@ -208,10 +218,10 @@ def construir(B):
                     p.setBrush(escala_vazao(k / 59.0))
                     p.drawRect(QRectF(bx + k * bw / 60.0, 304, bw / 60.0 + 0.6, 8))
                 p.setPen(B.COR_CINZA)
-                p.setFont(ft(8, QFont.DemiBold))
+                p.setFont(ft(8, QFont.DemiBold, p=p))
                 p.drawText(QRectF(8, 300, x0 - 12, 16), Qt.AlignRight | Qt.AlignVCenter, "0" if mn is None else f"{mn:.0f}")
                 p.drawText(QRectF(bx + bw + 6, 300, 70, 16), Qt.AlignLeft | Qt.AlignVCenter, "L/h" if mx is None else f"{mx:.0f} L/h")
-                p.setFont(ft(7, QFont.DemiBold))
+                p.setFont(ft(7, QFont.DemiBold, p=p))
                 p.drawText(QRectF(self.LARG - 190, 300, 176, 16), Qt.AlignRight | Qt.AlignVCenter, "VAZÃO MÉDIA POR CÉLULA")
                 self._fecha(p)
 
@@ -226,6 +236,7 @@ def construir(B):
         ELEMENTOS = (("titulo", "Título e consumo agora"), ("grade", "Grade por faixa de RPM"), ("parcela", "Parcela do tempo em cada marcha"),
                      ("troca", "RPM máximo observado"), ("rpm_atual", "Marcador do RPM atual"), ("resumo", "Melhor, média e pior"),
                      ("legenda", "Legenda inferior"))
+        DEPENDE = {"parcela": "grade", "troca": "grade", "rpm_atual": "grade"}      # build av: desenhados sobre a grade
         SECOES = (("titulo", 0, 36), ("grade", 36, 190), ("resumo", 228, 34), ("legenda", 264, 22))
 
         def tamanho(self):
@@ -241,7 +252,7 @@ def construir(B):
             atual_g = r.get("atual") if isinstance(r.get("atual"), int) else None
             if self._abre(p, "titulo"):
                 p.setPen(B.COR_TEXTO)
-                p.setFont(ft(10, QFont.Bold))
+                p.setFont(ft(10, QFont.Bold, p=p))
                 p.drawText(QRectF(14, 6, 230, 26), Qt.AlignLeft | Qt.AlignVCenter, "EFICIÊNCIA POR MARCHA")
                 xr = self.LARG - 14
                 if atual_g:                                                    # selo da marcha engatada
@@ -249,15 +260,15 @@ def construir(B):
                     p.setBrush(Q(*AMARELO))
                     p.drawRoundedRect(QRectF(xr - 28, 9, 28, 18), 3, 3)
                     p.setPen(Q(15, 18, 24))
-                    p.setFont(ft(9, QFont.Bold))
+                    p.setFont(ft(9, QFont.Bold, p=p))
                     p.drawText(QRectF(xr - 28, 9, 28, 18), Qt.AlignCenter, f"G{atual_g}")
                     xr -= 34
                 p.setPen(B.COR_CINZA)
-                p.setFont(ft(8, QFont.DemiBold))
+                p.setFont(ft(8, QFont.DemiBold, p=p))
                 p.drawText(QRectF(xr - 50, 6, 50, 26), Qt.AlignRight | Qt.AlignVCenter, "L/100 km")
                 ag = r.get("agora_l100")
                 p.setPen(B.COR_TEXTO)
-                p.setFont(ft(15, QFont.Bold))
+                p.setFont(ft(15, QFont.Bold, p=p))
                 p.drawText(QRectF(xr - 112, 4, 58, 28), Qt.AlignRight | Qt.AlignVCenter, "-" if ag is None else f"{ag:.0f}")
                 self._fecha(p)
             rpm_max_car = r.get("rpm_max")
@@ -274,11 +285,12 @@ def construir(B):
                 n = max(6, min(self.N, maior))
                 y0 = 52.0
                 ch = 156.0 / n
-                p.setFont(ft(8, QFont.Bold))
-                if self.visivel("parcela"):
+                p.setFont(ft(8, QFont.Bold, p=p))
+                if self._abre(p, "parcela"):
                     p.setPen(B.COR_CINZA)
-                    p.setFont(ft(7, QFont.DemiBold))
+                    p.setFont(ft(7, QFont.DemiBold, p=p))
                     p.drawText(QRectF(350, 38, 80, 12), Qt.AlignRight | Qt.AlignVCenter, "PARCELA")
+                    self._fecha(p)
                 for k in range(n):
                     g = n - k
                     m = ms.get(g)
@@ -289,7 +301,7 @@ def construir(B):
                         p.setBrush(Q(255, 255, 255, 22))
                         p.drawRoundedRect(QRectF(4, y, self.LARG - 8, ch), 4, 4)
                     p.setPen(Q(*AMARELO) if atual else (B.COR_TEXTO if m else Q(255, 255, 255, 60)))
-                    p.setFont(ft(11 if atual else 10, QFont.Bold))
+                    p.setFont(ft(11 if atual else 10, QFont.Bold, p=p))
                     p.drawText(QRectF(8, y, 28, ch), Qt.AlignCenter, str(g))
                     ultimo = None
                     for ci in range(v18.N_COLS):
@@ -306,33 +318,35 @@ def construir(B):
                     if ultimo is not None:                                     # valor da faixa de RPM mais alta com dado
                         ci, v, t = ultimo
                         p.setPen(texto_sobre(escala_boa_ruim(t)))
-                        p.setFont(ft(7, QFont.Bold))
+                        p.setFont(ft(7, QFont.Bold, p=p))
                         p.drawText(QRectF(x0 + ci * cw + 1, y + 1, cw - 2, ch - 3), Qt.AlignCenter, f"{v:.0f}")
-                    if m and self.visivel("troca") and m.get("rpm_max"):       # marca do RPM maximo observado nesta marcha
+                    if m and m.get("rpm_max") and self._abre(p, "troca"): # marca do RPM maximo observado nesta marcha
                         xm = xr_rpm(m["rpm_max"])
                         if xm is not None:
                             p.setPen(QPen(Q(255, 255, 255, 190), 2))
                             p.drawLine(QPointF(xm, y + 3), QPointF(xm, y + ch - 3))
-                    if m and self.visivel("parcela") and m.get("parcela") is not None:
+                        self._fecha(p)
+                    if m and m.get("parcela") is not None and self._abre(p, "parcela"):
                         p.setPen(Qt.NoPen)
                         p.setBrush(Q(255, 255, 255, 36))
                         p.drawRoundedRect(QRectF(352, y + ch - 7, 50, 3), 1.5, 1.5)
                         p.setBrush(Q(255, 255, 255, 200 if atual else 150))
                         p.drawRoundedRect(QRectF(352, y + ch - 7, 50 * max(0.02, m["parcela"]), 3), 1.5, 1.5)
                         p.setPen(B.COR_TEXTO if atual else B.COR_CINZA)
-                        p.setFont(ft(8, QFont.Bold if atual else QFont.Normal))
+                        p.setFont(ft(8, QFont.Bold if atual else QFont.Normal, p=p))
                         p.drawText(QRectF(350, y, 80, ch - 6), Qt.AlignRight | Qt.AlignVCenter, f"{m['parcela'] * 100:.0f}%")
+                        self._fecha(p)
                 # eixo de RPM
                 if lo_rpm:
                     p.setPen(B.COR_CINZA)
-                    p.setFont(ft(7))
+                    p.setFont(ft(7, p=p))
                     k_ = int(lo_rpm // 1000) + 1
                     while k_ * 1000 <= rpm_max_car:
                         xx = xr_rpm(k_ * 1000)
                         p.drawText(QRectF(xx - 16, y0 + 156 + 3, 32, 12), Qt.AlignCenter, f"{k_}k")
                         k_ += 1
                 # linha do RPM maximo observado na marcha engatada (tracejada) + etiqueta
-                if self.visivel("troca") and atual_g and ms.get(atual_g) and ms[atual_g].get("rpm_max"):
+                if atual_g and ms.get(atual_g) and ms[atual_g].get("rpm_max") and self._abre(p, "troca"):
                     xm = xr_rpm(ms[atual_g]["rpm_max"])
                     if xm is not None:
                         p.setPen(QPen(Q(*AMARELO), 1.4, Qt.DashLine))
@@ -344,10 +358,11 @@ def construir(B):
                         p.setBrush(Q(*AMARELO))
                         p.drawRoundedRect(QRectF(bx, 36, w, 13), 2, 2)
                         p.setPen(Q(15, 18, 24))
-                        p.setFont(ft(7, QFont.Bold))
+                        p.setFont(ft(7, QFont.Bold, p=p))
                         p.drawText(QRectF(bx, 36, w, 13), Qt.AlignCenter, txt)
+                    self._fecha(p)
                 # marcador do RPM atual na marcha engatada
-                if self.visivel("rpm_atual") and atual_g and 1 <= atual_g <= n and r.get("rpm"):
+                if atual_g and 1 <= atual_g <= n and r.get("rpm") and self._abre(p, "rpm_atual"):
                     xa = xr_rpm(r["rpm"])
                     if xa is not None:
                         ya = y0 + (n - atual_g) * ch
@@ -359,23 +374,24 @@ def construir(B):
                         p.setBrush(Q(255, 255, 255))
                         p.drawRoundedRect(QRectF(bx, ya - 6, w, 12), 2, 2)
                         p.setPen(Q(15, 18, 24))
-                        p.setFont(ft(7, QFont.Bold))
+                        p.setFont(ft(7, QFont.Bold, p=p))
                         p.drawText(QRectF(bx, ya - 6, w, 12), Qt.AlignCenter, kfmt(r["rpm"]))
+                    self._fecha(p)
                 self._fecha(p)
             if self._abre(p, "resumo"):
                 itens = (("MELHOR", r.get("minimo")), ("MÉDIA", r.get("media")), ("PIOR", r.get("maximo")))
                 for i, (rot, val) in enumerate(itens):
                     x = 14 + i * 110
                     p.setPen(B.COR_CINZA)
-                    p.setFont(ft(7, QFont.DemiBold))
+                    p.setFont(ft(7, QFont.DemiBold, p=p))
                     p.drawText(QRectF(x, 230, 100, 12), Qt.AlignLeft | Qt.AlignVCenter, rot)
                     p.setPen(B.COR_TEXTO)
-                    p.setFont(ft(14, QFont.Bold))
+                    p.setFont(ft(14, QFont.Bold, p=p))
                     p.drawText(QRectF(x, 241, 100, 22), Qt.AlignLeft | Qt.AlignVCenter, "--" if val is None else f"{val:.0f}")
                 self._fecha(p)
             if self._abre(p, "legenda"):
                 p.setPen(B.COR_CINZA)
-                p.setFont(ft(7, QFont.DemiBold))
+                p.setFont(ft(7, QFont.DemiBold, p=p))
                 p.drawText(QRectF(14, 266, 160, 16), Qt.AlignLeft | Qt.AlignVCenter, "SÓ ACELERADOR PLENO")
                 p.drawText(QRectF(160, 266, 120, 16), Qt.AlignCenter, "RPM")
                 p.drawText(QRectF(self.LARG - 174, 266, 160, 16), Qt.AlignRight | Qt.AlignVCenter, "MENOR É MELHOR")
@@ -391,6 +407,7 @@ def construir(B):
         ELEMENTOS = (("titulo", "Título e stint"), ("barras", "Tabela por faixa de acelerador e RPM"), ("rpm", "Faixas de RPM (cabeçalho e cores por célula)"),
                      ("totais", "Barra a fundo, parcial e solto"), ("destaque", "Onde mais gasta"))
         SECOES = (("titulo", 0, 28), ("barras", 28, 184), ("totais", 214, 36), ("destaque", 252, 40))
+        DEPENDE = {"rpm": "barras"}                                # build av: cabecalho de RPM faz parte da tabela
         NOMES = {"FLAT": "A FUNDO", "HIGH": "ALTO", "MID": "MÉDIO", "LOW": "BAIXO", "COAST": "SOLTO"}
         FAIXAS = {"FLAT": "90–100%", "HIGH": "60–90%", "MID": "30–60%", "LOW": "5–30%", "COAST": "0–5%"}
 
@@ -416,32 +433,33 @@ def construir(B):
                 titulo(p, "DESTINO DO COMBUSTÍVEL", self.LARG)
                 sl, sv = r.get("stint_l"), r.get("stint_voltas")
                 p.setPen(B.COR_TEXTO)
-                p.setFont(ft(8, QFont.Bold))
+                p.setFont(ft(8, QFont.Bold, p=p))
                 p.drawText(QRectF(14, 6, self.LARG - 28, 20), Qt.AlignRight | Qt.AlignVCenter,
                            f"STINT {sl or 0:.1f} L · {sv or 0} {'VOLTA' if sv == 1 else 'VOLTAS'}")
                 self._fecha(p)
             if self._abre(p, "barras"):
                 x0, cw, y0, ch = 66, 36, 54, 27
-                if self.visivel("rpm") and rpm_max:
+                if rpm_max and self._abre(p, "rpm"):
                     lims = v18.limites_rpm(rpm_max)
-                    p.setFont(ft(8, QFont.Bold))
+                    p.setFont(ft(8, QFont.Bold, p=p))
                     for ci in range(v18.N_COLS):
                         p.setPen(B.COR_TEXTO if not (atual and atual[1] == ci) else Q(255, 255, 255))
                         p.drawText(QRectF(x0 + ci * cw, 30, cw, 16), Qt.AlignCenter, kfmt(lims[ci][0]))
                     p.setPen(Qt.NoPen)
                     p.setBrush(Q(255, 221, 40))
                     p.drawRect(QRectF(x0 + (v18.N_COLS - 3) * cw + 2, 47, 3 * cw - 4, 2))
-                p.setFont(ft(7, QFont.DemiBold))
+                    self._fecha(p)
+                p.setFont(ft(7, QFont.DemiBold, p=p))
                 p.setPen(B.COR_CINZA)
                 p.drawText(QRectF(8, 30, 56, 16), Qt.AlignLeft | Qt.AlignVCenter, "RPM")
                 maior_c = max([c_ for f in faixas for c_ in (f.get("celulas") or []) if c_] or [1e-9])
                 for i, f in enumerate(faixas):
                     y = y0 + i * (ch + 3)
                     p.setPen(B.COR_TEXTO)
-                    p.setFont(ft(9, QFont.Bold))
+                    p.setFont(ft(9, QFont.Bold, p=p))
                     p.drawText(QRectF(8, y, 58, ch * 0.6), Qt.AlignLeft | Qt.AlignVCenter, self.NOMES.get(f["nome"], f["nome"]))
                     p.setPen(B.COR_CINZA)
-                    p.setFont(ft(7))
+                    p.setFont(ft(7, p=p))
                     p.drawText(QRectF(8, y + ch * 0.55, 58, ch * 0.4), Qt.AlignLeft | Qt.AlignVCenter, self.FAIXAS.get(f["nome"], ""))
                     cells = f.get("celulas") or []
                     for ci in range(v18.N_COLS):
@@ -456,7 +474,7 @@ def construir(B):
                             p.setBrush(Q(*mistura((86, 24, 32), (232, 52, 58), t)))
                             p.drawRoundedRect(ret, 3, 3)
                             p.setPen(Q(255, 255, 255))
-                            p.setFont(ft(8, QFont.Bold))
+                            p.setFont(ft(8, QFont.Bold, p=p))
                             p.drawText(ret, Qt.AlignCenter, (("<0.1" if c_ * total < 0.1 else f"{c_ * total:.1f}") if em_litros else self._pct(c_)))
                         if atual and atual[0] == f["nome"] and atual[1] == ci:
                             p.setBrush(Qt.NoBrush)
@@ -485,16 +503,16 @@ def construir(B):
                         p.drawRect(QRectF(xx, y, max(2.0, wseg), 16))
                         if nome and wseg > 70:
                             p.setPen(tx)
-                            p.setFont(ft(8, QFont.Bold))
+                            p.setFont(ft(8, QFont.Bold, p=p))
                             p.drawText(QRectF(xx, y, wseg, 16), Qt.AlignCenter, f"{nome} {par * 100:.0f}%")
                         xx += wseg
                     p.setPen(B.COR_CINZA)
-                    p.setFont(ft(7, QFont.DemiBold))
+                    p.setFont(ft(7, QFont.DemiBold, p=p))
                     p.drawText(QRectF(x, y + 18, larg_b, 12), Qt.AlignRight | Qt.AlignVCenter, f"SOLTO {self._pct(coast)}")
                 self._fecha(p)
             if self._abre(p, "destaque"):
                 m = r.get("maior")
-                p.setFont(ft(9, QFont.DemiBold))
+                p.setFont(ft(9, QFont.DemiBold, p=p))
                 if m and rpm_max:
                     lo, hi = v18.limites_rpm(rpm_max)[m["col"]]
                     p.setPen(Qt.NoPen)
@@ -507,7 +525,7 @@ def construir(B):
                     p.setPen(B.COR_CINZA)
                     p.drawText(QRectF(14, 256, self.LARG - 28, 20), Qt.AlignLeft | Qt.AlignVCenter, "Medindo... dirija algumas voltas.")
                 p.setPen(B.COR_CINZA)
-                p.setFont(ft(8))
+                p.setFont(ft(8, p=p))
                 p.drawText(QRectF(14, 276, self.LARG - 28, 16), Qt.AlignLeft | Qt.AlignVCenter,
                            f"Medido pelo nível do tanque: {total:.1f} L no total · células em {'litros' if em_litros else '% do total'}")
                 self._fecha(p)
@@ -536,7 +554,7 @@ def construir(B):
             ret = QRectF(2, 2, self.LARG - 4, self.ALT - 4)
             fase = (time.monotonic() * 2.5) % 1.0
             pisca = cfg_bool(self, "digiflag_piscar", True) and ident not in ("verde", "nenhuma")
-            if self.visivel("painel"):
+            if self._abre(p, "painel"):
                 alfa = 235 if not pisca else int(150 + 90 * (0.5 + 0.5 * math.sin(fase * 2 * math.pi)))
                 p.setPen(Qt.NoPen)
                 p.setBrush(Q(cor[0], cor[1], cor[2], alfa))
@@ -553,22 +571,26 @@ def construir(B):
                 elif ident == "azul":
                     p.setPen(QPen(Q(255, 255, 255, 220), 6))
                     p.drawLine(QPointF(ret.left() + 14, ret.bottom() - 14), QPointF(ret.right() - 14, ret.top() + 14))
-            if self.visivel("borda"):                          # borda fixa e discreta; pulsa nas bandeiras de atencao
+                self._fecha(p)
+            if self._abre(p, "borda"): # borda fixa e discreta; pulsa nas bandeiras de atencao
                 p.setBrush(Qt.NoBrush)
                 p.setPen(QPen(Q(255, 255, 255, int(255 * (0.5 + 0.5 * math.sin(fase * 2 * math.pi))) if pisca else 120), 3))
                 p.drawRoundedRect(ret.adjusted(2, 2, -2, -2), 11, 11)
+                self._fecha(p)
             escuro = (cor[0] * 0.299 + cor[1] * 0.587 + cor[2] * 0.114) > 150 and ident != "quadriculada"
             tc = Q(10, 10, 12) if escuro else Q(255, 255, 255)
             if ident == "quadriculada":
                 tc = Q(255, 255, 255)
-            if self.visivel("texto"):
+            if self._abre(p, "texto"):
                 p.setPen(Q(0, 0, 0, 200) if ident == "quadriculada" else tc)
-                p.setFont(ft(19, QFont.Bold))
+                p.setFont(ft(19, QFont.Bold, p=p))
                 p.drawText(QRectF(8, 18, self.LARG - 16, 50), Qt.AlignCenter, str(b.get("titulo") or "BANDEIRA VERDE"))
-            if self.visivel("sub"):
+                self._fecha(p)
+            if self._abre(p, "sub"):
                 p.setPen(tc)
-                p.setFont(ft(10, QFont.DemiBold))
+                p.setFont(ft(10, QFont.DemiBold, p=p))
                 p.drawText(QRectF(8, 68, self.LARG - 16, 32), Qt.AlignCenter | Qt.TextWordWrap, str(b.get("sub") or ""))
+                self._fecha(p)
 
     # ================================================================== 5. Alerta de ultrapassagem
     class JanelaUltrapassagem(JA):
@@ -597,11 +619,12 @@ def construir(B):
             if not self._fundo(p, d["conectado"], "Aguardando o jogo..."):
                 return
             carros = (v18d(d).get("ultrapassagem") or {}).get("carros") or []
-            if self.visivel("titulo"):
+            if self._abre(p, "titulo"):
                 titulo(p, "VEM ALGUÉM ATRÁS", self.LARG)
+                self._fecha(p)
             if not carros:
                 p.setPen(B.COR_CINZA)
-                p.setFont(ft(10))
+                p.setFont(ft(10, p=p))
                 p.drawText(QRectF(14, 30, self.LARG - 28, 60), Qt.AlignCenter, "Nenhum carro se aproximando por trás.")
                 return
             for i, c in enumerate(carros[:4]):
@@ -614,26 +637,30 @@ def construir(B):
                 p.setBrush(escala_boa_ruim(1.0 - min(1.0, gap / 3.0)))
                 p.drawRoundedRect(QRectF(8, y, 5, self.LIN - 4), 2, 2)
                 x = 20
-                if self.visivel("numero"):
+                if self._abre(p, "numero"):
                     cor = c.get("cor") or (170, 170, 185)
                     p.setBrush(Q(*cor))
                     p.drawRoundedRect(QRectF(x, y + 4, 46, self.LIN - 12), 5, 5)
                     p.setPen(Q(10, 10, 12))
-                    p.setFont(ft(11, QFont.Bold))
+                    p.setFont(ft(11, QFont.Bold, p=p))
                     p.drawText(QRectF(x, y + 4, 46, self.LIN - 12), Qt.AlignCenter, f"#{c.get('numero', '')}")
                     x += 54
-                if self.visivel("nome"):
+                    self._fecha(p)
+                if self._abre(p, "nome"):
                     p.setPen(B.COR_TEXTO)
-                    p.setFont(ft(10, QFont.DemiBold))
+                    p.setFont(ft(10, QFont.DemiBold, p=p))
                     p.drawText(QRectF(x, y, 132, self.LIN - 4), Qt.AlignLeft | Qt.AlignVCenter, v18.nome_curto(c.get("nome", "")))
-                if self.visivel("gap"):
+                    self._fecha(p)
+                if self._abre(p, "gap"):
                     p.setPen(B.COR_TEXTO)
-                    p.setFont(ft(13, QFont.Bold))
+                    p.setFont(ft(13, QFont.Bold, p=p))
                     p.drawText(QRectF(self.LARG - 126, y, 52, self.LIN - 4), Qt.AlignRight | Qt.AlignVCenter, f"{gap:.1f}s")
-                if self.visivel("taxa") and c.get("fecha"):
+                    self._fecha(p)
+                if c.get("fecha") and self._abre(p, "taxa"):
                     p.setPen(B.COR_AMARELO)
-                    p.setFont(ft(9, QFont.Bold))
+                    p.setFont(ft(9, QFont.Bold, p=p))
                     p.drawText(QRectF(self.LARG - 68, y, 58, self.LIN - 4), Qt.AlignLeft | Qt.AlignVCenter, "▲" + f"{c['fecha']:.2f}")
+                    self._fecha(p)
 
     # ================================================================== 6. Calendario de corridas
     class JanelaCalendario(JB):
@@ -667,11 +694,12 @@ def construir(B):
             if not self._fundo(p, d["conectado"], "Aguardando o jogo..."):
                 return
             itens = v18d(d).get("calendario") or []
-            if self.visivel("titulo"):
+            if self._abre(p, "titulo"):
                 titulo(p, "ALERTA DE CORRIDA" if v18d(d).get("calendario_alerta") else "PRÓXIMAS CORRIDAS", self.LARG, str(v18d(d).get("calendario_fonte") or ""))
+                self._fecha(p)
             if not itens:
                 p.setPen(B.COR_CINZA)
-                p.setFont(ft(9))
+                p.setFont(ft(9, p=p))
                 p.drawText(QRectF(14, 30, self.LARG - 28, 4 * self.LIN), Qt.AlignCenter | Qt.TextWordWrap,
                            str(v18d(d).get("calendario_aviso") or "Sem corridas no arquivo calendario_corridas.csv."))
                 return
@@ -691,35 +719,39 @@ def construir(B):
                     p.setBrush(B.COR_AMARELO)
                     p.drawRoundedRect(QRectF(8, y, 5, self.LIN - 4), 2, 2)
                 p.setPen(B.COR_TEXTO)
-                p.setFont(ft(10, QFont.Bold))
+                p.setFont(ft(10, QFont.Bold, p=p))
                 nome = str(it.get("nome", ""))
                 p.drawText(QRectF(20, y + 2, 190, 18), Qt.AlignLeft | Qt.AlignVCenter,
-                           QFontMetrics(ft(10, QFont.Bold)).elidedText(nome, Qt.ElideRight, 190))
-                if self.visivel("classe") and it.get("classe"):
+                           QFontMetrics(ft(10, QFont.Bold, p=p)).elidedText(nome, Qt.ElideRight, 190))
+                if it.get("classe") and self._abre(p, "classe"):
                     p.setPen(B.COR_AMARELO)
-                    p.setFont(ft(8, QFont.Bold))
+                    p.setFont(ft(8, QFont.Bold, p=p))
                     p.drawText(QRectF(210, y + 2, 56, 18), Qt.AlignLeft | Qt.AlignVCenter, str(it["classe"]))
-                if self.visivel("hora"):
+                    self._fecha(p)
+                if self._abre(p, "hora"):
                     ini = it["inicio"]
                     txt = ini.strftime("%H:%M") if h24 else ini.strftime("%I:%M %p").lstrip("0")
                     p.setPen(B.COR_TEXTO)
-                    p.setFont(ft(11, QFont.Bold))
+                    p.setFont(ft(11, QFont.Bold, p=p))
                     p.drawText(QRectF(self.LARG - 86, y + 2, 72, 18), Qt.AlignRight | Qt.AlignVCenter, txt)
-                if self.visivel("contagem"):
+                    self._fecha(p)
+                if self._abre(p, "contagem"):
                     p.setPen(B.COR_AMARELO if alerta else (B.COR_VERDE if andamento else B.COR_CINZA))
-                    p.setFont(ft(9, QFont.Bold if alerta else QFont.DemiBold))
+                    p.setFont(ft(9, QFont.Bold if alerta else QFont.DemiBold, p=p))
                     p.drawText(QRectF(20, y + 21, 110, 16), Qt.AlignLeft | Qt.AlignVCenter, self._fmt_contagem(it["ate_inicio_s"]))
+                    self._fecha(p)
                 if it.get("pista"):
                     p.setPen(B.COR_CINZA)
-                    p.setFont(ft(8))
+                    p.setFont(ft(8, p=p))
                     p.drawText(QRectF(112, y + 21, self.LARG - 128, 16), Qt.AlignRight | Qt.AlignVCenter,
-                               QFontMetrics(ft(8)).elidedText(str(it["pista"]), Qt.ElideLeft, self.LARG - 128))
+                               QFontMetrics(ft(8, p=p)).elidedText(str(it["pista"]), Qt.ElideLeft, self.LARG - 128))
                 rg = it.get("reg_s")
-                if self.visivel("registro") and rg is not None:
+                if rg is not None and self._abre(p, "registro"):
                     p.setPen(B.COR_AMARELO if 0 < rg < 600 else B.COR_CINZA)
-                    p.setFont(ft(8))
+                    p.setFont(ft(8, p=p))
                     p.drawText(QRectF(160, y + 21, self.LARG - 176, 16), Qt.AlignRight | Qt.AlignVCenter,
                                "registro aberto: " + self._fmt_contagem(rg).replace("em ", "") if rg > 0 else "registro fechado")
+                    self._fecha(p)
 
     # ================================================================== 7. Energia hibrida / Boost box
     class JanelaHibrido(JB):
@@ -737,10 +769,10 @@ def construir(B):
 
         def _barra(self, p, y, rot, valor, cor, bloco=False, ref=None):
             p.setPen(B.COR_CINZA)
-            p.setFont(ft(8, QFont.DemiBold))
+            p.setFont(ft(8, QFont.DemiBold, p=p))
             p.drawText(QRectF(14, y, 150, 14), Qt.AlignLeft | Qt.AlignVCenter, rot)
             p.setPen(B.COR_TEXTO)
-            p.setFont(ft(15, QFont.Bold))
+            p.setFont(ft(15, QFont.Bold, p=p))
             p.drawText(QRectF(self.LARG - 94, y - 2, 80, 24), Qt.AlignRight | Qt.AlignVCenter, "--" if valor is None else f"{valor * 100:.0f}%")
             p.setPen(Qt.NoPen)
             p.setBrush(Q(255, 255, 255, 26))
@@ -760,14 +792,14 @@ def construir(B):
                 return
             h = v18d(d).get("hibrido")
             if self._abre(p, "titulo"):
-                est = ""
-                if h and self.visivel("estado"):
-                    est = "ENTREGANDO" if h.get("ativo") else "RECARREGANDO/PARADO"
-                titulo(p, "ENERGIA HÍBRIDA", self.LARG, est)
+                titulo(p, "ENERGIA HÍBRIDA", self.LARG)
+                self._fecha(p)
+            if h and self._abre(p, "estado"):
+                titulo_direita(p, "ENTREGANDO" if h.get("ativo") else "RECARREGANDO/PARADO", self.LARG)
                 self._fecha(p)
             if h is None:
                 p.setPen(B.COR_CINZA)
-                p.setFont(ft(9))
+                p.setFont(ft(9, p=p))
                 p.drawText(QRectF(14, 32, self.LARG - 28, self.height() / max(0.01, self.escala_y) - 40), Qt.AlignCenter | Qt.TextWordWrap,
                            "Este carro não informa dados do sistema híbrido.")
                 return
@@ -781,7 +813,7 @@ def construir(B):
                 self._fecha(p)
             if self._abre(p, "ultima"):
                 p.setPen(B.COR_CINZA)
-                p.setFont(ft(8, QFont.DemiBold))
+                p.setFont(ft(8, QFont.DemiBold, p=p))
                 uc, ud = h.get("ult_carga"), h.get("ult_deploy")
                 p.drawText(QRectF(14, 148, self.LARG - 28, 30), Qt.AlignLeft | Qt.AlignVCenter,
                            "VOLTA ANTERIOR  bateria " + ("--" if uc is None else f"{uc * 100:.0f}%") + "  ·  deploy " + ("--" if ud is None else f"{ud * 100:.0f}%"))
@@ -808,12 +840,14 @@ def construir(B):
             s = v18d(d).get("sessao")
             if s is None:
                 p.setPen(B.COR_CINZA)
-                p.setFont(ft(10))
+                p.setFont(ft(10, p=p))
                 p.drawText(QRectF(14, 8, self.LARG - 28, 88), Qt.AlignCenter | Qt.TextWordWrap, "Sem tempo ou voltas definidos para esta sessão.")
                 return
             if self._abre(p, "rotulo"):
-                titulo(p, "TEMPO RESTANTE" if s["modo"] == "tempo" else "VOLTAS RESTANTES", self.LARG,
-                       (f"{s['fracao'] * 100:.0f}% corrido" if (s.get("fracao") is not None and self.visivel("percentual")) else ""))
+                titulo(p, "TEMPO RESTANTE" if s["modo"] == "tempo" else "VOLTAS RESTANTES", self.LARG)
+                self._fecha(p)
+            if s.get("fracao") is not None and self._abre(p, "percentual"):
+                titulo_direita(p, f"{s['fracao'] * 100:.0f}% corrido", self.LARG)
                 self._fecha(p)
             if self._abre(p, "relogio"):
                 texto = s["texto"]
@@ -822,7 +856,7 @@ def construir(B):
                     texto = f"{seg // 3600}:{(seg % 3600) // 60:02d}:{seg % 60:02d}"
                 crit = s["modo"] == "tempo" and s["restante"] < 300
                 p.setPen(B.COR_AMARELO if crit else B.COR_TEXTO)
-                p.setFont(ft(28, QFont.Bold))
+                p.setFont(ft(28, QFont.Bold, p=p))
                 p.drawText(QRectF(10, 28, self.LARG - 20, 48), Qt.AlignCenter, texto)
                 self._fecha(p)
             if self._abre(p, "barra"):
@@ -875,7 +909,7 @@ def construir(B):
 
         def _barra_pedal(self, p, y, nome, cor, vivo, ref):
             p.setPen(B.COR_CINZA)
-            p.setFont(ft(9, QFont.DemiBold))
+            p.setFont(ft(9, QFont.DemiBold, p=p))
             p.drawText(QRectF(14, y, 62, 22), Qt.AlignLeft | Qt.AlignVCenter, nome)
             x0, larg = 80.0, self.LARG - 80 - 62.0
             p.setPen(Qt.NoPen)
@@ -889,7 +923,7 @@ def construir(B):
                 p.setPen(QPen(Q(255, 255, 255, 235), 2.5))
                 p.drawLine(QPointF(xr, y), QPointF(xr, y + 22))
             p.setPen(B.COR_TEXTO)
-            p.setFont(ft(14, QFont.Bold))
+            p.setFont(ft(14, QFont.Bold, p=p))
             p.drawText(QRectF(self.LARG - 58, y - 2, 46, 26), Qt.AlignRight | Qt.AlignVCenter, "--" if vivo is None else f"{vivo:.0f}%")
 
         def paintEvent(self, _e):
@@ -900,18 +934,18 @@ def construir(B):
             c = d.get("coach") or {}
             ped = c.get("pedais")
             exemplo = False
-            if not ped and not self.config["travado"]:
+            if not ped and (not self.config["travado"] or d.get("previa") or getattr(self, "modo_previa", False)):
                 ped, exemplo = self._exemplo(), True
             if not ped:
                 p.setPen(B.COR_CINZA)
-                p.setFont(ft(11, QFont.DemiBold))
+                p.setFont(ft(11, QFont.DemiBold, p=p))
                 p.drawText(QRectF(14, 8, self.LARG - 28, 90), Qt.AlignCenter | Qt.TextWordWrap,
                            "Sem referência do Coach para esta pista e carro.\nDirija uma volta limpa para gravar.")
                 return
             if self._abre(p, "fase"):
                 texto, cor = self.TEXTOS.get(ped.get("fase"), ("--", "cinza"))
                 p.setPen(self._cor(cor))
-                p.setFont(ft(26 if len(texto) <= 14 else 20, QFont.Bold))
+                p.setFont(ft(26 if len(texto) <= 14 else 20, QFont.Bold, p=p))
                 p.drawText(QRectF(10, 4, self.LARG - 20, 38), Qt.AlignCenter, texto)
                 alvo = ped.get("alvo_freio_pct") if ped.get("fase") in ("frear", "trail", "soltar_freio") else ped.get("alvo_acel_pct")
                 sub = "" if alvo is None else (f"freio alvo {alvo}%" if ped.get("fase") in ("frear", "trail", "soltar_freio") else f"acelerador alvo {alvo}%")
@@ -920,7 +954,7 @@ def construir(B):
                 if ped.get("fase") == "trail":
                     sub = "solte o freio aos poucos até o ápice · " + sub
                 p.setPen(B.COR_CINZA)
-                p.setFont(ft(9, QFont.DemiBold))
+                p.setFont(ft(9, QFont.DemiBold, p=p))
                 p.drawText(QRectF(10, 40, self.LARG - 20, 18), Qt.AlignCenter,
                            QFontMetrics(p.font()).elidedText(sub, Qt.ElideRight, int(self.LARG - 24)))
                 self._fecha(p)
@@ -932,7 +966,7 @@ def construir(B):
                 pl = ((c.get("proxima") or {}).get("plano")) or ped.get("_plano")
                 pr = c.get("proxima") or ped.get("_plano") or {}
                 p.setPen(B.COR_CINZA)
-                p.setFont(ft(9, QFont.DemiBold))
+                p.setFont(ft(9, QFont.DemiBold, p=p))
                 fm = QFontMetrics(p.font())
                 if pl:
                     trail = f"trail {pl['trail_m']:.0f} m" if pl.get("trail") else "sem trail (solta de vez)"
