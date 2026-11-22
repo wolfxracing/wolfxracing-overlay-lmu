@@ -71,7 +71,8 @@ def main():
         resumo.append(linha)
         if rc != 0:
             falhos.append(t)
-            for l in open(log, encoding="utf-8", errors="replace").read().splitlines()[-14:]:   # build az: mostra o final do log de quem falhou
+            _linhas = open(log, encoding="utf-8", errors="replace").read().splitlines()
+            for l in [x for x in _linhas if x.startswith("FALHA")][:20] + _linhas[-14:]:   # build az: mostra o final do log de quem falhou
                 print("    | " + l[:220])
     fim = f"\n{len(testes)} suites, {len(testes) - len(falhos)} com rc=0, {len(falhos)} com falha" + (": " + ", ".join(falhos) if falhos else "")
     print(fim)
