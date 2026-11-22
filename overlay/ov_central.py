@@ -9,10 +9,10 @@ import math
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QPointF, QRectF, QSize, Qt, QTimer
+from PySide6.QtCore import QPointF, QRectF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QIcon, QImage, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap, QRadialGradient
 from PySide6.QtWidgets import (QAbstractButton, QButtonGroup, QComboBox, QDoubleSpinBox, QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
-                               QLineEdit, QMessageBox, QPushButton, QRadioButton, QScrollArea, QSizePolicy, QSlider,
+                               QLineEdit, QMessageBox, QPushButton, QRadioButton, QScrollArea, QSizePolicy, QSlider, QSpinBox,
                                QStackedWidget, QVBoxLayout, QWidget)
 
 try:
@@ -145,8 +145,8 @@ QFrame#cartao[ligado="true"] {{ border: 1px solid {ligado_borda}; }}
 QFrame#bloco {{ background: {cartao}; border: 1px solid {borda}; border-radius: 14px; }}
 QLineEdit {{ background: {campo}; border: 1px solid rgba(255,255,255,36); border-radius: 14px; padding: 10px 16px; color: #f2f2f4; }}
 QLineEdit:focus {{ border: 1px solid {ACENTO}; }}
-QComboBox, QDoubleSpinBox {{ background: {campo}; border: 1px solid #34343c; border-radius: 4px; padding: 6px 10px; color: #f2f2f4; min-height: 20px; }}
-QComboBox:focus, QDoubleSpinBox:focus {{ border: 1px solid {ACENTO}; }}
+QComboBox, QDoubleSpinBox, QSpinBox {{ background: {campo}; border: 1px solid #34343c; border-radius: 4px; padding: 6px 10px; color: #f2f2f4; min-height: 20px; }}
+QComboBox:focus, QDoubleSpinBox:focus, QSpinBox:focus {{ border: 1px solid {ACENTO}; }}
 QComboBox QAbstractItemView {{ background: #14141a; color: #f2f2f4; selection-background-color: {ACENTO}; border: 1px solid #34343c; }}
 QLabel#numero {{ font-size: 20px; font-weight: 800; }}
 QLabel#numero_g {{ font-size: 30px; font-weight: 800; color: {ACENTO}; }}
@@ -217,8 +217,14 @@ class Interruptor(QAbstractButton):
 class Miniatura(QLabel):
     """Imagem da janela (prévia) sobre fundo xadrez escuro."""
 
+    pressionado = Signal(float, float)        # build at: posicao no pixmap (px da imagem) onde o mouse foi pressionado
+    arrastado = Signal(float, float)          # deslocamento acumulado desde o clique (px da imagem)
+    solto = Signal()
+
     def __init__(self, largura, altura, parent=None, flexivel=False, galeria=False):
         super().__init__(parent)
+        self._arrastavel = False
+        self._ini = None
         self._lw, self._lh = largura, altura
         self._galeria = galeria
         if galeria:                                   # build ac: cartao de galeria (foto de fundo, previa centrada, texto por cima)
@@ -235,6 +241,44 @@ class Miniatura(QLabel):
     def definir(self, pix):
         self._pix = pix
         self.update()
+
+    def definir_arrastavel(self, v):
+        self._arrastavel = bool(v)
+        self.setCursor(Qt.OpenHandCursor if v else Qt.ArrowCursor)
+        self.setToolTip("Arraste um item da prévia para mover (qualquer direção)." if v else "")
+
+    def _escala_img(self):
+        """(x0, y0, fator): onde a imagem aparece no widget e quantos px do widget valem 1 px da imagem."""
+        if self._pix is None or self._pix.isNull():
+            return None
+        alvo = self._pix.size().scaled(self.width() - 16, self.height() - 16, Qt.KeepAspectRatio)
+        if alvo.width() > self._pix.width():
+            alvo = self._pix.size()
+        return ((self.width() - alvo.width()) / 2.0, (self.height() - alvo.height()) / 2.0, alvo.width() / float(self._pix.width()))
+
+    def mousePressEvent(self, e):
+        r = self._escala_img() if self._arrastavel and e.button() == Qt.LeftButton else None
+        if r is None:
+            return super().mousePressEvent(e)
+        x0, y0, f = r
+        pos = e.position()
+        self._ini = (pos.x(), pos.y(), f)
+        self.setCursor(Qt.ClosedHandCursor)
+        self.pressionado.emit((pos.x() - x0) / f, (pos.y() - y0) / f)
+
+    def mouseMoveEvent(self, e):
+        if self._ini is None:
+            return super().mouseMoveEvent(e)
+        x, y, f = self._ini
+        pos = e.position()
+        self.arrastado.emit((pos.x() - x) / f, (pos.y() - y) / f)
+
+    def mouseReleaseEvent(self, e):
+        if self._ini is None:
+            return super().mouseReleaseEvent(e)
+        self._ini = None
+        self.setCursor(Qt.OpenHandCursor if self._arrastavel else Qt.ArrowCursor)
+        self.solto.emit()
 
     def _pintar_galeria(self):
         p = QPainter(self)
@@ -814,6 +858,9 @@ class Central(QWidget):
         h.setObjectName("h2")
         dir_.addWidget(h)
         self.det_previa = Miniatura(560, 360, flexivel=True)
+        self.det_previa.pressionado.connect(self._arrasto_ini)
+        self.det_previa.arrastado.connect(self._arrasto_mov)
+        self.det_previa.solto.connect(self._arrasto_fim)
         dir_.addWidget(self.det_previa, 10)
         n = QLabel("Prévia com dados de exemplo. Com o jogo aberto, o painel mostra os dados reais.")
         n.setObjectName("mudo")
@@ -883,13 +930,17 @@ class Central(QWidget):
         self._previa(chave)                                    # cria a previa agora (ela compartilha o dicionario de colunas)
         if chave == "classificacao":
             self._bloco_colunas(chave, j)
+            self._bloco_posicao_fonte(chave, j)                   # build au: posicao e estilo dos itens (sem o liga/desliga, que as colunas ja tem)
         elif chave == "minimapa":
             self._bloco_numeracao(chave)
+            self._bloco_elementos(chave, j)                       # build av: itens do Minimapa
         elif chave == "delta_trace":
             self._bloco_layout_delta(chave)
             self._bloco_elementos(chave, j)
-        elif chave == "principal" and self.g.get("importar_volante"):
-            self._bloco_volante(chave)
+        elif chave == "principal":
+            self._bloco_ordem_telemetria(chave, j)                # build as: ordem dos itens da Telemetria
+            if self.g.get("importar_volante"):
+                self._bloco_volante(chave)
         if chave not in ("classificacao", "minimapa", "delta_trace") and getattr(type(j), "ELEMENTOS", ()):
             self._bloco_elementos(chave, j)                       # build u: elementos liga/desliga em qualquer painel que os declare
 
@@ -922,14 +973,14 @@ class Central(QWidget):
         except Exception:
             pass
 
-    def _aplicar_opcao(self, chave):
+    def _aplicar_opcao(self, chave, salvar=True):
         for w in (self._janela(chave), self._previas.get(chave)):
             if w is not None:
                 try:
                     w.opcoes_mudaram()
                 except Exception:
                     self._registrar_erro("Central: opcoes_mudaram() falhou no painel '%s' (%s)" % (chave, type(w).__name__))
-        if self.g.get("salvar"):
+        if salvar and self.g.get("salvar"):
             self.g["salvar"]()
         if self._atual == chave or self._atual is None:
             self.det_previa.definir(self._grab(chave))        # a previa muda imediatamente
@@ -1030,6 +1081,85 @@ class Central(QWidget):
     def _ordem_original(self, chave, j):
         self._cfg_painel(chave, "classif_ordem", [])
         self._montar_lista_colunas(chave, j)
+        self._aplicar_opcao(chave)
+
+    # -- Telemetria: ordem dos itens (build as)
+    def _bloco_ordem_telemetria(self, chave, j):
+        if not hasattr(type(j), "ordem_blocos"):
+            return
+        self._titulo_bloco("ORDEM DOS ITENS DA TELEMETRIA")
+        dica = QLabel("Use as setas para mudar a posição de cada item (por exemplo, volante à direita e pedais entre a marcha e o volante). "
+                      "A prévia ao lado muda na hora. Cada layout tem a sua própria ordem.")
+        dica.setObjectName("mudo")
+        dica.setWordWrap(True)
+        self.det_extras.addWidget(dica)
+        barra_em_uso = bool(self.config.get("telemetria_barra", False))
+        self._listas_ordem = {}
+        for barra in (barra_em_uso, not barra_em_uso):
+            self.det_extras.addWidget(self._rotulo_mudo("Layout em barra" if barra else "Layout em painel"))
+            lay = QVBoxLayout()
+            lay.setSpacing(6)
+            cont = QWidget()
+            cont.setLayout(lay)
+            self.det_extras.addWidget(cont)
+            self._listas_ordem[barra] = lay
+            self._montar_lista_ordem(chave, j, barra)
+        b = QPushButton("Ordem original")
+        b.setObjectName("acao")
+        b.clicked.connect(lambda: self._ordem_original_telemetria(chave, j))
+        self.det_extras.addWidget(b, 0, Qt.AlignLeft)
+
+    def _rotulo_mudo(self, texto):
+        r = QLabel(texto)
+        r.setObjectName("mudo")
+        return r
+
+    def _montar_lista_ordem(self, chave, j, barra):
+        lista = self._listas_ordem[barra]
+        while lista.count():
+            it = lista.takeAt(0)
+            if it.widget():
+                it.widget().hide()
+                it.widget().deleteLater()
+        cls = type(j)
+        nomes = dict(cls.BLOCOS_BARRA if barra else cls.BLOCOS_PAINEL)
+        ordem = list(cls.ordem_blocos(self.config, barra))
+        for n, bid in enumerate(ordem):
+            f = QFrame()
+            f.setObjectName("bloco")
+            h = QHBoxLayout(f)
+            h.setContentsMargins(14, 6, 14, 6)
+            h.addWidget(QLabel("%d.  %s" % (n + 1, nomes[bid])), 1)
+            for texto, passo, ativo in (("◀", -1, n > 0), ("▶", 1, n < len(ordem) - 1)):
+                bt = QPushButton(texto)
+                bt.setObjectName("acao")
+                bt.setFixedSize(34, 30)
+                bt.setStyleSheet("padding: 0px; font-size: 11px;")
+                bt.setEnabled(ativo)
+                bt.setToolTip("Mover para a esquerda" if passo < 0 else "Mover para a direita")
+                bt.clicked.connect(lambda _=False, g=bid, p_=passo, b_=barra: self._mover_item_telemetria(chave, j, b_, g, p_))
+                h.addWidget(bt)
+            lista.addWidget(f)
+
+    def _mover_item_telemetria(self, chave, j, barra, bid, passo):
+        cls = type(j)
+        ordem = list(cls.ordem_blocos(self.config, barra))
+        k = ordem.index(bid)
+        novo = k + passo
+        if not 0 <= novo < len(ordem):
+            return
+        ordem[k], ordem[novo] = ordem[novo], ordem[k]
+        self._cfg_painel(chave, cls.CHAVE_ORDEM_BARRA if barra else cls.CHAVE_ORDEM_PAINEL, ordem)
+        self._montar_lista_ordem(chave, j, barra)
+        self._aplicar_opcao(chave)
+
+    def _ordem_original_telemetria(self, chave, j):
+        cls = type(j)
+        self._cfg_painel(chave, cls.CHAVE_ORDEM_BARRA, [])
+        self._cfg_painel(chave, cls.CHAVE_ORDEM_PAINEL, [])
+        for barra in (True, False):
+            if barra in getattr(self, "_listas_ordem", {}):
+                self._montar_lista_ordem(chave, j, barra)
         self._aplicar_opcao(chave)
 
     def _bloco_cabecalho(self, chave, j):
@@ -1166,15 +1296,273 @@ class Central(QWidget):
         cfg = self.config.get(chave_cfg)
         cfg = cfg if isinstance(cfg, dict) else {}
         self._interruptores_delta = {}
+        depende = getattr(type(j), "DEPENDE", {})
+        nomes = dict(elementos)
         for eid, rotulo in elementos:
             i = Interruptor(cfg.get(eid, True) is not False)
             i.toggled.connect(lambda v, k=eid: self._ao_elemento(chave, k, v))
             self._interruptores_delta[eid] = i
-            self.det_extras.addWidget(self._linha_opcao(rotulo, i))
+            dica_dep = None
+            if eid in depende:                                     # build av: dependencia explicita (o item e desenhado dentro do outro)
+                rotulo = "↳ " + rotulo
+                dica_dep = f"Depende de: {nomes.get(depende[eid], depende[eid])} (fica desabilitado enquanto ele estiver desligado)"
+            linha = self._linha_opcao(rotulo, i)
+            if dica_dep:
+                linha.setToolTip(dica_dep)
+                i.setToolTip(dica_dep)
+            self.det_extras.addWidget(linha)
+        self._depende = dict(depende)
+        self._atualiza_dependentes()
         b = QPushButton("Mostrar todos os elementos")
         b.setObjectName("acao")
         b.clicked.connect(lambda: self._todos_elementos(chave))
         self.det_extras.addWidget(b, 0, Qt.AlignLeft)
+        self._bloco_posicao_fonte(chave, j)
+
+    # -- posicao (arrastar) e fonte de cada elemento (build at)
+    def _chave_pos(self, chave):
+        return self._chave_cfg_elementos(chave) + "_pos"
+
+    def _chave_estilo(self, chave):
+        return self._chave_cfg_elementos(chave) + "_estilo"
+
+    ESTILOS_FONTE = (("Padrão", (None, None)), ("Normal", (False, False)), ("Negrito", (True, False)),
+                     ("Itálico", (False, True)), ("Negrito itálico", (True, True)))
+
+    def _estilo_de(self, chave, eid):
+        d = self.config.get(self._chave_estilo(chave))
+        e = d.get(eid) if isinstance(d, dict) else None
+        return dict(e) if isinstance(e, dict) else {}
+
+    def _bloco_posicao_fonte(self, chave, j):
+        elementos = getattr(type(j), "ELEMENTOS", ())
+        self._titulo_bloco("POSIÇÃO E ESTILO DOS ITENS")
+        dica = QLabel("Arraste qualquer item direto na prévia (horizontal e vertical) ou ajuste X e Y. Para cada item escolha a fonte "
+                      "de corrida, negrito/itálico, o tamanho (%) e a cor do texto.")
+        dica.setObjectName("mudo")
+        dica.setWordWrap(True)
+        self.det_extras.addWidget(dica)
+        import overlay_iracing as _ov
+        fontes = _ov.fontes_corrida_disponiveis() if hasattr(_ov, "fontes_corrida_disponiveis") else []
+        pos = self.config.get(self._chave_pos(chave))
+        pos = pos if isinstance(pos, dict) else {}
+        self._campos_pos = {}
+        for eid, rotulo in elementos:
+            est = self._estilo_de(chave, eid)
+            quadro = QFrame()
+            quadro.setObjectName("bloco")
+            col = QVBoxLayout(quadro)
+            col.setContentsMargins(14, 8, 14, 8)
+            col.setSpacing(6)
+            l1 = QHBoxLayout()
+            rot_l = QLabel(rotulo)
+            rot_l.setWordWrap(True)
+            rot_l.setMinimumWidth(40)
+            l1.addWidget(rot_l, 1)
+            v = pos.get(eid) if isinstance(pos.get(eid), (list, tuple)) and len(pos.get(eid)) == 2 else (0, 0)
+            sx, sy = QSpinBox(), QSpinBox()
+            for sp, val, pre in ((sx, v[0], "X "), (sy, v[1], "Y ")):
+                sp.setRange(-600, 600)
+                sp.setSingleStep(2)
+                sp.setPrefix(pre)
+                sp.setValue(int(round(float(val))))
+                sp.setMinimumWidth(60)
+                sp.setMaximumWidth(96)
+                l1.addWidget(sp)
+            col.addLayout(l1)
+            l2 = QHBoxLayout()
+            cb = QComboBox()
+            cb.addItem("Fonte do tema", "")
+            for fid, rot in fontes:
+                cb.addItem(rot, fid)
+            i = cb.findData(est.get("fonte", ""))
+            cb.setCurrentIndex(i if i >= 0 else 0)
+            ce = QComboBox()
+            for rot, _v in self.ESTILOS_FONTE:
+                ce.addItem(rot)
+            ce.setCurrentIndex(next((n for n, (_r, (nb, ni)) in enumerate(self.ESTILOS_FONTE)
+                                     if nb == est.get("negrito") and ni == est.get("italico")), 0))
+            for w in (cb, ce):
+                w.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+                w.setMinimumContentsLength(8)
+                w.setMinimumWidth(60)
+                l2.addWidget(w, 1)
+            col.addLayout(l2)
+            l3 = QHBoxLayout()
+            st = QSpinBox()
+            st.setRange(49, 200)                                  # build av: 49 = "Tam. padrão" (sem tamanho escolhido); 50 a 200 = tamanho real em %
+            st.setSingleStep(5)
+            st.setSuffix(" %")
+            st.setSpecialValueText("Tam. padrão")
+            st.setValue(int(est["tam"]) if est.get("tam") else 49)
+            st.setMinimumWidth(60)
+            bc = QPushButton(est.get("cor") or "Cor")
+            bc.setObjectName("acao")
+            bc.setMinimumWidth(60)
+            l3.addWidget(st, 1)
+            l3.addWidget(bc, 1)
+            col.addLayout(l3)
+            sx.valueChanged.connect(lambda _v, k=eid: self._ao_pos_campo(chave, k))
+            sy.valueChanged.connect(lambda _v, k=eid: self._ao_pos_campo(chave, k))
+            cb.currentIndexChanged.connect(lambda _i, k=eid: self._ao_estilo_campos(chave, k))
+            ce.currentIndexChanged.connect(lambda _i, k=eid: self._ao_estilo_campos(chave, k))
+            st.valueChanged.connect(lambda _v, k=eid: self._ao_estilo_campos(chave, k))
+            bc.clicked.connect(lambda _=False, k=eid: self._ao_cor_elemento(chave, k))
+            self._campos_pos[eid] = (sx, sy, cb, ce, st, bc)
+            self.det_extras.addWidget(quadro)
+        b = QPushButton("Restaurar posições e estilos")
+        b.setObjectName("acao")
+        b.clicked.connect(lambda: self._restaurar_pos_fonte(chave))
+        self.det_extras.addWidget(b, 0, Qt.AlignLeft)
+        self.det_previa.definir_arrastavel(True)
+
+    def _ao_pos_campo(self, chave, eid):
+        sx, sy = self._campos_pos[eid][:2]
+        d = dict(self.config.get(self._chave_pos(chave)) if isinstance(self.config.get(self._chave_pos(chave)), dict) else {})
+        if sx.value() == 0 and sy.value() == 0:
+            d.pop(eid, None)
+        else:
+            d[eid] = [sx.value(), sy.value()]
+        self._cfg_painel(chave, self._chave_pos(chave), d)
+        self._aplicar_opcao(chave)
+
+    def _gravar_estilo(self, chave, eid, est):
+        d = dict(self.config.get(self._chave_estilo(chave)) if isinstance(self.config.get(self._chave_estilo(chave)), dict) else {})
+        if est:
+            d[eid] = est
+        else:
+            d.pop(eid, None)
+        self._cfg_painel(chave, self._chave_estilo(chave), d)
+        self._aplicar_opcao(chave)
+
+    def _ao_estilo_campos(self, chave, eid):
+        _sx, _sy, cb, ce, st, _bc = self._campos_pos[eid]
+        est = self._estilo_de(chave, eid)
+        for k in ("fonte", "negrito", "italico", "tam"):
+            est.pop(k, None)
+        if cb.currentData():
+            est["fonte"] = cb.currentData()
+        nb, ni = self.ESTILOS_FONTE[max(0, ce.currentIndex())][1]
+        if nb is not None:
+            est["negrito"], est["italico"] = nb, ni
+        if st.value() != 49:
+            est["tam"] = st.value()
+        self._gravar_estilo(chave, eid, est)
+
+    def _ao_cor_elemento(self, chave, eid):
+        from PySide6.QtWidgets import QColorDialog
+        est = self._estilo_de(chave, eid)
+        atual = QColor(est.get("cor") or "#ffffff")
+        cor = QColorDialog.getColor(atual, self, "Cor")
+        bc = self._campos_pos[eid][5]
+        if not cor.isValid():
+            return
+        est["cor"] = cor.name()
+        bc.setText(est["cor"])
+        self._gravar_estilo(chave, eid, est)
+
+    def _restaurar_pos_fonte(self, chave):
+        self._cfg_painel(chave, self._chave_pos(chave), {})
+        self._cfg_painel(chave, self._chave_estilo(chave), {})
+        for sx, sy, cb, ce, st, bc in getattr(self, "_campos_pos", {}).values():
+            ws = (sx, sy, cb, ce, st)
+            for w in ws:
+                w.blockSignals(True)
+            sx.setValue(0); sy.setValue(0); cb.setCurrentIndex(0); ce.setCurrentIndex(0); st.setValue(49)
+            for w in ws:
+                w.blockSignals(False)
+            bc.setText("Cor")
+        self._aplicar_opcao(chave)
+
+    def _escala_previa(self, chave):
+        """Quantos px da imagem da previa valem 1 px base da janela."""
+        p = self._previa(chave)
+        try:
+            return max(0.1, p.width() / float(p.tamanho()[0]))
+        except Exception:
+            return 1.0
+
+    def _elemento_em(self, chave, px, py):
+        """Qual elemento esta sob o ponto (px, py) da imagem da previa: esconde o desenho de cada um por vez (sem mexer no layout)
+        e ve quem some ali. Entre os candidatos vence o de menor area (o item e nao o fundo)."""
+        p = self._previa(chave)
+        j = self._janela(chave)
+        if p is None or j is None or self._dados_demo is None:
+            return None
+        nome = self._chave_cfg_elementos(chave)
+        ligados = self.config.get(nome) if isinstance(self.config.get(nome), dict) else {}
+        def imagem():
+            p.atualizar(self._dados_demo)
+            im = p.grab().toImage().convertToFormat(QImage.Format_RGBA8888)
+            return im.width(), im.height(), memoryview(bytes(im.constBits())).cast("I")
+        try:
+            self._sincronizar_previa(chave, p)
+            p._teste_oculto = None
+            w0, h0, base = imagem()
+            R = 6
+            x0, y0 = max(0, int(px) - R), max(0, int(py) - R)
+            x1, y1 = min(w0, int(px) + R + 1), min(h0, int(py) + R + 1)
+            melhor, area = None, None
+            for eid, _rot in type(j).ELEMENTOS:
+                if ligados.get(eid) is False:
+                    continue
+                p._teste_oculto = eid
+                w1, h1, im = imagem()
+                if (w1, h1) != (w0, h0):
+                    continue
+                total = sum(1 for a_, b_ in zip(base, im) if a_ != b_)
+                perto = 0
+                for yy in range(y0, y1):
+                    ini = yy * w0
+                    perto += sum(1 for k in range(ini + x0, ini + x1) if base[k] != im[k])
+                if perto and (area is None or total < area):
+                    melhor, area = eid, total
+            return melhor
+        finally:
+            p._teste_oculto = None
+
+    def _arrasto_ini(self, px, py):
+        chave = self._atual
+        self._arr = None
+        j = self._janela(chave) if chave else None
+        if j is None or not getattr(type(j), "ELEMENTOS", ()):
+            return
+        try:
+            eid = self._elemento_em(chave, px, py)
+        except Exception:
+            self._registrar_erro("Central: nao foi possivel achar o item sob o mouse no painel '%s'" % chave)
+            return
+        if eid is None:
+            return
+        pos = self.config.get(self._chave_pos(chave))
+        v = pos.get(eid) if isinstance(pos, dict) and isinstance(pos.get(eid), (list, tuple)) and len(pos.get(eid)) == 2 else (0, 0)
+        self._arr = (chave, eid, float(v[0]), float(v[1]), self._escala_previa(chave))
+
+    def _arrasto_mov(self, dx, dy):
+        a = getattr(self, "_arr", None)
+        if not a:
+            return
+        chave, eid, x0, y0, esc = a
+        nx = int(round((x0 + dx / esc) / 2.0)) * 2                      # encaixe de 2 px
+        ny = int(round((y0 + dy / esc) / 2.0)) * 2
+        nx, ny = max(-600, min(600, nx)), max(-600, min(600, ny))
+        d = dict(self.config.get(self._chave_pos(chave)) if isinstance(self.config.get(self._chave_pos(chave)), dict) else {})
+        if nx == 0 and ny == 0:
+            d.pop(eid, None)
+        else:
+            d[eid] = [nx, ny]
+        self._cfg_painel(chave, self._chave_pos(chave), d)
+        campos = getattr(self, "_campos_pos", {}).get(eid)
+        if campos:
+            for sp, val in ((campos[0], nx), (campos[1], ny)):
+                sp.blockSignals(True); sp.setValue(val); sp.blockSignals(False)
+        self._aplicar_opcao(chave, salvar=False)
+
+    def _arrasto_fim(self):
+        a = getattr(self, "_arr", None)
+        self._arr = None
+        if a and self.g.get("salvar"):
+            self.g["salvar"]()
 
     def _chave_cfg_elementos(self, chave):
         j = self._janela(chave)
@@ -1188,12 +1576,21 @@ class Central(QWidget):
         else:
             cfg[eid] = False
         self._cfg_painel(chave, nome, cfg)
+        self._atualiza_dependentes()
         self._aplicar_opcao(chave)
+
+    def _atualiza_dependentes(self):
+        """Build av: o item que so existe dentro de outro fica desabilitado enquanto o de fora estiver desligado."""
+        sw = getattr(self, "_interruptores_delta", {})
+        for filho, pai in getattr(self, "_depende", {}).items():
+            if filho in sw and pai in sw:
+                sw[filho].setEnabled(sw[pai].isChecked())
 
     def _todos_elementos(self, chave):
         self._cfg_painel(chave, self._chave_cfg_elementos(chave), {})
         for i in getattr(self, "_interruptores_delta", {}).values():
             i.definir(True)
+        self._atualiza_dependentes()
         self._aplicar_opcao(chave)
 
     # nomes da build r (os testes antigos e quem os chamava continuam funcionando)

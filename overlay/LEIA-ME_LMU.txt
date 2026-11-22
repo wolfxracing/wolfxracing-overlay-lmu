@@ -1,4 +1,4 @@
-OVERLAY LE MANS ULTIMATE (LMU) - GUIA RAPIDO - VERSAO 1.8.0 (build ad; ainda nao publicada)
+OVERLAY LE MANS ULTIMATE (LMU) - GUIA RAPIDO - VERSAO 1.8.1 (build az)
 =========================================================
 
 NOVO NA 1.7.0: COACH ao vivo (onde frear, marcha e velocidade no apice, contra a sua melhor volta ou uma volta importada em CSV), avisos por voz (opcional), resumo de stint e ritmo-alvo, opacidade por painel, backup da configuracao, lista de amigos. Veja o CHANGELOG.

@@ -1,0 +1,10 @@
+ORDEM DOS ITENS DA TELEMETRIA¦ORDER OF TELEMETRY ITEMS¦ORDEN DE LOS ELEMENTOS DE TELEMETRÍA¦REIHENFOLGE DER TELEMETRIE-ELEMENTE¦ORDRE DES ÉLÉMENTS DE TÉLÉMÉTRIE¦ORDINE DEGLI ELEMENTI DI TELEMETRIA
+Use as setas para mudar a posição de cada item (por exemplo, volante à direita e pedais entre a marcha e o volante). A prévia ao lado muda na hora. Cada layout tem a sua própria ordem.¦Use the arrows to change the position of each item (for example, wheel on the right and pedals between the gear and the wheel). The preview next to it updates instantly. Each layout has its own order.¦Use las flechas para cambiar la posición de cada elemento (por ejemplo, volante a la derecha y pedales entre la marcha y el volante). La vista previa de al lado cambia al instante. Cada diseño tiene su propio orden.¦Verwenden Sie die Pfeile, um die Position jedes Elements zu ändern (zum Beispiel Lenkrad rechts und Pedale zwischen Gang und Lenkrad). Die Vorschau daneben ändert sich sofort. Jedes Layout hat seine eigene Reihenfolge.¦Utilisez les flèches pour changer la position de chaque élément (par exemple, volant à droite et pédales entre le rapport et le volant). L'aperçu à côté change instantanément. Chaque disposition a son propre ordre.¦Usa le frecce per cambiare la posizione di ogni elemento (ad esempio, volante a destra e pedali tra la marcia e il volante). L'anteprima accanto cambia subito. Ogni layout ha il proprio ordine.
+Layout em barra¦Bar layout¦Diseño en barra¦Balken-Layout¦Disposition en barre¦Layout a barra
+Layout em painel¦Panel layout¦Diseño en panel¦Panel-Layout¦Disposition en panneau¦Layout a pannello
+Marcha¦Gear¦Marcha¦Gang¦Rapport¦Marcia
+Velocidade e RPM¦Speed and RPM¦Velocidad y RPM¦Geschwindigkeit und Drehzahl¦Vitesse et régime¦Velocità e giri
+Velocidade¦Speed¦Velocidad¦Geschwindigkeit¦Vitesse¦Velocità
+Pedais¦Pedals¦Pedales¦Pedale¦Pédales¦Pedali
+Volante¦Steering wheel¦Volante¦Lenkrad¦Volant¦Volante
+Gráfico dos pedais¦Pedal graph¦Gráfico de pedales¦Pedal-Diagramm¦Graphique des pédales¦Grafico dei pedali

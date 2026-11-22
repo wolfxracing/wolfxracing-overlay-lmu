@@ -66,7 +66,7 @@ def escrever_ibt(caminho, voltas, pista="Pista Teste", carro="GT3 Teste", compri
         vh += h
     Path(caminho).write_bytes(bytes(cab) + bytes(vh) + yaml + b"".join(registros))
 
-with tempfile.TemporaryDirectory() as pasta:
+with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as pasta:
     pasta = Path(pasta)
     arq = pasta / "gt3teste_pista teste 2026-11-01 10-00-00.ibt"
     escrever_ibt(arq, [{"boxes": True}, {"ritmo": 1.0}, {"ritmo": 1.03}, {"ritmo": 1.0, "fora": True}, {"ritmo": 1.0}])
@@ -128,7 +128,7 @@ with tempfile.TemporaryDirectory() as pasta:
             and tele2.v17_coach.definir_propria(dict(ref, tempo=ref["tempo"] + 5.0)) is False, "definir_propria so aceita volta mais rapida")
 
 # ja existe referencia MAIS LENTA (de uma sessao anterior): a busca no .ibt ainda a atualiza
-with tempfile.TemporaryDirectory() as p2:
+with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as p2:
     p2 = Path(p2); arq2 = p2 / "x.ibt"
     escrever_ibt(arq2, [{"boxes": True}, {"ritmo": 1.0}, {"ritmo": 1.05}])
     info2, v2 = ib.voltas_ibt(arq2); rapida = ib.melhor_volta(v2)

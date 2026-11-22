@@ -1,0 +1,47 @@
+Aviso de roda furada ou solta¦Flat or loose wheel warning¦Aviso de rueda pinchada o suelta¦Warnung bei platter oder loser Radmutter¦Avis de roue crevée ou desserrée¦Avviso di ruota forata o allentata
+Bloco da energia virtual¦Virtual energy block¦Bloque de energía virtual¦Block Virtuelle Energie¦Bloc d'énergie virtuelle¦Blocco energia virtuale
+Bloco do combustível¦Fuel block¦Bloque de combustible¦Block Kraftstoff¦Bloc carburant¦Blocco carburante
+Carro visto de cima (zonas e rodas)¦Car seen from above (zones and wheels)¦Coche visto desde arriba (zonas y ruedas)¦Auto von oben (Zonen und Räder)¦Voiture vue du dessus (zones et roues)¦Auto vista dall'alto (zone e ruote)
+Composto (círculo S/M/H/W)¦Compound (S/M/H/W circle)¦Compuesto (círculo S/M/H/W)¦Mischung (Kreis S/M/H/W)¦Gomme (cercle S/M/H/W)¦Mescola (cerchio S/M/H/W)
+Destaque do stint atual¦Current stint highlight¦Resaltado del stint actual¦Hervorhebung des aktuellen Stints¦Surbrillance du relais actuel¦Evidenza dello stint attuale
+Detalhe de cada alerta¦Detail of each alert¦Detalle de cada alerta¦Detail jeder Warnung¦Détail de chaque alerte¦Dettaglio di ogni avviso
+Energia e combustível do stint¦Stint energy and fuel¦Energía y combustible del stint¦Energie und Kraftstoff des Stints¦Énergie et carburant du relais¦Energia e carburante dello stint
+Escala de tempos e números das voltas¦Time scale and lap numbers¦Escala de tiempos y números de vuelta¦Zeitskala und Rundennummern¦Échelle des temps et numéros de tours¦Scala dei tempi e numeri dei giri
+Estado do motor¦Engine status¦Estado del motor¦Motorstatus¦État du moteur¦Stato del motore
+Faixa SEM ALERTAS¦NO ALERTS band¦Franja SIN ALERTAS¦Band KEINE WARNUNGEN¦Bandeau AUCUNE ALERTE¦Fascia NESSUN AVVISO
+Faixa de cada classe¦Band of each class¦Franja de cada clase¦Band jeder Klasse¦Bandeau de chaque classe¦Fascia di ogni classe
+Faixa de situação (chega ao fim, paradas)¦Status band (reaches the end, stops)¦Franja de situación (llega al final, paradas)¦Statusband (erreicht das Ende, Stopps)¦Bandeau de situation (arrive au bout, arrêts)¦Fascia di situazione (arriva al termine, soste)
+Faixa de situação do dano¦Damage status band¦Franja de estado del daño¦Schadenstatus-Band¦Bandeau d'état des dégâts¦Fascia stato danni
+Farol¦Headlight¦Faro¦Scheinwerfer¦Phare¦Faro
+Força do impacto¦Impact force¦Fuerza del impacto¦Aufprallkraft¦Force de l'impact¦Forza dell'impatto
+Fundo dos cartões das rodas¦Wheel cards background¦Fondo de las tarjetas de las ruedas¦Hintergrund der Radkarten¦Fond des cartes de roues¦Sfondo delle schede delle ruote
+Fundo e barra lateral de cada alerta¦Background and side bar of each alert¦Fondo y barra lateral de cada alerta¦Hintergrund und Seitenleiste jeder Warnung¦Fond et barre latérale de chaque alerte¦Sfondo e barra laterale di ogni avviso
+Gráfico (grade, linhas, pontos e reta de tendência)¦Chart (grid, lines, points and trend line)¦Gráfico (cuadrícula, líneas, puntos y recta de tendencia)¦Diagramm (Raster, Linien, Punkte und Trendlinie)¦Graphique (grille, lignes, points et droite de tendance)¦Grafico (griglia, linee, punti e retta di tendenza)
+Lado do último impacto¦Side of the last impact¦Lado del último impacto¦Seite des letzten Aufpralls¦Côté du dernier impact¦Lato dell'ultimo impatto
+Mensagem de espera (sem dados)¦Waiting message (no data)¦Mensaje de espera (sin datos)¦Wartemeldung (keine Daten)¦Message d'attente (pas de données)¦Messaggio di attesa (nessun dato)
+Mensagem de espera (sem stints)¦Waiting message (no stints)¦Mensaje de espera (sin stints)¦Wartemeldung (keine Stints)¦Message d'attente (aucun relais)¦Messaggio di attesa (nessuno stint)
+Mensagem de espera (sem voltas limpas)¦Waiting message (no clean laps)¦Mensaje de espera (sin vueltas limpias)¦Wartemeldung (keine sauberen Runden)¦Message d'attente (aucun tour propre)¦Messaggio di attesa (nessun giro pulito)
+Nome de cada roda¦Name of each wheel¦Nombre de cada rueda¦Name jedes Rads¦Nom de chaque roue¦Nome di ogni ruota
+Palavra CLASSIFICACAO¦CLASSIFICACAO caption¦Palabra CLASSIFICACAO¦Beschriftung CLASSIFICACAO¦Libellé CLASSIFICACAO¦Scritta CLASSIFICACAO
+Peça solta¦Loose part¦Pieza suelta¦Loses Teil¦Pièce détachée¦Parte staccata
+Pneu e desgaste¦Tyre and wear¦Neumático y desgaste¦Reifen und Verschleiß¦Pneu et usure¦Gomma e usura
+Pressão do pneu¦Tyre pressure¦Presión del neumático¦Reifendruck¦Pression du pneu¦Pressione della gomma
+Ritmo das últimas 5 voltas limpas¦Pace of the last 5 clean laps¦Ritmo de las últimas 5 vueltas limpias¦Pace der letzten 5 sauberen Runden¦Rythme des 5 derniers tours propres¦Ritmo degli ultimi 5 giri puliti
+Ritmo e diferença para o melhor¦Pace and gap to the best¦Ritmo y diferencia con el mejor¦Pace und Abstand zur Bestzeit¦Rythme et écart avec le meilleur¦Ritmo e distacco dal migliore
+Rodas furadas¦Flat wheels¦Ruedas pinchadas¦Platte Reifen¦Roues crevées¦Ruote forate
+Rótulo FRENTE¦FRONT label¦Etiqueta FRENTE¦Beschriftung FRENTE¦Libellé FRENTE¦Etichetta FRENTE
+Stint, voltas e tempo¦Stint, laps and time¦Stint, vueltas y tiempo¦Stint, Runden und Zeit¦Relais, tours et temps¦Stint, giri e tempo
+Temperatura do freio¦Brake temperature¦Temperatura del freno¦Bremsentemperatur¦Température des freins¦Temperatura dei freni
+Temperatura do pneu¦Tyre temperature¦Temperatura del neumático¦Reifentemperatur¦Température du pneu¦Temperatura della gomma
+Temperaturas da pista e do ar¦Track and air temperatures¦Temperaturas de pista y aire¦Strecken- und Lufttemperatur¦Températures de piste et d'air¦Temperature di pista e aria
+Tempo e volta¦Time and lap¦Tiempo y vuelta¦Zeit und Runde¦Temps et tour¦Tempo e giro
+Tendência do stint¦Stint trend¦Tendencia del stint¦Stint-Trend¦Tendance du relais¦Tendenza dello stint
+Total de carros (N CARROS)¦Total cars (N CARROS)¦Total de coches (N CARROS)¦Anzahl Autos (N CARROS)¦Total des voitures (N CARROS)¦Totale auto (N CARROS)
+Total de carros (N CARS)¦Total cars (N CARS)¦Total de coches (N CARS)¦Anzahl Autos (N CARS)¦Total des voitures (N CARS)¦Totale auto (N CARS)
+Título de cada alerta¦Title of each alert¦Título de cada alerta¦Titel jeder Warnung¦Titre de chaque alerte¦Titolo di ogni avviso
+Título e aviso do que limita¦Title and what-limits notice¦Título y aviso de lo que limita¦Titel und Hinweis was begrenzt¦Titre et avis de ce qui limite¦Titolo e avviso di cosa limita
+Título e limite dos boxes¦Title and pit limit¦Título y límite de boxes¦Titel und Boxenlimit¦Titre et limite des stands¦Titolo e limite dei box
+Vida do pneu (barra e %)¦Tyre life (bar and %)¦Vida del neumático (barra y %)¦Reifenlebensdauer (Balken und %)¦Durée de vie du pneu (barre et %)¦Vita della gomma (barra e %)
+Voltas até o fim e alvos por volta¦Laps to the end and per-lap targets¦Vueltas hasta el final y objetivos por vuelta¦Runden bis zum Ende und Ziele pro Runde¦Tours jusqu'à l'arrivée et objectifs par tour¦Giri al termine e obiettivi per giro
+Óleo e água do motor¦Engine oil and water¦Aceite y agua del motor¦Motoröl und Wasser¦Huile et eau du moteur¦Olio e acqua del motore
+Último impacto (há quanto tempo)¦Last impact (how long ago)¦Último impacto (hace cuánto)¦Letzter Aufprall (vor wie langer Zeit)¦Dernier impact (il y a combien de temps)¦Ultimo impatto (quanto tempo fa)

@@ -1,0 +1,10 @@
+Referencia CONGELADA da build au (WolfxRacing Overlay 1.8.0), usada pelos testes da build aw.
+
+referencia_au.zip contem, SEM nenhuma alteracao, os 5 arquivos que desenham os paineis na build au:
+  overlay_iracing.py, ov_v18_janelas.py, ov_classif_foto.py, ov_janela_lmu.py, ov_janelas_extra_lmu.py
+SHA256_referencia_au.txt guarda o hash de cada um (o teste confere antes de usar).
+
+Como e usada: o teste desenha cada painel com os MESMOS dados e a MESMA configuracao duas vezes, uma com os arquivos da build atual e
+outra, em outro processo, com estes arquivos da build au. As imagens precisam ser iguais (aparencia padrao preservada).
+Nao e imagem pronta (PNG): assim a comparacao vale em qualquer computador, com as fontes que ele tiver.
+NAO edite estes arquivos.

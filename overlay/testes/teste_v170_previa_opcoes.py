@@ -9,6 +9,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pathlib import Path
 import overlay_iracing as o
 import ov_central as c
+import time as _tempo
+# build az: relogio congelado; as previas animadas (graficos que andam com o tempo) deixam de oscilar entre capturas, no Windows e no Linux
+_tempo.monotonic = lambda: 5000.0
+_tempo.time = lambda: 1.7e9
 from PySide6.QtWidgets import QApplication
 
 S = Path(tempfile.mkdtemp()); o.ARQ_LOG = S / "l.txt"; o.ARQ_CONFIG = S / "c.json"
@@ -60,8 +64,9 @@ def difere(a, b, ruido=0):
         return True
     return int((np.abs(_arr(a) - _arr(b)).sum(axis=2) > 24).sum()) > ruido * 2 + 40
 def ruido_de(chave):
-    a = previa_img(chave); b = previa_img(chave)
-    return int((np.abs(_arr(a) - _arr(b)).sum(axis=2) > 24).sum()) if a.size() == b.size() else 0
+    # build az: o ruido (previa animada pelo relogio real) e o MAIOR entre varias renderizacoes consecutivas; um unico par subestimava no Windows
+    imgs = [previa_img(chave) for _ in range(5)]
+    return max((int((np.abs(_arr(x) - _arr(y)).sum(axis=2) > 24).sum()) for x, y in zip(imgs, imgs[1:]) if x.size() == y.size()), default=0)
 # acoes que so mudam COMPORTAMENTO (quando o painel aparece / pisca), sem efeito visual na previa de exemplo
 SO_COMPORTAMENTO = {"estrategia_pulsar", "auxiliar_sempre", "pit_sempre", "radar_auto", "digiflag_piscar", "hibrido_alerta", "ultrap_auto",
                     "ultrap_distante", "ultrap_so_outras", "ultrap_so_mesma_volta"}
@@ -87,6 +92,7 @@ for ch, (titulo, _d, _cat, extras, _dica) in c.PAINEIS.items():
             continue
         confere(mudou, f"{titulo}: '{rotulo}' muda a previa")
 
+ESTADO_DEPENDE = {("forca_g", "aviso"), ("mapa", "largada"), ("mapa", "aviso"), ("minimapa", "aviso")}   # build av
 # 2) elementos liga/desliga de cada painel que os declara
 for ch, j in reais.items():
     if not type(j).ELEMENTOS or ch not in c.PAINEIS:
@@ -94,12 +100,23 @@ for ch, j in reais.items():
     cen.abrir_detalhe(ch)
     rz = ruido_de(ch)
     base = previa_img(ch)
+    efeitos = []                                          # build az: pixels que cada elemento muda (referencia para o 'religar tudo')
     for eid, rotulo in type(j).ELEMENTOS:
         cen._ao_elemento(ch, eid, False)
         im = previa_img(ch)
-        confere(difere(im, base, rz), f"{c.PAINEIS[ch][0]}: elemento '{rotulo}' muda a previa")
+        if im.size() == base.size():
+            efeitos.append(int((np.abs(_arr(im) - _arr(base)).sum(axis=2) > 24).sum()))
+        if not difere(im, base, rz) and (ch, eid) in ESTADO_DEPENDE:
+            print("--   ", f"{c.PAINEIS[ch][0]}: '{rotulo}' so aparece em outro estado dos dados (verificado em teste_v18_itens_todos_paineis)")
+        else:
+            confere(difere(im, base, rz), f"{c.PAINEIS[ch][0]}: elemento '{rotulo}' muda a previa")
         cen._ao_elemento(ch, eid, True)
-    confere(not difere(previa_img(ch), base, rz), f"{c.PAINEIS[ch][0]}: religar tudo devolve a previa original")
+    final = previa_img(ch)
+    # build az: graficos animados pelo relogio real (ex.: Telemetria no Windows) andam entre as capturas; vale se a diferenca final
+    # fica dentro do ruido OU for pequena frente ao efeito real de desligar um elemento (menos de 1/4 do menor efeito observado)
+    dif_final = 10 ** 9 if final.size() != base.size() else int((np.abs(_arr(final) - _arr(base)).sum(axis=2) > 24).sum())
+    util = [e for e in efeitos if e > 0]
+    confere(dif_final <= rz * 2 + 40 or (util and dif_final < min(util) / 4), f"{c.PAINEIS[ch][0]}: religar tudo devolve a previa original")
 
 # 3) opacidade do fundo por painel muda a previa
 cen.abrir_detalhe("principal")

@@ -1,0 +1,13 @@
+POSIÇÃO E ESTILO DOS ITENS¦POSITION AND STYLE OF ITEMS¦POSICIÓN Y ESTILO DE LOS ELEMENTOS¦POSITION UND STIL DER ELEMENTE¦POSITION ET STYLE DES ÉLÉMENTS¦POSIZIONE E STILE DEGLI ELEMENTI
+Arraste qualquer item direto na prévia (horizontal e vertical) ou ajuste X e Y. Para cada item escolha a fonte de corrida, negrito/itálico, o tamanho (%) e a cor do texto.¦Drag any item directly in the preview (horizontal and vertical) or adjust X and Y. For each item choose a racing font, bold/italic, size (%) and text color.¦Arrastre cualquier elemento directamente en la vista previa (horizontal y vertical) o ajuste X e Y. Para cada elemento elija una fuente de carreras, negrita/cursiva, el tamaño (%) y el color del texto.¦Ziehen Sie ein Element direkt in der Vorschau (horizontal und vertikal) oder stellen Sie X und Y ein. Wählen Sie für jedes Element eine Rennschrift, Fett/Kursiv, die Größe (%) und die Textfarbe.¦Faites glisser n'importe quel élément directement dans l'aperçu (horizontal et vertical) ou réglez X et Y. Pour chaque élément, choisissez une police de course, gras/italique, la taille (%) et la couleur du texte.¦Trascina qualsiasi elemento direttamente nell'anteprima (orizzontale e verticale) oppure regola X e Y. Per ogni elemento scegli un font da corsa, grassetto/corsivo, la dimensione (%) e il colore del testo.
+Restaurar posições e estilos¦Restore positions and styles¦Restaurar posiciones y estilos¦Positionen und Stile zurücksetzen¦Rétablir positions et styles¦Ripristina posizioni e stili
+Fonte do tema¦Theme font¦Fuente del tema¦Themenschrift¦Police du thème¦Font del tema
+Padrão¦Default¦Predeterminado¦Standard¦Par défaut¦Predefinito
+Normal¦Normal¦Normal¦Normal¦Normal¦Normale
+Negrito¦Bold¦Negrita¦Fett¦Gras¦Grassetto
+Itálico¦Italic¦Cursiva¦Kursiv¦Italique¦Corsivo
+Negrito itálico¦Bold italic¦Negrita cursiva¦Fett kursiv¦Gras italique¦Grassetto corsivo
+Tam. padrão¦Default size¦Tamaño predet.¦Std.-Größe¦Taille par défaut¦Dim. predef.
+Cor do texto¦Text color¦Color del texto¦Textfarbe¦Couleur du texte¦Colore del testo
+Gráfico dos pedais (barra)¦Pedal graph (bar)¦Gráfico de pedales (barra)¦Pedal-Diagramm (Balken)¦Graphique des pédales (barre)¦Grafico dei pedali (barra)
+Barra de RPM (painel)¦RPM bar (panel)¦Barra de RPM (panel)¦Drehzahlbalken (Panel)¦Barre de régime (panneau)¦Barra dei giri (pannello)
