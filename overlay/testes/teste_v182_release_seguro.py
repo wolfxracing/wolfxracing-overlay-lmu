@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Build bb: regressoes do validador de release e dos comandos GitHub (tools/validar_release.py + release.yml).
+"""Build bb/bc: regressoes do validador de release e dos comandos GitHub (tools/validar_release.py + release.yml).
 O GitHub e SIMULADO (executor falso e um `gh` falso no PATH): nada e criado, excluido ou publicado em lugar nenhum.
 Defeito reproduzido pela auditoria: `gh release view` com erro HTTP 503 fazia validar() devolver lista vazia (= liberar)."""
 import hashlib, json, os, re, stat, subprocess, sys, tempfile, shutil
@@ -29,6 +29,13 @@ def fake(rotas, log=None):
                 return rc, out, err
         return 1, "", "HTTP 404: Not Found (rota nao simulada: %s)" % " ".join(args)
     return ex
+
+def http(codigo, corpo="", motivo=None, msg_erro=None):
+    """Resposta de `gh api -i`: linha de status + cabecalhos + corpo no stdout; codigo de saida 1 para HTTP >= 400 (como o gh real)."""
+    motivo = motivo or {200: "OK", 403: "Forbidden", 404: "Not Found", 502: "Bad Gateway", 503: "Service Unavailable"}.get(codigo, "X")
+    if not isinstance(corpo, str): corpo = json.dumps(corpo)
+    out = "HTTP/1.1 %d %s\r\nContent-Type: application/json\r\n\r\n%s" % (codigo, motivo, corpo)
+    return (0 if codigo < 400 else 1), out, ("" if codigo < 400 else (msg_erro or "gh: %s (HTTP %d)" % (motivo, codigo)))
 
 def lista(*releases):
     return lambda a: a[0] == "api" and "--paginate" in a
@@ -76,7 +83,7 @@ confere(any("indeterminado" in e for e in V.validar("v1.8.2", head, REPO, True, 
 confere(any("indeterminado" in e for e in V.validar("v1.8.2", head, REPO, True, d, fake([(lista(), (1, "", "HTTP 403"))]))), "validar: 403 BLOQUEIA")
 confere(any("indeterminado" in e for e in V.validar("v1.8.2", head, REPO, True, d, fake([(lista(), (0, "lixo", ""))]))), "validar: resposta ilegivel BLOQUEIA")
 confere(any("PUBLICADA" in e for e in V.validar("v1.8.2", head, REPO, True, d, fake([(lista(), resp_lista(rel("v1.8.2", False)))]))), "validar: release publicada BLOQUEIA")
-confere(V.validar("v1.8.2", head, REPO, True, d, fake([(lista(), resp_lista(rel("v1.8.2", True)))])) == [], "validar: rascunho antigo NAO bloqueia")
+confere(any("RASCUNHO" in e for e in V.validar("v1.8.2", head, REPO, True, d, fake([(lista(), resp_lista(rel("v1.8.2", True)))]))), "validar: rascunho anterior BLOQUEIA (build bc: decisao humana, o fluxo nao o exclui)")
 confere(any("repositorio nao informado" in e for e in V.validar("v1.8.2", head, "", True, d, ok_exec)), "validar: sem repositorio no modo GitHub BLOQUEIA (antes pulava a conferencia)")
 confere(any("nao e o commit em execucao" in e for e in V.validar("v1.8.2", OUTRO, REPO, True, d, ok_exec)), "validar: SHA diferente do checkout BLOQUEIA")
 confere(any("CHANGELOG" in e for e in V.validar("v1.8.3", head, REPO, True, d, ok_exec)), "validar: versao da tag diferente do CHANGELOG/VERSAO_PRODUTO BLOQUEIA")
@@ -91,34 +98,116 @@ confere(any("git fetch" in e for e in V.validar("v1.8.2", novo, REPO, True, d, o
 shutil.rmtree(d, ignore_errors=True); shutil.rmtree(d + "_origem", ignore_errors=True)
 confere(V.validar("1.8.2", SHA, REPO, True, RAIZ, ok_exec)[0].startswith("a tag"), "validar: tag sem o 'v' e recusada")
 
-# ---------------------------------------------------------------- excluir_rascunho
-def rotas_excluir(estado_lista, atual_por_id, delete=(0, "", ""), log=None):
-    return fake([(lista(), estado_lista),
-                 (lambda a: a[:2] == ["api", "-X"] and a[2] == "DELETE", delete),
-                 (lambda a: a[0] == "api" and re.fullmatch(r"repos/dono/repo/releases/\d+", a[-1]) is not None, atual_por_id)], log)
+# ---------------------------------------------------------------- build bc: sem exclusao automatica
+fonte_validador = open(os.path.join(RAIZ, "tools", "validar_release.py"), encoding="utf-8").read()
+confere(not hasattr(V, "excluir_rascunho"), "build bc: excluir_rascunho() nao existe mais (o fluxo nao exclui release)")
+confere("DELETE" not in fonte_validador and "release delete" not in fonte_validador, "build bc: o validador nao contem nenhum comando DELETE / release delete")
+confere(V.exigir_inexistente("v1.8.2", REPO, fake([(lista(), resp_lista())])) == [], "exigir_inexistente: nada publicado nem rascunho = ok")
+confere(V.exigir_inexistente("v1.8.2", REPO, fake([(lista(), resp_lista(rel("v1.8.2", True)))])) != [], "exigir_inexistente: rascunho anterior BLOQUEIA")
+confere(V.exigir_inexistente("v1.8.2", REPO, fake([(lista(), resp_lista(rel("v1.8.2", False)))])) != [], "exigir_inexistente: publicada BLOQUEIA")
+confere(V.exigir_inexistente("v1.8.2", REPO, fake([(lista(), (1, "", "HTTP 503"))])) != [], "exigir_inexistente: 503 BLOQUEIA")
 
-log = []
-e = V.excluir_rascunho("v1.8.2", REPO, rotas_excluir(resp_lista(rel("v1.8.2", False)), (0, json.dumps(rel("v1.8.2", False)), ""), log=log))
-confere(e and not any("DELETE" in a for a in log), "excluir_rascunho: release PUBLICADA nunca e excluida (nenhum DELETE enviado)")
-log = []
-e = V.excluir_rascunho("v1.8.2", REPO, rotas_excluir((1, "", "HTTP 503"), (0, "{}", ""), log=log))
-confere(e and not any("DELETE" in a for a in log), "excluir_rascunho: 503 ao listar -> bloqueia, nenhum DELETE")
-log = []
-e = V.excluir_rascunho("v1.8.2", REPO, rotas_excluir(resp_lista(rel("v1.8.2", True, 7)), (1, "", "HTTP 502"), log=log))
-confere(e and not any("DELETE" in a for a in log), "excluir_rascunho: falha ao reconfirmar o rascunho -> bloqueia, nenhum DELETE")
-log = []
-e = V.excluir_rascunho("v1.8.2", REPO, rotas_excluir(resp_lista(rel("v1.8.2", True, 7)), (0, json.dumps(rel("v1.8.2", False, 7)), ""), log=log))
-confere(e and not any("DELETE" in a for a in log), "excluir_rascunho: virou publicada entre a listagem e a reconfirmacao -> NAO exclui")
-log = []
-e = V.excluir_rascunho("v1.8.2", REPO, rotas_excluir(resp_lista(rel("v1.8.2", True, 7)), (0, json.dumps(rel("v1.8.9", True, 7)), ""), log=log))
-confere(e and not any("DELETE" in a for a in log), "excluir_rascunho: id com outra tag -> NAO exclui")
-log = []
-e = V.excluir_rascunho("v1.8.2", REPO, rotas_excluir(resp_lista(rel("v1.8.2", True, 7)), (0, json.dumps(rel("v1.8.2", True, 7)), ""), log=log))
-dels = [i for i, a in enumerate(log) if "DELETE" in a]; gets = [i for i, a in enumerate(log) if a[-1].endswith("/releases/7") and "DELETE" not in a and "-X" not in a]
-confere(e == [] and len(dels) == 1 and gets and gets[-1] < dels[0] and log[dels[0]][-1].endswith("/releases/7"), "excluir_rascunho: rascunho confirmado POR ID imediatamente antes do unico DELETE")
-e = V.excluir_rascunho("v1.8.2", REPO, rotas_excluir(resp_lista(rel("v1.8.2", True, 7)), (0, json.dumps(rel("v1.8.2", True, 7)), ""), delete=(1, "", "HTTP 500")))
-confere(e != [], "excluir_rascunho: falha do DELETE e reportada")
-confere(V.excluir_rascunho("v1.8.2", REPO, rotas_excluir(resp_lista(), (0, "{}", ""))) == [], "excluir_rascunho: nada a excluir = ok")
+# ---------------------------------------------------------------- build bc: resolver_tag / conferir_tag (tag leve x anotada)
+ref_leve = lambda sha: http(200, {"object": {"sha": sha, "type": "commit"}})
+ref_anot = lambda obj: http(200, {"object": {"sha": obj, "type": "tag"}})
+obj_tag = lambda sha, tipo="commit": (0, json.dumps({"object": {"sha": sha, "type": tipo}}), "")
+def ex_tag(ref, extra=()):
+    return fake([(lambda a: "/git/ref/tags/" in a[-1], ref), *extra])
+T1 = "c" * 40; T2 = "d" * 40
+confere(V.resolver_tag(REPO, "v1.8.2", ex_tag(ref_leve(SHA))) == ("existe", SHA), "resolver_tag: tag leve -> o proprio commit")
+confere(V.resolver_tag(REPO, "v1.8.2", ex_tag(ref_anot(T1), [(lambda a: a[-1].endswith("/git/tags/" + T1), obj_tag(SHA))])) == ("existe", SHA), "resolver_tag: tag anotada -> commit apontado")
+confere(V.resolver_tag(REPO, "v1.8.2", ex_tag(ref_anot(T1), [(lambda a: a[-1].endswith("/git/tags/" + T1), obj_tag(T2, "tag")), (lambda a: a[-1].endswith("/git/tags/" + T2), obj_tag(SHA))])) == ("existe", SHA), "resolver_tag: tag anotada encadeada -> commit")
+confere(V.resolver_tag(REPO, "v1.8.2", ex_tag(http(404)))[0] == "inexistente", "resolver_tag: 404 = inexistente")
+confere(V.resolver_tag(REPO, "v1.8.2", ex_tag(http(503)))[0] == "erro", "resolver_tag: 503 = erro (nao inexistente)")
+confere(V.resolver_tag(REPO, "v1.8.2", ex_tag(http(200, "lixo")))[0] == "erro", "resolver_tag: JSON invalido = erro")
+confere(V.resolver_tag(REPO, "v1.8.2", ex_tag(ref_anot(T1), [(lambda a: "/git/tags/" in a[-1], (1, "", "HTTP 502"))]))[0] == "erro", "resolver_tag: falha ao seguir a tag anotada = erro")
+confere(V.conferir_tag(REPO, "v1.8.2", SHA, ex_tag(ref_leve(SHA))) == [], "conferir_tag: tag simples apontando para o commit correto = ok")
+confere(V.conferir_tag(REPO, "v1.8.2", SHA, ex_tag(ref_anot(T1), [(lambda a: a[-1].endswith("/git/tags/" + T1), obj_tag(SHA))])) == [], "conferir_tag: tag ANOTADA apontando para o commit correto = ok (a build bb reprovaria: comparava o SHA do objeto da tag)")
+confere(V.conferir_tag(REPO, "v1.8.2", SHA, ex_tag(ref_leve(OUTRO))) != [], "conferir_tag: tag apontando para outro commit = erro")
+confere(V.conferir_tag(REPO, "v1.8.2", SHA, ex_tag(ref_anot(T1), [(lambda a: a[-1].endswith("/git/tags/" + T1), obj_tag(OUTRO))])) != [], "conferir_tag: tag anotada apontando para outro commit = erro")
+confere(V.conferir_tag(REPO, "v1.8.2", SHA, ex_tag(http(503))) != [], "conferir_tag: falha na consulta da tag = erro")
+confere(V.conferir_tag(REPO, "v1.8.2", SHA, ex_tag(http(404))) != [], "conferir_tag: tag inexistente depois de publicar = erro")
+
+# build bc (P3): o status HTTP vem da linha de status, nunca de texto da mensagem
+confere(V.resposta_http(http(404)[1])[0] == 404 and V.resposta_http(http(200, "{}")[1]) == (200, "{}"), "resposta_http: status e corpo lidos da resposta de gh api -i")
+confere(V.resposta_http("")[0] is None and V.resposta_http("gh: Not Found (HTTP 404)")[0] is None, "resposta_http: sem linha de status = status desconhecido (nao 404)")
+confere(V.resolver_tag(REPO, "v1.8.2", ex_tag(http(404)))[0] == "inexistente", "P3: HTTP 404 legitimo (linha de status) = inexistente")
+confere(V.resolver_tag(REPO, "v1.8.2", ex_tag(http(403, {"message": "Resource not accessible: ref 404"}, msg_erro="gh: HTTP 404 Not Found (HTTP 403)")))[0] == "erro", "P3: HTTP 403 cuja mensagem contem '404' / 'Not Found' = erro, NAO inexistente")
+confere(V.resolver_tag(REPO, "v1.8.2", ex_tag((1, "", "gh: Not Found (HTTP 404)")))[0] == "erro", "P3: '404' so no texto de erro, sem linha de status = erro (falha segura)")
+confere(V.resolver_tag(REPO, "v1.8.2", ex_tag(http(502, msg_erro="HTTP 404 upstream")))[0] == "erro", "P3: 502 com '404' na mensagem = erro")
+confere(V.resolver_tag(REPO, "v1.8.2", ex_tag(http(200, "lixo 404")))[0] == "erro", "P3: 200 com corpo invalido = erro")
+confere(V.conferir_tag(REPO, "v1.8.2", SHA, ex_tag(http(403, msg_erro="Not Found 404 (HTTP 403)"))) != [], "P3: conferir_tag com 403 contendo '404' = erro")
+
+# ---------------------------------------------------------------- build bc: GitHub simulado COM ESTADO, duas execucoes concorrentes
+class GitHubFalso:
+    """Estado de releases e tags; responde as chamadas que o fluxo faz (python e gh release create/edit do workflow). Registra tudo."""
+    def __init__(self):
+        self.releases = []; self.tags = {}; self.log = []; self.prox = 1
+    def __call__(self, args, binario=False, timeout=0):
+        self.log.append(list(args))
+        if args[0] == "api" and "--paginate" in args:
+            return 0, json.dumps([[dict(r) for r in self.releases]]), ""
+        if args[0] == "api" and "/git/ref/tags/" in args[-1]:
+            t = args[-1].rsplit("/", 1)[-1]
+            return http(200, {"object": {"sha": self.tags[t], "type": "commit"}}) if t in self.tags else http(404)
+        return 1, "", "HTTP 404: Not Found"
+    # o que o workflow faz direto com o gh:
+    def criar_rascunho(self, quem, tag, alvo):
+        self.log.append(["release", "create", tag, "--draft", "--target", alvo, quem])
+        self.releases.append({"tag_name": tag, "draft": True, "id": self.prox, "assets": [], "target_commitish": alvo, "autor": quem}); self.prox += 1
+    def publicar(self, quem, tag):
+        self.log.append(["release", "edit", tag, "--draft=false", quem])
+        alvo = [r for r in self.releases if r["tag_name"] == tag and r["draft"] and r["autor"] == quem] or [r for r in self.releases if r["tag_name"] == tag and r["draft"]]
+        if alvo:
+            alvo[0]["draft"] = False; self.tags.setdefault(tag, alvo[0]["target_commitish"])
+    def deletes(self):
+        return [c for c in self.log if any("DELETE" in str(x) or "delete" in str(x) for x in c)]
+
+def fluxo(gh, quem, alvo, passo):
+    """Executa o fluxo do workflow por etapas (gerador); cada yield e um ponto onde a outra execucao pode intercalar."""
+    if V.exigir_inexistente("v1.8.2", REPO, gh): return "parou: release/rascunho anterior"
+    yield
+    gh.criar_rascunho(quem, "v1.8.2", alvo)
+    yield
+    if V.pre_publicacao(REPO, "v1.8.2", alvo, gh): return "parou: pre-publicacao"
+    yield
+    gh.publicar(quem, "v1.8.2")
+    yield
+    if V.conferir_tag(REPO, "v1.8.2", alvo, gh): return "parou: tag"
+    return "publicou"
+def rodar(gh, *gens):
+    res = {}; ativos = dict(gens)
+    while ativos:
+        for nome in list(ativos):
+            try: next(ativos[nome])
+            except StopIteration as fim: res[nome] = fim.value; del ativos[nome]
+    return res
+
+# (a) sequencial: A publica; B chega depois e para no rascunho/publicada existente
+gh = GitHubFalso(); r = rodar(gh, ("A", fluxo(gh, "A", SHA, 0)))
+r.update(rodar(gh, ("B", fluxo(gh, "B", SHA, 0))))
+confere(r == {"A": "publicou", "B": "parou: release/rascunho anterior"} and not gh.deletes(), f"concorrencia (a): A publica, B para; nenhum DELETE ({r})")
+# (b) intercaladas desde o inicio (o que o 'concurrency' do workflow impede; aqui sem ele, no pior caso)
+gh = GitHubFalso(); r = rodar(gh, ("A", fluxo(gh, "A", SHA, 0)), ("B", fluxo(gh, "B", SHA, 0)))
+publicadas = [x for x in gh.releases if not x["draft"]]
+confere(not gh.deletes(), f"concorrencia (b): duas execucoes intercaladas nunca enviam DELETE ({r})")
+confere(len(publicadas) <= 1 and list(r.values()).count("publicou") <= 1, f"concorrencia (b): no maximo UMA publicacao (dois rascunhos da mesma tag = ninguem publica) ({r})")
+confere(all(x["draft"] for x in gh.releases) and len(gh.releases) == 2, "concorrencia (b): os dois rascunhos ficam intactos para decisao humana (nada excluido)")
+confere(not any(c[:2] == ["release", "edit"] for c in gh.log), "concorrencia (b): nenhum 'release edit' foi enviado")
+# (b2) intercaladas mas B so comeca depois de A criar o rascunho: B para em exigir-inexistente, A publica
+gh = GitHubFalso(); ga = fluxo(gh, "A", SHA, 0); next(ga); next(ga)
+r = rodar(gh, ("B", fluxo(gh, "B", SHA, 0)), ("A", ga))
+confere(r == {"B": "parou: release/rascunho anterior", "A": "publicou"} and not gh.deletes(), f"concorrencia (b2): B para no rascunho de A, A publica, nenhum DELETE ({r})")
+# (c) draft=true -> draft=false por fora entre a conferencia e o proximo passo: o fluxo para e nao exclui nada
+gh = GitHubFalso(); g = fluxo(gh, "A", SHA, 0); next(g); next(g)       # A ja criou o rascunho
+gh.publicar("humano", "v1.8.2")                                           # alguem publica por fora
+try: next(g); res = "seguiu"
+except StopIteration as fim: res = fim.value
+confere(res == "parou: pre-publicacao" and not gh.deletes(), f"draft=true -> draft=false por fora: o fluxo para na pre-publicacao, nenhum DELETE ({res})")
+# (d) rascunho deixado por execucao anterior que falhou: o fluxo novo para (nao exclui, nao reaproveita)
+gh = GitHubFalso(); gh.criar_rascunho("execucao_que_falhou", "v1.8.2", OUTRO)
+r = rodar(gh, ("A", fluxo(gh, "A", SHA, 0)))
+confere(r == {"A": "parou: release/rascunho anterior"} and len(gh.releases) == 1 and gh.releases[0]["draft"] and not gh.deletes(), f"rascunho anterior: o fluxo para e deixa o rascunho intacto para decisao humana ({r})")
 
 # ---------------------------------------------------------------- conferir_anexos
 tmp = tempfile.mkdtemp(prefix="wolfx_anx_")
@@ -145,14 +234,15 @@ shutil.rmtree(tmp, ignore_errors=True)
 def ex_pre(releases, tag_resp, extra=()):
     return fake([(lista(), releases), (lambda a: a[0] == "api" and "/git/ref/tags/" in a[-1], tag_resp), *extra])
 rasc = resp_lista(rel("v1.8.2", True, 7, target_commitish=SHA))
-tag_ok = (0, json.dumps({"object": {"sha": SHA, "type": "commit"}}), "")
-confere(V.pre_publicacao(REPO, "v1.8.2", SHA, ex_pre(rasc, (1, "", "HTTP 404: Not Found"))) == [], "pre-publicacao: rascunho mira o alvo e a tag ainda nao existe = ok")
-confere(V.pre_publicacao(REPO, "v1.8.2", OUTRO, ex_pre(rasc, (1, "", "HTTP 404: Not Found"))) != [], "pre-publicacao: rascunho mira OUTRO commit BLOQUEIA")
+tag_ok = http(200, {"object": {"sha": SHA, "type": "commit"}})
+confere(V.pre_publicacao(REPO, "v1.8.2", SHA, ex_pre(rasc, http(404))) == [], "pre-publicacao: rascunho mira o alvo e a tag ainda nao existe = ok")
+confere(V.pre_publicacao(REPO, "v1.8.2", OUTRO, ex_pre(rasc, http(404))) != [], "pre-publicacao: rascunho mira OUTRO commit BLOQUEIA")
 confere(V.pre_publicacao(REPO, "v1.8.2", SHA, ex_pre(rasc, tag_ok)) == [], "pre-publicacao: tag existente = alvo ok")
 confere(V.pre_publicacao(REPO, "v1.8.2", OUTRO, ex_pre(rasc, tag_ok)) != [], "pre-publicacao: tag existente aponta para outro commit BLOQUEIA")
-anot = (0, json.dumps({"object": {"sha": "c" * 40, "type": "tag"}}), "")
+anot = http(200, {"object": {"sha": "c" * 40, "type": "tag"}})
 confere(V.pre_publicacao(REPO, "v1.8.2", SHA, ex_pre(rasc, anot, [(lambda a: "/git/tags/" in a[-1], (0, json.dumps({"object": {"sha": SHA}}), ""))])) == [], "pre-publicacao: tag anotada resolvida para o commit")
-confere(V.pre_publicacao(REPO, "v1.8.2", SHA, ex_pre(rasc, (1, "", "HTTP 503: Service Unavailable"))) != [], "pre-publicacao: 503 ao consultar a tag BLOQUEIA (nao e 'tag inexistente')")
+confere(V.pre_publicacao(REPO, "v1.8.2", SHA, ex_pre(rasc, http(403, msg_erro="gh: Not Found 404 (HTTP 403)"))) != [], "P3: pre-publicacao com 403 contendo '404' BLOQUEIA (nao trata como tag a criar)")
+confere(V.pre_publicacao(REPO, "v1.8.2", SHA, ex_pre(rasc, http(503))) != [], "pre-publicacao: 503 ao consultar a tag BLOQUEIA (nao e 'tag inexistente')")
 confere(V.pre_publicacao(REPO, "v1.8.2", SHA, ex_pre(resp_lista(rel("v1.8.2", False)), tag_ok)) != [], "pre-publicacao: release ja publicada BLOQUEIA")
 confere(V.pre_publicacao(REPO, "v1.8.2", SHA, ex_pre(resp_lista(), tag_ok)) != [], "pre-publicacao: release inexistente BLOQUEIA")
 confere(V.pre_publicacao(REPO, "v1.8.2", SHA, ex_pre((1, "", "HTTP 502"), tag_ok)) != [], "pre-publicacao: falha ao ler a release BLOQUEIA")
@@ -162,14 +252,17 @@ bindir = tempfile.mkdtemp(prefix="wolfx_gh_"); logf = os.path.join(bindir, "cham
 script = os.path.join(bindir, "gh_falso.py")
 open(script, "w", encoding="utf-8").write(r'''
 import os, sys, json
-a = sys.argv[1:]
+a = sys.argv[1:]   # bytes crus no stdout: no Windows o print em modo texto trocaria \n por \r\n e duplicaria os CR dos cabecalhos (o gh real nao faz isso)
 open(os.environ["GH_LOG"], "a", encoding="utf-8").write(" ".join(a) + "\n")
 modo = os.environ.get("GH_MODO", "")
 if modo == "503": sys.stderr.write("gh: HTTP 503: Service Unavailable\n"); sys.exit(1)
-rels = {"vazio": [], "rascunho": [{"tag_name": "v1.8.2", "draft": True, "id": 7, "assets": []}], "publicada": [{"tag_name": "v1.8.2", "draft": False, "id": 8, "assets": [], "html_url": "u"}]}[modo]
+rels = {"403_404": [{"tag_name": "v1.8.2", "draft": True, "id": 7, "assets": [], "target_commitish": "a" * 40}], "vazio": [], "rascunho": [{"tag_name": "v1.8.2", "draft": True, "id": 7, "assets": []}], "publicada": [{"tag_name": "v1.8.2", "draft": False, "id": 8, "assets": [], "html_url": "u"}]}[modo]
 if "--paginate" in a: print(json.dumps([rels])); sys.exit(0)
-if a[:3] == ["api", "-X", "DELETE"]: sys.exit(0)
-if a[0] == "api" and a[-1].endswith("/releases/7"): print(json.dumps(rels[0])); sys.exit(0)
+if a[0] == "api" and "/git/ref/tags/" in a[-1]:
+    if modo == "publicada": sys.stdout.buffer.write(('HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n' + json.dumps({"object": {"sha": "c" * 40, "type": "tag"}})).encode()); sys.stdout.flush(); sys.exit(0)
+    if modo == "403_404": sys.stdout.buffer.write(('HTTP/1.1 403 Forbidden\r\n\r\n{"message": "Resource not accessible (ref 404)"}').encode()); sys.stdout.flush(); sys.stderr.write("gh: Resource not accessible (ref 404) (HTTP 403)\n"); sys.exit(1)
+    sys.stdout.buffer.write(('HTTP/1.1 404 Not Found\r\n\r\n{"message": "Not Found"}').encode()); sys.stdout.flush(); sys.stderr.write("gh: Not Found (HTTP 404)\n"); sys.exit(1)
+if a[0] == "api" and "/git/tags/" in a[-1]: print(json.dumps({"object": {"sha": "a" * 40, "type": "commit"}})); sys.exit(0)
 sys.exit(1)
 ''')
 if os.name == "nt":
@@ -184,14 +277,17 @@ confere(cli("503", "--acao", "estado")[0] == 1, "CLI estado: 503 -> codigo de sa
 confere(cli("vazio", "--acao", "estado")[1].strip() == "inexistente", "CLI estado: inexistente")
 confere(cli("rascunho", "--acao", "estado")[1].strip() == "rascunho" and cli("publicada", "--acao", "estado")[1].strip() == "publicada", "CLI estado: rascunho e publicada")
 open(logf, "w").close()
-rc, out = cli("publicada", "--acao", "excluir-rascunho")
-confere(rc == 1 and "DELETE" not in open(logf).read(), "CLI excluir-rascunho: release publicada -> codigo 1 e nenhum DELETE chamado")
-open(logf, "w").close()
-rc, out = cli("503", "--acao", "excluir-rascunho")
-confere(rc == 1 and "DELETE" not in open(logf).read(), "CLI excluir-rascunho: 503 -> codigo 1 e nenhum DELETE")
-open(logf, "w").close()
-rc, out = cli("rascunho", "--acao", "excluir-rascunho")
-confere(rc == 0 and open(logf).read().count("DELETE") == 1, "CLI excluir-rascunho: rascunho -> exclui uma vez, codigo 0")
+confere(cli("vazio", "--acao", "exigir-inexistente")[0] == 0, "CLI exigir-inexistente: sem release -> 0")
+confere(cli("rascunho", "--acao", "exigir-inexistente")[0] == 1, "CLI exigir-inexistente: rascunho -> 1")
+confere(cli("publicada", "--acao", "exigir-inexistente")[0] == 1, "CLI exigir-inexistente: publicada -> 1")
+confere(cli("503", "--acao", "exigir-inexistente")[0] == 1, "CLI exigir-inexistente: 503 -> 1")
+confere(cli("publicada", "--acao", "conferir-tag", "--sha", SHA)[0] == 0, "CLI conferir-tag: tag ANOTADA resolvida para o commit -> 0")
+confere(cli("publicada", "--acao", "conferir-tag", "--sha", OUTRO)[0] == 1, "CLI conferir-tag: commit diferente -> 1")
+confere(cli("503", "--acao", "conferir-tag", "--sha", SHA)[0] == 1, "CLI conferir-tag: falha na consulta -> 1")
+confere(cli("403_404", "--acao", "pre-publicacao", "--sha", SHA)[0] == 1, "P3 CLI: pre-publicacao com HTTP 403 contendo '404' na mensagem -> codigo 1")
+confere(cli("vazio", "--acao", "excluir-rascunho")[0] != 0, "CLI: a acao excluir-rascunho nao existe mais")
+chamadas = open(logf, encoding="utf-8").read()
+confere("DELETE" not in chamadas and "delete" not in chamadas, "CLI: nenhuma chamada DELETE/delete chegou ao gh em nenhum cenario")
 shutil.rmtree(bindir, ignore_errors=True)
 
 # ---------------------------------------------------------------- release.yml (analise estatica das salvaguardas)
@@ -199,11 +295,17 @@ yml = "\n".join(l for l in open(os.path.join(RAIZ, ".github", "workflows", "rele
 confere("gh release delete" not in yml, "release.yml: nao usa `gh release delete` (exclusao so pelo validador, com reconfirmacao)")
 confere("--clobber" not in yml, "release.yml: sem --clobber")
 confere(".size -ne" not in yml and "tamanho local" not in yml, "release.yml: sem comparacao so por tamanho")
-i_exc, i_conf, i_pre, i_pub = (yml.find(k) for k in ("--acao excluir-rascunho", "--acao conferir-anexos", "--acao pre-publicacao", "gh release edit $env:TAG --draft=false"))
-confere(0 < i_exc < i_conf < i_pre < i_pub, "release.yml: ordem excluir-rascunho -> conferir-anexos -> pre-publicacao -> publicar")
-confere("function Exec" in yml and "$LASTEXITCODE -ne 0" in yml and yml.count("Exec {") >= 5, "release.yml: comandos externos da publicacao passam por Exec (codigo de saida conferido)")
+ordem = [yml.find(k) for k in ("--acao exigir-inexistente", "gh release create", "--acao conferir-anexos", "--acao pre-publicacao", "gh release edit $env:TAG --draft=false", "--acao conferir-tag")]
+confere(all(x > 0 for x in ordem) and ordem == sorted(ordem), "release.yml: ordem exigir-inexistente -> criar rascunho -> conferir-anexos -> pre-publicacao -> publicar -> conferir-tag")
+confere("excluir-rascunho" not in yml and "DELETE" not in yml and "release delete" not in yml, "release.yml: nenhuma exclusao de release (nem rascunho)")
+confere("$ref.object.sha -ne" not in yml, "release.yml: sem comparacao direta do SHA do objeto da tag (tag anotada) depois de publicar")
+confere("function Exec" in yml and "$LASTEXITCODE -ne 0" in yml and yml.count("Exec {") >= 6, "release.yml: comandos externos da publicacao passam por Exec (codigo de saida conferido)")
 confere("gh release edit $env:TAG --draft=false }" in yml, "release.yml: a publicacao esta dentro de Exec")
-confere("if ($LASTEXITCODE -ne 0) { throw \"nao foi possivel ler a tag" in yml, "release.yml: leitura da tag depois de publicar tem o codigo de saida conferido")
+_bruto = open(os.path.join(RAIZ, ".github", "workflows", "release.yml"), encoding="utf-8").read()
+_m = re.search(r"^concurrency:\n\s+group:\s*(.+)\n\s+cancel-in-progress:\s*(\S+)", _bruto, re.M)
+_c = {"group": _m.group(1) if _m else "", "cancel-in-progress": (_m.group(2) == "false") is False if _m else None}
+confere(bool(_m) and "github.repository" in _c["group"] and "inputs.tag" in _c["group"] and "github.ref_name" in _c["group"], f"release.yml: concurrency por repositorio e tag ({_c.get('group')})")
+confere(_c.get("cancel-in-progress") is False, "release.yml: concurrency sem cancelar publicacao ativa (cancel-in-progress: false)")
 
 print("\n%d ok, %d falha(s)" % (_ok, len(falhas)))
 sys.exit(1 if falhas else 0)
