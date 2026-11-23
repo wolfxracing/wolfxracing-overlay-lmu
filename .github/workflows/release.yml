@@ -2,7 +2,7 @@ name: Release e EXE (Windows)
 
 # Publica uma release vX.Y.Z presa ao COMMIT da tag: valida o SHA/versao/CHANGELOG, roda TODAS as suites no Qt nativo do Windows, monta os ativos
 # desse mesmo commit, confere o EXE extraido em pasta limpa (fontes), gera os SHA-256 e so entao publica. Release publicada nunca e reescrita
-# (sem --clobber). Disparo manual (Run workflow): informe a tag; sem tag so gera o EXE como arquivo da execucao.
+# (sem --clobber; build bc: o fluxo nunca exclui nem edita release existente). Disparo manual (Run workflow): informe a tag; sem tag so gera o EXE como arquivo da execucao.
 on:
   push:
     tags: ["v*"]
@@ -15,6 +15,11 @@ on:
 
 permissions:
   contents: write
+
+# build bc: no maximo UMA publicacao por repositorio e tag de cada vez; uma execucao ativa nunca e cancelada (a seguinte espera na fila)
+concurrency:
+  group: release-${{ github.repository }}-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 
 env:
   TAG: ${{ inputs.tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || '' }}
@@ -167,8 +172,9 @@ jobs:
           $notas | Out-File -Encoding utf8 notas.md
           "`n### SHA-256 e origem`nCommit: ``$($env:ALVO)``. Hashes de cada ativo: ``SHA256_v$v.txt`` (anexo desta release)." | Add-Content -Encoding utf8 notas.md
           $titulo = "WolfxRacing Overlay LMU " + $v
-          # so um RASCUNHO antigo pode ser refeito: a exclusao reconfirma o estado de rascunho (por id) imediatamente antes e recusa release publicada ou resposta indeterminada
-          Exec { python tools/validar_release.py --acao excluir-rascunho --tag $env:TAG --repo $repo } "exclusao do rascunho antigo"
+          # build bc: o fluxo NUNCA exclui, edita ou reaproveita release existente. Imediatamente antes de criar, exige que nao haja release nem
+          # rascunho da tag; rascunho anterior para o fluxo e pede decisao humana (exclusao manual no GitHub ou outra versao).
+          Exec { python tools/validar_release.py --acao exigir-inexistente --tag $env:TAG --repo $repo } "conferencia de release/rascunho anterior"
           git rev-parse --verify --quiet "refs/tags/$($env:TAG)^{commit}" *> $null
           $tagExiste = ($LASTEXITCODE -eq 0)
           if ($tagExiste) { Exec { gh release create $env:TAG --draft --verify-tag --title $titulo --notes-file notas.md $arqs.FullName } "criacao do rascunho" }
@@ -179,8 +185,6 @@ jobs:
           # tudo conferido ANTES de publicar: rascunho, SHA da tag (ou alvo do rascunho)
           Exec { python tools/validar_release.py --acao pre-publicacao --tag $env:TAG --repo $repo --sha $env:ALVO } "conferencia pre-publicacao"
           Exec { gh release edit $env:TAG --draft=false } "publicacao da release"
-          $refjson = gh api "repos/$repo/git/ref/tags/$($env:TAG)"
-          if ($LASTEXITCODE -ne 0) { throw "nao foi possivel ler a tag $($env:TAG) depois de publicar (codigo $LASTEXITCODE)" }
-          $ref = $refjson | ConvertFrom-Json
-          if ($ref.object.sha -ne $env:ALVO) { throw "a tag $($env:TAG) aponta para $($ref.object.sha), nao para $($env:ALVO)" }
-          Write-Host "release $($env:TAG) publicada; tag -> $($ref.object.sha)"
+          # build bc: a conferencia depois de publicar resolve a tag ATE O COMMIT (tag leve ou anotada), com a mesma funcao da pre-publicacao
+          Exec { python tools/validar_release.py --acao conferir-tag --tag $env:TAG --repo $repo --sha $env:ALVO } "conferencia da tag publicada"
+          Write-Host "release $($env:TAG) publicada; tag -> commit $($env:ALVO)"

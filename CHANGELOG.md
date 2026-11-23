@@ -2,6 +2,14 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e [SemVer](https://semver.org/lang/pt-BR/).
 
+## 1.8.2 build bc (corretiva - auditoria da build bb; produto continua 1.8.2)
+- Publicacao: removida a exclusao automatica de releases. `excluir_rascunho()` e a acao `--acao excluir-rascunho` deixaram de existir; nenhum DELETE e enviado pelo validador nem pelo workflow. Havendo rascunho anterior da tag, a validacao e a nova acao `--acao exigir-inexistente` (rodada imediatamente antes de criar o rascunho) BLOQUEIAM e pedem decisao humana (exclusao manual no GitHub ou outra versao). A pre-publicacao exige exatamente UMA release com a tag (dois rascunhos = execucoes cruzadas = ninguem publica). Substitui o item da build bb que excluia o rascunho antigo.
+- Publicacao: `concurrency` no release.yml por repositorio e tag (`release-<repo>-<tag>`), sem cancelar publicacao ativa.
+- Publicacao: a conferencia DEPOIS de `gh release edit --draft=false` usa a mesma resolucao de tag da pre-publicacao (`resolver_tag`: tag leve ou anotada ate o commit), pela nova acao `--acao conferir-tag`; a build bb comparava o SHA do objeto da tag anotada com o commit.
+- Testes: `teste_v182_release_seguro` (94): sem exclusao (funcao/acao inexistentes, nenhum DELETE no codigo, no workflow e nas chamadas ao `gh` falso), GitHub simulado com estado e duas execucoes concorrentes (sequencial, intercaladas, draft=true -> draft=false por fora, rascunho de execucao anterior), tag leve/anotada/encadeada/outro commit/falha de consulta, concurrency no workflow.
+- Sem funcionalidade nova; telemetria, Coach, Danos, FOV, Cronograma, Classificacao, fontes racing, trava do atualizador LMU, backup/reversao e SHA-256 dos anexos preservados. Nenhuma release real foi criada, excluida, editada ou publicada.
+- **Sem homologacao em simulador real e sem teste com Stream Deck real.**
+
 ## 1.8.2 build bb (corretiva - auditoria da build ba; produto continua 1.8.2)
 - Publicacao: `tools/validar_release.py` separa release INEXISTENTE (lista lida com sucesso e sem a tag) de falha da API (5xx, 403, rede, timeout, JSON invalido): qualquer resposta indeterminada BLOQUEIA (a build ba liberava com `gh release view` em HTTP 503). Falha do `git fetch` e ausencia de repositorio no modo GitHub tambem bloqueiam.
 - Publicacao: `release.yml` nao usa mais `gh release delete`; o rascunho antigo e excluido pelo validador, que le a release POR ID imediatamente antes do DELETE e exige draft=true e a mesma tag (nunca exclui release publicada). Todos os comandos externos da publicacao tem o codigo de saida conferido.

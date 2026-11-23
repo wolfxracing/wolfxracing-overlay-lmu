@@ -28,7 +28,7 @@ TMP = tempfile.mkdtemp(prefix="atualizador_")
 PKG = os.path.join(TMP, "pacote"); os.makedirs(PKG)
 zip_pkg, programa, info = ger.montar("HEAD", True, TMP)
 with zipfile.ZipFile(zip_pkg) as z: z.extractall(PKG)
-confere(info["build"] == "bb" and info["versao"] == "1.8.2", "pacote identifica versao e build (%s, %s)" % (info["versao"], info["build"]))
+confere(info["build"] == "bc" and info["versao"] == "1.8.2", "pacote identifica versao e build (%s, %s)" % (info["versao"], info["build"]))
 confere(set(os.listdir(PKG)) >= {"atualizar_lmu.py", "ATUALIZAR_LMU.bat", "MANIFESTO_SHA256.txt", "PACOTE.json", "programa", "verificacao", "LEIA-ME_ATUALIZACAO_LMU.txt"}, "conteudo do pacote")
 SCRIPT = os.path.join(PKG, "atualizar_lmu.py")
 
@@ -46,7 +46,7 @@ def instalacao_antiga(nome):
         if rel.startswith(("emblemas/", "marca/", "referencias/")): continue
         p = os.path.join(d, rel); os.makedirs(os.path.dirname(p), exist_ok=True)
         open(p, "wb").write(dados)
-    ip = os.path.join(d, "overlay_iracing.py"); t = open(ip, encoding="utf-8").read().replace('BUILD = "bb"', 'BUILD = "ae"')
+    ip = os.path.join(d, "overlay_iracing.py"); t = open(ip, encoding="utf-8").read().replace('BUILD = "bc"', 'BUILD = "ae"')
     open(ip, "w", encoding="utf-8").write(t)
     lista = sorted(r for r in programa if r.endswith(".py") and "/" not in r and r not in ("overlay_lmu.py", "overlay_iracing.py"))
     for rel in lista[:3]:                                       # alterados
@@ -68,7 +68,7 @@ def igual_ao_pacote(d):
 # ---- 1. simular nao escreve
 d = instalacao_antiga("sim"); antes = arvore(d)
 rc, out = rodar(d, "--simular")
-confere(rc == 0 and "a atualizar" in out and "build bb" in out, "simular: rc 0 e plano (%d, %s)" % (rc, out.strip().splitlines()[-1][:80] if out.strip() else ""))
+confere(rc == 0 and "a atualizar" in out and "build bc" in out, "simular: rc 0 e plano (%d, %s)" % (rc, out.strip().splitlines()[-1][:80] if out.strip() else ""))
 confere(arvore(d) == antes, "simular nao escreve nada")
 rc, out = rodar(os.path.join(TMP, "nao_existe"))
 confere(rc == 2, "pasta invalida: rc 2")
@@ -91,7 +91,7 @@ finally:
 rc_s, out_s = rodar(d, "--simular")
 confere(rc_s == 0 and "órfã" in out_s, "dono morto: --simular reconhece trava orfa e retorna 0 (rc %d)" % rc_s)
 rc, out = rodar(d)
-confere(rc == 0 and "órfã" in out and build(d) == "bb", "dono morto: atualizacao remove a trava orfa e conclui (rc %d)" % rc)
+confere(rc == 0 and "órfã" in out and build(d) == "bc", "dono morto: atualizacao remove a trava orfa e conclui (rc %d)" % rc)
 confere(not os.path.exists(os.path.join(d, ".atualizar_lmu.lock")) and not [x for x in os.listdir(d) if x.startswith(".atualizar_lmu.lock")], "nenhuma trava sobra")
 
 # ---- 3. trava orfa: PID inexistente e trava vazia antiga
@@ -99,10 +99,10 @@ d = instalacao_antiga("orfa")
 morto = subprocess.Popen([sys.executable, "-c", "pass"]); morto.wait()
 open(os.path.join(d, ".atualizar_lmu.lock"), "w", encoding="utf-8").write(json.dumps({"pid": morto.pid, "inicio": time.time(), "maquina": __import__("socket").gethostname()}))
 rc, out = rodar(d, "--simular"); confere(rc == 0 and "órfã" in out, "PID inexistente: --simular rc 0 com aviso (rc %d)" % rc)
-rc, out = rodar(d); confere(rc == 0 and build(d) == "bb" and dados_ok(d), "PID inexistente: atualiza, dados do usuario intactos (rc %d)" % rc)
+rc, out = rodar(d); confere(rc == 0 and build(d) == "bc" and dados_ok(d), "PID inexistente: atualiza, dados do usuario intactos (rc %d)" % rc)
 d = instalacao_antiga("vazia")
 lk = os.path.join(d, ".atualizar_lmu.lock"); open(lk, "w").close(); velho = time.time() - 3600; os.utime(lk, (velho, velho))
-rc, out = rodar(d); confere(rc == 0 and build(d) == "bb", "trava vazia antiga e orfa: atualiza (rc %d)" % rc)
+rc, out = rodar(d); confere(rc == 0 and build(d) == "bc", "trava vazia antiga e orfa: atualiza (rc %d)" % rc)
 d = instalacao_antiga("recente")
 lk = os.path.join(d, ".atualizar_lmu.lock"); open(lk, "w").close()
 rc, out = rodar(d); confere(rc == 4, "trava vazia RECEM-criada conta como ativa: rc 4 (rc %d)" % rc)
@@ -110,10 +110,10 @@ rc, out = rodar(d); confere(rc == 4, "trava vazia RECEM-criada conta como ativa:
 # ---- 4. preservacao, backup, idempotencia
 d = instalacao_antiga("preserva"); antes_user = {r: open(os.path.join(d, r), "rb").read() for r in USUARIO}
 rc, out = rodar(d)
-confere(rc == 0 and out.strip().splitlines()[-1].startswith("OK: atualizado para a build bb"), "atualizacao completa: rc 0 (%s)" % out.strip().splitlines()[-1][:70])
+confere(rc == 0 and out.strip().splitlines()[-1].startswith("OK: atualizado para a build bc"), "atualizacao completa: rc 0 (%s)" % out.strip().splitlines()[-1][:70])
 confere(dados_ok(d), "dados do usuario byte a byte iguais (config, recordes, cronograma, pit, log, emblemas, marca, referencias)")
 confere(igual_ao_pacote(d) == [], "todo arquivo do programa igual ao pacote depois da atualizacao (divergentes: %s)" % igual_ao_pacote(d)[:5])
-bks = [x for x in os.listdir(d) if x.startswith("backup_pre_buildBB_")]
+bks = [x for x in os.listdir(d) if x.startswith("backup_pre_buildBC_")]
 confere(len(bks) == 1 and os.path.exists(os.path.join(d, bks[0], "overlay_iracing.py")), "backup dos arquivos substituidos criado")
 rc, out = rodar(d); confere(rc == 0 and "já instalada" in out, "idempotente: segunda execucao nao faz nada")
 confere(not [x for x in os.listdir(d) if x.startswith((".atualizacao_", ".atualizar_lmu.lock"))], "sem temporarios nem trava depois da atualizacao")
@@ -147,7 +147,7 @@ confere(rc == 1 and "revertidas" in out, "reversao (%s): rc 1 e alteracoes rever
 restante = {r: h for r, h in arvore(d).items() if not r.startswith(("backup_pre_", ".atualizacao_"))}
 confere(restante == {r: h for r, h in antes.items()}, "reversao: arvore identica a de antes (diferencas: %s)" % sorted(set(restante.items()) ^ set(antes.items()))[:3])
 confere(not os.path.exists(os.path.join(d, ".atualizar_lmu.lock")), "reversao: trava removida")
-rc, out = rodar(d); confere(rc == 0 and build(d) == "bb" and dados_ok(d), "depois de liberar o arquivo, a atualizacao conclui")
+rc, out = rodar(d); confere(rc == 0 and build(d) == "bc" and dados_ok(d), "depois de liberar o arquivo, a atualizacao conclui")
 
 # ---- 6. pacote adulterado
 adul = os.path.join(TMP, "pacote_adulterado"); shutil.copytree(PKG, adul)
