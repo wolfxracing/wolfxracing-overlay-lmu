@@ -167,7 +167,7 @@ except Exception:
 
 PASTA = _PASTA_BASE
 VERSAO_PRODUTO = "1.8.2"                      # versao do produto; as correcoes da auditoria entram como BUILD (ba = primeira build da 1.8.2)
-BUILD = "ba"                                    # identificacao da entrega dentro da 1.8.2 (aparece no cabecalho do log)
+BUILD = "bb"                                    # identificacao da entrega dentro da 1.8.2 (aparece no cabecalho do log)
 ARQ_CONFIG = PASTA / "config.json"
 ARQ_LOG = PASTA / "overlay_log.txt"
 ARQ_MAPAS = PASTA / "mapas_pistas.json"

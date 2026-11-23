@@ -159,26 +159,28 @@ jobs:
           $env:PYTHONIOENCODING = 'utf-8'
           $v = $env:TAG.TrimStart('v')
           $arqs = @(Get-ChildItem dist/*.zip) + @(Get-ChildItem overlay/exe/*.zip) + @(Get-ChildItem dash/*.simhubdash) + @(Get-ChildItem streamdeck/*.streamDeckProfile | Where-Object { $_.Name -notlike '*_ajustado*' }) + @(Get-Item "SHA256_v$v.txt")
-          python tools/notas_release.py $env:TAG | Out-File -Encoding utf8 notas.md
+          # build bb: cada comando externo tem o codigo de saida conferido (PowerShell nao interrompe sozinho em comando nativo)
+          function Exec([scriptblock]$bloco, [string]$oque) { & $bloco; if ($LASTEXITCODE -ne 0) { throw "$oque falhou (codigo de saida $LASTEXITCODE)" } }
+          $repo = "${{ github.repository }}"
+          $notas = python tools/notas_release.py $env:TAG
+          if ($LASTEXITCODE -ne 0) { throw "geracao das notas falhou (codigo de saida $LASTEXITCODE)" }
+          $notas | Out-File -Encoding utf8 notas.md
           "`n### SHA-256 e origem`nCommit: ``$($env:ALVO)``. Hashes de cada ativo: ``SHA256_v$v.txt`` (anexo desta release)." | Add-Content -Encoding utf8 notas.md
           $titulo = "WolfxRacing Overlay LMU " + $v
-          gh release view $env:TAG *> $null
-          if ($LASTEXITCODE -eq 0) { gh release delete $env:TAG --yes }       # so chega aqui um RASCUNHO antigo (o validador recusa release publicada)
-          $tagExiste = (git rev-parse --verify --quiet "refs/tags/$($env:TAG)^{commit}")
-          if ($tagExiste) { gh release create $env:TAG --draft --verify-tag --title $titulo --notes-file notas.md $arqs.FullName }
-          else { gh release create $env:TAG --draft --target $env:ALVO --title $titulo --notes-file notas.md $arqs.FullName }
-          $info = gh release view $env:TAG --json assets | ConvertFrom-Json
-          foreach ($a in $arqs) {
-            $local = (Get-FileHash $a.FullName -Algorithm SHA256).Hash.ToLower()
-            $enviado = $info.assets | Where-Object { $_.name -eq ($a.Name -replace '[^A-Za-z0-9._-]','.') } | Select-Object -First 1
-            if (-not $enviado) { throw "ativo $($a.Name) nao foi enviado" }
-            if ($enviado.digest) {
-              $no_gh = $enviado.digest -replace '^sha256:', ''
-              if ($local -ne $no_gh) { throw "ativo $($a.Name): SHA-256 local $local difere do enviado ($no_gh)" }
-            } elseif ($enviado.size -ne $a.Length) { throw "ativo $($a.Name): tamanho local $($a.Length) difere do enviado ($($enviado.size))" }
-          }
+          # so um RASCUNHO antigo pode ser refeito: a exclusao reconfirma o estado de rascunho (por id) imediatamente antes e recusa release publicada ou resposta indeterminada
+          Exec { python tools/validar_release.py --acao excluir-rascunho --tag $env:TAG --repo $repo } "exclusao do rascunho antigo"
+          git rev-parse --verify --quiet "refs/tags/$($env:TAG)^{commit}" *> $null
+          $tagExiste = ($LASTEXITCODE -eq 0)
+          if ($tagExiste) { Exec { gh release create $env:TAG --draft --verify-tag --title $titulo --notes-file notas.md $arqs.FullName } "criacao do rascunho" }
+          else { Exec { gh release create $env:TAG --draft --target $env:ALVO --title $titulo --notes-file notas.md $arqs.FullName } "criacao do rascunho" }
+          # SHA-256 verificavel de cada anexo (digest do GitHub ou conteudo baixado); so tamanho nunca basta
+          Exec { python tools/validar_release.py --acao conferir-anexos --tag $env:TAG --repo $repo --arquivos $arqs.FullName } "conferencia dos anexos"
           Write-Host "$($arqs.Count) ativos enviados e conferidos"
-          gh release edit $env:TAG --draft=false
-          $ref = gh api "repos/${{ github.repository }}/git/ref/tags/$($env:TAG)" | ConvertFrom-Json
+          # tudo conferido ANTES de publicar: rascunho, SHA da tag (ou alvo do rascunho)
+          Exec { python tools/validar_release.py --acao pre-publicacao --tag $env:TAG --repo $repo --sha $env:ALVO } "conferencia pre-publicacao"
+          Exec { gh release edit $env:TAG --draft=false } "publicacao da release"
+          $refjson = gh api "repos/$repo/git/ref/tags/$($env:TAG)"
+          if ($LASTEXITCODE -ne 0) { throw "nao foi possivel ler a tag $($env:TAG) depois de publicar (codigo $LASTEXITCODE)" }
+          $ref = $refjson | ConvertFrom-Json
           if ($ref.object.sha -ne $env:ALVO) { throw "a tag $($env:TAG) aponta para $($ref.object.sha), nao para $($env:ALVO)" }
           Write-Host "release $($env:TAG) publicada; tag -> $($ref.object.sha)"
