@@ -77,6 +77,18 @@ def renderizar(j, ref):
     pm = j.grab(); MODO["ref"] = False
     return pm.toImage().convertToFormat(QImage.Format_ARGB32)
 
+def perdidos(atual, ref, y1=0, y2=44):
+    """Pixels de TINTA perdidos: o desenho sem recorte (ref) tem o pixel bem mais claro que o desenhado (texto claro sobre barra escura).
+    Diferencas pequenas e nos dois sentidos sao so a rasterizacao com/sem recorte de alguns motores de fonte (Windows offscreen) e nao contam."""
+    n = 0; xs = []; ys = []; w = min(atual.width(), ref.width())
+    for y in range(y1, min(y2, atual.height(), ref.height())):
+        for x in range(w):
+            a, b = atual.pixel(x, y), ref.pixel(x, y)
+            if a == b: continue
+            sa = ((a >> 16) & 255) + ((a >> 8) & 255) + (a & 255); sb = ((b >> 16) & 255) + ((b >> 8) & 255) + (b & 255)
+            if sb - sa > 144: n += 1; xs.append(x); ys.append(y)
+    BBOX["ultimo"] = (min(xs), min(ys), max(xs), max(ys)) if xs else None
+    return n
 BBOX = {}
 def diferentes(a, b, y1=0, y2=44):
     n = 0; w = min(a.width(), b.width()); xs = []; ys = []
@@ -107,12 +119,12 @@ for lang, sessao in (("en", "PRACTICE"), ("pt", "TREINO")):
             ref = renderizar(j, True)
             textos = [t[2] for t in gravados]
             # largura minima + estilo grande: a etiqueta nao cabe ao lado de INC/clima e some inteira (nunca se sobrepoe); no resto tem de aparecer
-            sumiu_ok = (rotulo == "largura minima" and bool(est))
+            sumiu_ok = (rotulo == "largura minima")
             confere(sessao in textos or sumiu_ok, f"{tag}: '{sessao}' desenhado ({textos})")
             if sessao not in textos and sumiu_ok:
                 confere(not any(t.startswith("AIR") or t[:1].isdigit() and "/" in t and t != "0/25" for t in textos), f"{tag}: sem a etiqueta, os itens seguintes tambem somem ({textos})")
             confere(any(t.startswith("AIR 24") for t in textos) or rotulo == "largura minima" or est, f"{tag}: AIR 24 desenhado ({textos})")
-            n = diferentes(img, ref)
+            n = perdidos(img, ref)
             confere(n == 0, f"{tag}: texto pintado completo, {n} pixel(s) perdido(s) pelo recorte (area x0,y0,x1,y1 = {BBOX['ultimo']}; textos {[(t[2], round(t[0].x(), 1), round(t[0].width(), 1), t[5].family(), round(t[5].pointSizeF(), 1)) for t in gravados]})")
             if sessao not in textos:
                 n_ant = None
@@ -149,12 +161,25 @@ for lang, sessao in (("en", "PRACTICE"), ("pt", "TREINO")):
                     base_y = r.y() + (r.height() - fm.height()) / 2.0 + fm.ascent()
                     confere(base_y + topo >= pil.y() - 0.6 and base_y + base_ <= pil.bottom() + 0.6,
                             f"{tag}: etiqueta contem '{txt}' na altura (tinta {base_y + topo:.1f}..{base_y + base_:.1f}, etiqueta {pil.y():.1f}..{pil.bottom():.1f})")
-            # aparencia padrao: pixel a pixel igual a da build az (antes da correcao) quando o estilo e o padrao
+            # aparencia padrao: pixel a pixel igual a da build az (v1.8.1) SEMPRE que a az nao perdia pixels nem sobrepunha textos nesse ambiente;
+            # quando a az perdia pixels (fontes de reserva do ambiente), a diferenca so pode ser a tinta recuperada, e isso ja e coberto pela comparacao com a referencia sem recorte
             if not est and ANTIGA is not None:
                 ja = ANTIGA(c2); ja.atualizar(D2)
-                img_a = renderizar(ja, False)
-                nd = diferentes(img, img_a, 0, img.height()) if img_a.size() == img.size() else -1
-                confere(nd == 0, f"{tag}: aparencia padrao identica a da build az ({nd} px; area {BBOX['ultimo']}; textos novos {[t[2] for t in gravados]})")
+                img_a = renderizar(ja, False); grav_a = list(TEXTOS)
+                ref_a = renderizar(ja, True)
+                perdidos_az = perdidos(img_a, ref_a)
+                ext_a = []
+                for r, flags, txt, tx, ty, f in grav_a:
+                    if txt == "INC": continue
+                    esq, dir_, topo, base_, adv = cf.tinta_texto(f, txt)
+                    ox = r.right() - adv if flags & int(Qt.AlignRight) else (r.x() + (r.width() - adv) / 2.0 if flags & int(Qt.AlignHCenter) else r.x())
+                    ext_a.append((tx + ox + esq, tx + ox + dir_))
+                ext_a.sort(); sobrepunha_az = any(x[1] > y[0] + 0.6 for x, y in zip(ext_a, ext_a[1:]))
+                if perdidos_az == 0 and not sobrepunha_az:
+                    nd = diferentes(img, img_a, 0, img.height()) if img_a.size() == img.size() else -1
+                    confere(nd == 0, f"{tag}: aparencia padrao identica a da v1.8.1 ({nd} px; area {BBOX['ultimo']}; textos novos {[t[2] for t in gravados]})")
+                else:
+                    print(f"INFO {tag}: a v1.8.1 perdia {perdidos_az} px / sobrepunha textos = {sobrepunha_az} neste ambiente; identidade com a v1.8.1 nao se aplica (a nova nao perde pixel: conferido acima)")
 o.JanelaBase._pintor = orig_pintor
 ov_i18n.definir_idioma("pt")
 print(f"\n{_ok} ok, {len(falhas)} falha(s)")

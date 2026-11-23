@@ -430,6 +430,33 @@ def largura_reservada(fonte, texto, folga=8):
     return max(QFontMetrics(fonte).horizontalAdvance(texto) + folga, int(math.ceil(dir_)) - int(math.floor(esq)) + 2)
 
 
+def precisa_sem_recorte(fonte, texto, rect, alinh):
+    """True se a tinta REAL do texto, desenhado em `rect` com o alinhamento `alinh`, passa do retangulo (em qualquer lado). So entao o desenho usa
+    Qt.TextDontClip; com o texto dentro do retangulo a chamada de desenho continua exatamente a de antes (aparencia padrao intacta)."""
+    from PySide6.QtGui import QFontMetricsF
+    from PySide6.QtCore import Qt
+    esq, dir_, topo, base_, adv = tinta_texto(fonte, texto)
+    fm = QFontMetricsF(fonte)
+    base_y = rect.y() + (rect.height() - fm.height()) / 2.0 + fm.ascent()
+    if base_y + topo < rect.y() - 0.01 or base_y + base_ > rect.bottom() + 0.01:
+        return True
+    if alinh & int(Qt.AlignRight):
+        ox = rect.right() - adv
+    elif alinh & int(Qt.AlignHCenter):
+        ox = rect.x() + (rect.width() - adv) / 2.0
+    else:
+        ox = rect.x()
+    return ox + esq < rect.x() - 0.01 or ox + dir_ > rect.right() + 0.01
+
+
+def texto_inteiro(p, rect, alinh, texto):
+    """drawText(rect, alinh, texto) que so deixa de recortar no retangulo quando o recorte comeria pixels da tinta real do texto."""
+    from PySide6.QtCore import Qt
+    if precisa_sem_recorte(p.font(), texto, rect, int(alinh)):
+        alinh = alinh | Qt.TextDontClip
+    p.drawText(rect, alinh, texto)
+
+
 def deslocamento_esquerdo(fonte, texto):
     """px que a origem do texto anda para a direita quando a tinta passa MUITO (mais de 4 px, a folga entre itens) da origem para a
     esquerda; ate 4 px o texto fica onde sempre ficou (o desenho nao recorta mais, entao a tinta aparece inteira)."""
@@ -693,7 +720,7 @@ def construir(base):
                 if larg is not None and self._abre(p, "clima"):
                     p.setFont(base.fonte(10, QFont.Bold, p=p))
                     p.setPen(QColor(235, 235, 240))
-                    p.drawText(QRectF(xd - larg, 11, larg, 20), Qt.AlignRight | Qt.AlignVCenter | Qt.TextDontClip, cab["clima"])
+                    texto_inteiro(p, QRectF(xd - larg, 11, larg, 20), Qt.AlignRight | Qt.AlignVCenter, cab["clima"])
                     self._fecha(p)
                     xd -= larg + 14
             if cab.get("inc") is not None and "inc" not in off:
@@ -708,11 +735,11 @@ def construir(base):
                 if larg is not None and self._abre(p, "incidentes"):
                     p.setFont(base.fonte(10, QFont.Bold, p=p))
                     p.setPen(cor)
-                    p.drawText(QRectF(xd - larg, 11, larg, 20), Qt.AlignRight | Qt.AlignVCenter | Qt.TextDontClip, txt)
+                    texto_inteiro(p, QRectF(xd - larg, 11, larg, 20), Qt.AlignRight | Qt.AlignVCenter, txt)
                     rot_w = QFontMetrics(base.fonte(8, QFont.DemiBold, p=p)).horizontalAdvance("INC") + 6
                     p.setFont(base.fonte(8, QFont.DemiBold, p=p))
                     p.setPen(base.COR_CINZA)
-                    p.drawText(QRectF(xd - larg - rot_w - 2, 11, rot_w, 20), Qt.AlignRight | Qt.AlignVCenter | Qt.TextDontClip, "INC")
+                    texto_inteiro(p, QRectF(xd - larg - rot_w - 2, 11, rot_w, 20), Qt.AlignRight | Qt.AlignVCenter, "INC")
                     self._fecha(p)
                     xd -= larg + rot_w + 4
             limite = xd - 10 - self._reserva   # com colunas escondidas a janela fica mais estreita: o que nao couber some, sem sobrepor
@@ -736,10 +763,10 @@ def construir(base):
                     p.setPen(QColor(255, 255, 255))
                     ox_c = x + (larg - adv) / 2.0
                     if ox_c + esq >= x - 0.01 and ox_c + dir_ <= x + larg + 0.01:
-                        p.drawText(QRectF(x, 11, larg, 20), Qt.AlignCenter | Qt.TextDontClip, sessao)
+                        texto_inteiro(p, QRectF(x, 11, larg, 20), Qt.AlignCenter, sessao)
                     else:                                     # a tinta passa do avanco (italico, glifo largo): centraliza pela tinta
                         ox = x + (larg - (dir_ - esq)) / 2.0 - esq
-                        p.drawText(QRectF(ox, 11, adv + 2.0, 20), Qt.AlignLeft | Qt.AlignVCenter | Qt.TextDontClip, sessao)
+                        texto_inteiro(p, QRectF(ox, 11, adv + 2.0, 20), Qt.AlignLeft | Qt.AlignVCenter, sessao)
                     self._fecha(p)
                 x += larg + 16
             itens = []
@@ -779,7 +806,7 @@ def construir(base):
             larg = max(larg_min, largura_reservada(f, texto))
             p.setFont(f)
             p.setPen(cor)
-            p.drawText(QRectF(x + deslocamento_esquerdo(f, texto), 11, larg, 20), Qt.AlignLeft | Qt.AlignVCenter | Qt.TextDontClip, texto)
+            texto_inteiro(p, QRectF(x + deslocamento_esquerdo(f, texto), 11, larg, 20), Qt.AlignLeft | Qt.AlignVCenter, texto)
             return x + larg + 12
 
         # rotulos das colunas ----------------------------------------------------------------
