@@ -28,7 +28,7 @@ TMP = tempfile.mkdtemp(prefix="atualizador_")
 PKG = os.path.join(TMP, "pacote"); os.makedirs(PKG)
 zip_pkg, programa, info = ger.montar("HEAD", True, TMP)
 with zipfile.ZipFile(zip_pkg) as z: z.extractall(PKG)
-confere(info["build"] == "bc" and info["versao"] == "1.8.2", "pacote identifica versao e build (%s, %s)" % (info["versao"], info["build"]))
+confere(info["build"] == "bc" and info["versao"] == "1.8.3", "pacote identifica versao e build (%s, %s)" % (info["versao"], info["build"]))
 confere(set(os.listdir(PKG)) >= {"atualizar_lmu.py", "ATUALIZAR_LMU.bat", "MANIFESTO_SHA256.txt", "PACOTE.json", "programa", "verificacao", "LEIA-ME_ATUALIZACAO_LMU.txt"}, "conteudo do pacote")
 SCRIPT = os.path.join(PKG, "atualizar_lmu.py")
 

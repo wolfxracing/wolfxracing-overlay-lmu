@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag da release (ex.: v1.8.2). Se a tag ainda nao existe, o commit tem de ser a ponta da main. Vazio = so gera o EXE como arquivo da execucao."
+        description: "Tag da release (ex.: v1.8.3). Se a tag ainda nao existe, o commit tem de ser a ponta da main. Vazio = so gera o EXE como arquivo da execucao."
         required: false
         default: ""
 

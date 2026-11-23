@@ -2,6 +2,9 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e [SemVer](https://semver.org/lang/pt-BR/).
 
+## 1.8.3 (publicacao da build bc)
+- Versao 1.8.3 = codigo da build bc da 1.8.2 (auditada), publicado como nova versao porque a release v1.8.2 ja publicada (build ba) nao e reescrita. Mudam so os numeros de versao; nenhum codigo de funcionalidade foi alterado.
+
 ## 1.8.2 build bc (corretiva - auditoria da build bb; produto continua 1.8.2)
 - Publicacao: removida a exclusao automatica de releases. `excluir_rascunho()` e a acao `--acao excluir-rascunho` deixaram de existir; nenhum DELETE e enviado pelo validador nem pelo workflow. Havendo rascunho anterior da tag, a validacao e a nova acao `--acao exigir-inexistente` (rodada imediatamente antes de criar o rascunho) BLOQUEIAM e pedem decisao humana (exclusao manual no GitHub ou outra versao). A pre-publicacao exige exatamente UMA release com a tag (dois rascunhos = execucoes cruzadas = ninguem publica). Substitui o item da build bb que excluia o rascunho antigo.
 - Publicacao: `concurrency` no release.yml por repositorio e tag (`release-<repo>-<tag>`), sem cancelar publicacao ativa.
@@ -167,6 +170,19 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 - Reparo opcional entra na limpeza das marcas; rotulo "Local indefinido" no lugar de "Fora da pista" para contatos sem direcao.
 - Cada impacto e gravado no overlay_log.txt (zona, tipo, g, reparo, incidentes) para diagnostico.
 - Novo teste teste_v18_danos.py (10 verificacoes). Sem homologacao em jogo real.
+
+## [1.8.3] - 2026-11-23
+
+### Resumo da versao 1.8.3 (builds bb e bc da 1.8.2)
+- Publicacao segura: qualquer resposta indeterminada do GitHub bloqueia; o fluxo nunca exclui, edita nem reaproveita release existente (rascunho anterior exige decisao humana); uma publicacao por repositorio e tag de cada vez; SHA-256 de cada anexo conferido (digest ou conteudo); tag (leve ou anotada) conferida ate o commit antes e depois de publicar; status HTTP lido da linha de status.
+- Atualizador do LMU: trava com exclusao mutua do sistema operacional (sem corrida entre processos) e liberacao so pelo dono; pacote de atualizacao completa gerado do mesmo commit e comparado com o codigo.
+- Testes: o modo offscreen do Windows passa a usar as fontes do Windows (antes enxergava 0 fontes); testes dependentes do relogio real congelados.
+- Mantido da 1.8.2: fontes racing dentro do EXE, Classificacao Foto sem recorte. Telemetria, Coach, Danos, FOV, Cronograma e configuracoes dos usuarios inalterados.
+
+### O que foi validado de fato
+- GitHub Actions, Windows Server 2025, Python 3.12, PySide6/Qt 6.12, codigo da build bc: Windows nativo 59/59 suites e Windows offscreen (com as fontes do Windows) 59/59 suites com codigo de saida 0. O workflow de publicacao roda de novo a suite obrigatoria no commit exato da tag antes de publicar.
+- Auditoria independente (ChatGPT) das builds bb e bc aprovada.
+- **Simulador real (LMU): NAO homologado. Stream Deck real: NAO testado.** Dados sinteticos e modo demo.
 
 ## [1.8.2] - 2026-11-22
 
