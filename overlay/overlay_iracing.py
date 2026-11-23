@@ -166,8 +166,8 @@ except Exception:
     ov_i18n = None
 
 PASTA = _PASTA_BASE
-VERSAO_PRODUTO = "1.8.2"                      # versao do produto; as correcoes da auditoria entram como BUILD (ba = primeira build da 1.8.2)
-BUILD = "bc"                                    # identificacao da entrega dentro da 1.8.2 (aparece no cabecalho do log)
+VERSAO_PRODUTO = "1.8.3"                      # versao do produto; as correcoes da auditoria entram como BUILD (ba = primeira build da 1.8.2)
+BUILD = "bc"                                    # identificacao da entrega (1.8.3 = build bc da 1.8.2, auditada, publicada como nova versao) (aparece no cabecalho do log)
 ARQ_CONFIG = PASTA / "config.json"
 ARQ_LOG = PASTA / "overlay_log.txt"
 ARQ_MAPAS = PASTA / "mapas_pistas.json"
