@@ -9,6 +9,8 @@ if len(sys.argv) > 1 and os.path.isdir(sys.argv[-1]) and os.path.exists(os.path.
     PASTA = sys.argv[-1]
 sys.path.insert(0, PASTA)
 from pathlib import Path
+import time as _tempo
+_tempo.monotonic = lambda: 5000.0; _tempo.time = lambda: 1.7e9      # build bb: relogios congelados; o modo demo anima o painel com o relogio real e o teste compara quadros desenhados em instantes diferentes
 import overlay_iracing as o
 import ov_central as c
 import ov_classif_foto as foto
