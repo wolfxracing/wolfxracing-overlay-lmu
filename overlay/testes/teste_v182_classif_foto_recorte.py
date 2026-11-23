@@ -77,11 +77,13 @@ def renderizar(j, ref):
     pm = j.grab(); MODO["ref"] = False
     return pm.toImage().convertToFormat(QImage.Format_ARGB32)
 
+BBOX = {}
 def diferentes(a, b, y1=0, y2=44):
-    n = 0; w = min(a.width(), b.width())
+    n = 0; w = min(a.width(), b.width()); xs = []; ys = []
     for y in range(y1, min(y2, a.height(), b.height())):
         for x in range(w):
-            if a.pixel(x, y) != b.pixel(x, y): n += 1
+            if a.pixel(x, y) != b.pixel(x, y): n += 1; xs.append(x); ys.append(y)
+    BBOX["ultimo"] = (min(xs), min(ys), max(xs), max(ys)) if xs else None
     return n
 
 ESTILOS = (("padrao", {}),
@@ -111,7 +113,7 @@ for lang, sessao in (("en", "PRACTICE"), ("pt", "TREINO")):
                 confere(not any(t.startswith("AIR") or t[:1].isdigit() and "/" in t and t != "0/25" for t in textos), f"{tag}: sem a etiqueta, os itens seguintes tambem somem ({textos})")
             confere(any(t.startswith("AIR 24") for t in textos) or rotulo == "largura minima" or est, f"{tag}: AIR 24 desenhado ({textos})")
             n = diferentes(img, ref)
-            confere(n == 0, f"{tag}: texto pintado completo, {n} pixel(s) perdido(s) pelo recorte")
+            confere(n == 0, f"{tag}: texto pintado completo, {n} pixel(s) perdido(s) pelo recorte (area x0,y0,x1,y1 = {BBOX['ultimo']}; textos {[(t[2], round(t[0].x(), 1), round(t[0].width(), 1), t[5].family(), round(t[5].pointSizeF(), 1)) for t in gravados]})")
             if sessao not in textos:
                 n_ant = None
             # espaco reservado: a tinta REAL de cada texto cabe no retangulo reservado, nao se sobrepoe ao vizinho e fica dentro da janela
@@ -151,7 +153,8 @@ for lang, sessao in (("en", "PRACTICE"), ("pt", "TREINO")):
             if not est and ANTIGA is not None:
                 ja = ANTIGA(c2); ja.atualizar(D2)
                 img_a = renderizar(ja, False)
-                confere(img_a.size() == img.size() and diferentes(img, img_a, 0, img.height()) == 0, f"{tag}: aparencia padrao identica a da build az")
+                nd = diferentes(img, img_a, 0, img.height()) if img_a.size() == img.size() else -1
+                confere(nd == 0, f"{tag}: aparencia padrao identica a da build az ({nd} px; area {BBOX['ultimo']}; textos novos {[t[2] for t in gravados]})")
 o.JanelaBase._pintor = orig_pintor
 ov_i18n.definir_idioma("pt")
 print(f"\n{_ok} ok, {len(falhas)} falha(s)")

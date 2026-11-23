@@ -6,6 +6,8 @@ sys.argv = ["x", "--demo"]
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pathlib import Path
 import numpy as np
+import time as _tempo
+_tempo.monotonic = lambda: 5000.0; _tempo.time = lambda: 1.7e9      # build ba: relogios congelados; a previa animada pelo relogio real oscilava entre capturas (falhava sob carga, ex.: runner do Windows)
 import overlay_iracing as o
 import ov_central as c
 from PySide6.QtWidgets import QApplication
