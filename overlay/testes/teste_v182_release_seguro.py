@@ -30,6 +30,13 @@ def fake(rotas, log=None):
         return 1, "", "HTTP 404: Not Found (rota nao simulada: %s)" % " ".join(args)
     return ex
 
+def http(codigo, corpo="", motivo=None, msg_erro=None):
+    """Resposta de `gh api -i`: linha de status + cabecalhos + corpo no stdout; codigo de saida 1 para HTTP >= 400 (como o gh real)."""
+    motivo = motivo or {200: "OK", 403: "Forbidden", 404: "Not Found", 502: "Bad Gateway", 503: "Service Unavailable"}.get(codigo, "X")
+    if not isinstance(corpo, str): corpo = json.dumps(corpo)
+    out = "HTTP/1.1 %d %s\r\nContent-Type: application/json\r\n\r\n%s" % (codigo, motivo, corpo)
+    return (0 if codigo < 400 else 1), out, ("" if codigo < 400 else (msg_erro or "gh: %s (HTTP %d)" % (motivo, codigo)))
+
 def lista(*releases):
     return lambda a: a[0] == "api" and "--paginate" in a
 def resp_lista(*rels): return (0, json.dumps([list(rels)]), "")
@@ -101,8 +108,8 @@ confere(V.exigir_inexistente("v1.8.2", REPO, fake([(lista(), resp_lista(rel("v1.
 confere(V.exigir_inexistente("v1.8.2", REPO, fake([(lista(), (1, "", "HTTP 503"))])) != [], "exigir_inexistente: 503 BLOQUEIA")
 
 # ---------------------------------------------------------------- build bc: resolver_tag / conferir_tag (tag leve x anotada)
-ref_leve = lambda sha: (0, json.dumps({"object": {"sha": sha, "type": "commit"}}), "")
-ref_anot = lambda obj: (0, json.dumps({"object": {"sha": obj, "type": "tag"}}), "")
+ref_leve = lambda sha: http(200, {"object": {"sha": sha, "type": "commit"}})
+ref_anot = lambda obj: http(200, {"object": {"sha": obj, "type": "tag"}})
 obj_tag = lambda sha, tipo="commit": (0, json.dumps({"object": {"sha": sha, "type": tipo}}), "")
 def ex_tag(ref, extra=()):
     return fake([(lambda a: "/git/ref/tags/" in a[-1], ref), *extra])
@@ -110,16 +117,26 @@ T1 = "c" * 40; T2 = "d" * 40
 confere(V.resolver_tag(REPO, "v1.8.2", ex_tag(ref_leve(SHA))) == ("existe", SHA), "resolver_tag: tag leve -> o proprio commit")
 confere(V.resolver_tag(REPO, "v1.8.2", ex_tag(ref_anot(T1), [(lambda a: a[-1].endswith("/git/tags/" + T1), obj_tag(SHA))])) == ("existe", SHA), "resolver_tag: tag anotada -> commit apontado")
 confere(V.resolver_tag(REPO, "v1.8.2", ex_tag(ref_anot(T1), [(lambda a: a[-1].endswith("/git/tags/" + T1), obj_tag(T2, "tag")), (lambda a: a[-1].endswith("/git/tags/" + T2), obj_tag(SHA))])) == ("existe", SHA), "resolver_tag: tag anotada encadeada -> commit")
-confere(V.resolver_tag(REPO, "v1.8.2", ex_tag((1, "", "HTTP 404: Not Found")))[0] == "inexistente", "resolver_tag: 404 = inexistente")
-confere(V.resolver_tag(REPO, "v1.8.2", ex_tag((1, "", "HTTP 503")))[0] == "erro", "resolver_tag: 503 = erro (nao inexistente)")
-confere(V.resolver_tag(REPO, "v1.8.2", ex_tag((0, "lixo", "")))[0] == "erro", "resolver_tag: JSON invalido = erro")
+confere(V.resolver_tag(REPO, "v1.8.2", ex_tag(http(404)))[0] == "inexistente", "resolver_tag: 404 = inexistente")
+confere(V.resolver_tag(REPO, "v1.8.2", ex_tag(http(503)))[0] == "erro", "resolver_tag: 503 = erro (nao inexistente)")
+confere(V.resolver_tag(REPO, "v1.8.2", ex_tag(http(200, "lixo")))[0] == "erro", "resolver_tag: JSON invalido = erro")
 confere(V.resolver_tag(REPO, "v1.8.2", ex_tag(ref_anot(T1), [(lambda a: "/git/tags/" in a[-1], (1, "", "HTTP 502"))]))[0] == "erro", "resolver_tag: falha ao seguir a tag anotada = erro")
 confere(V.conferir_tag(REPO, "v1.8.2", SHA, ex_tag(ref_leve(SHA))) == [], "conferir_tag: tag simples apontando para o commit correto = ok")
 confere(V.conferir_tag(REPO, "v1.8.2", SHA, ex_tag(ref_anot(T1), [(lambda a: a[-1].endswith("/git/tags/" + T1), obj_tag(SHA))])) == [], "conferir_tag: tag ANOTADA apontando para o commit correto = ok (a build bb reprovaria: comparava o SHA do objeto da tag)")
 confere(V.conferir_tag(REPO, "v1.8.2", SHA, ex_tag(ref_leve(OUTRO))) != [], "conferir_tag: tag apontando para outro commit = erro")
 confere(V.conferir_tag(REPO, "v1.8.2", SHA, ex_tag(ref_anot(T1), [(lambda a: a[-1].endswith("/git/tags/" + T1), obj_tag(OUTRO))])) != [], "conferir_tag: tag anotada apontando para outro commit = erro")
-confere(V.conferir_tag(REPO, "v1.8.2", SHA, ex_tag((1, "", "HTTP 503"))) != [], "conferir_tag: falha na consulta da tag = erro")
-confere(V.conferir_tag(REPO, "v1.8.2", SHA, ex_tag((1, "", "HTTP 404: Not Found"))) != [], "conferir_tag: tag inexistente depois de publicar = erro")
+confere(V.conferir_tag(REPO, "v1.8.2", SHA, ex_tag(http(503))) != [], "conferir_tag: falha na consulta da tag = erro")
+confere(V.conferir_tag(REPO, "v1.8.2", SHA, ex_tag(http(404))) != [], "conferir_tag: tag inexistente depois de publicar = erro")
+
+# build bc (P3): o status HTTP vem da linha de status, nunca de texto da mensagem
+confere(V.resposta_http(http(404)[1])[0] == 404 and V.resposta_http(http(200, "{}")[1]) == (200, "{}"), "resposta_http: status e corpo lidos da resposta de gh api -i")
+confere(V.resposta_http("")[0] is None and V.resposta_http("gh: Not Found (HTTP 404)")[0] is None, "resposta_http: sem linha de status = status desconhecido (nao 404)")
+confere(V.resolver_tag(REPO, "v1.8.2", ex_tag(http(404)))[0] == "inexistente", "P3: HTTP 404 legitimo (linha de status) = inexistente")
+confere(V.resolver_tag(REPO, "v1.8.2", ex_tag(http(403, {"message": "Resource not accessible: ref 404"}, msg_erro="gh: HTTP 404 Not Found (HTTP 403)")))[0] == "erro", "P3: HTTP 403 cuja mensagem contem '404' / 'Not Found' = erro, NAO inexistente")
+confere(V.resolver_tag(REPO, "v1.8.2", ex_tag((1, "", "gh: Not Found (HTTP 404)")))[0] == "erro", "P3: '404' so no texto de erro, sem linha de status = erro (falha segura)")
+confere(V.resolver_tag(REPO, "v1.8.2", ex_tag(http(502, msg_erro="HTTP 404 upstream")))[0] == "erro", "P3: 502 com '404' na mensagem = erro")
+confere(V.resolver_tag(REPO, "v1.8.2", ex_tag(http(200, "lixo 404")))[0] == "erro", "P3: 200 com corpo invalido = erro")
+confere(V.conferir_tag(REPO, "v1.8.2", SHA, ex_tag(http(403, msg_erro="Not Found 404 (HTTP 403)"))) != [], "P3: conferir_tag com 403 contendo '404' = erro")
 
 # ---------------------------------------------------------------- build bc: GitHub simulado COM ESTADO, duas execucoes concorrentes
 class GitHubFalso:
@@ -132,7 +149,7 @@ class GitHubFalso:
             return 0, json.dumps([[dict(r) for r in self.releases]]), ""
         if args[0] == "api" and "/git/ref/tags/" in args[-1]:
             t = args[-1].rsplit("/", 1)[-1]
-            return (0, json.dumps({"object": {"sha": self.tags[t], "type": "commit"}}), "") if t in self.tags else (1, "", "HTTP 404: Not Found")
+            return http(200, {"object": {"sha": self.tags[t], "type": "commit"}}) if t in self.tags else http(404)
         return 1, "", "HTTP 404: Not Found"
     # o que o workflow faz direto com o gh:
     def criar_rascunho(self, quem, tag, alvo):
@@ -217,14 +234,15 @@ shutil.rmtree(tmp, ignore_errors=True)
 def ex_pre(releases, tag_resp, extra=()):
     return fake([(lista(), releases), (lambda a: a[0] == "api" and "/git/ref/tags/" in a[-1], tag_resp), *extra])
 rasc = resp_lista(rel("v1.8.2", True, 7, target_commitish=SHA))
-tag_ok = (0, json.dumps({"object": {"sha": SHA, "type": "commit"}}), "")
-confere(V.pre_publicacao(REPO, "v1.8.2", SHA, ex_pre(rasc, (1, "", "HTTP 404: Not Found"))) == [], "pre-publicacao: rascunho mira o alvo e a tag ainda nao existe = ok")
-confere(V.pre_publicacao(REPO, "v1.8.2", OUTRO, ex_pre(rasc, (1, "", "HTTP 404: Not Found"))) != [], "pre-publicacao: rascunho mira OUTRO commit BLOQUEIA")
+tag_ok = http(200, {"object": {"sha": SHA, "type": "commit"}})
+confere(V.pre_publicacao(REPO, "v1.8.2", SHA, ex_pre(rasc, http(404))) == [], "pre-publicacao: rascunho mira o alvo e a tag ainda nao existe = ok")
+confere(V.pre_publicacao(REPO, "v1.8.2", OUTRO, ex_pre(rasc, http(404))) != [], "pre-publicacao: rascunho mira OUTRO commit BLOQUEIA")
 confere(V.pre_publicacao(REPO, "v1.8.2", SHA, ex_pre(rasc, tag_ok)) == [], "pre-publicacao: tag existente = alvo ok")
 confere(V.pre_publicacao(REPO, "v1.8.2", OUTRO, ex_pre(rasc, tag_ok)) != [], "pre-publicacao: tag existente aponta para outro commit BLOQUEIA")
-anot = (0, json.dumps({"object": {"sha": "c" * 40, "type": "tag"}}), "")
+anot = http(200, {"object": {"sha": "c" * 40, "type": "tag"}})
 confere(V.pre_publicacao(REPO, "v1.8.2", SHA, ex_pre(rasc, anot, [(lambda a: "/git/tags/" in a[-1], (0, json.dumps({"object": {"sha": SHA}}), ""))])) == [], "pre-publicacao: tag anotada resolvida para o commit")
-confere(V.pre_publicacao(REPO, "v1.8.2", SHA, ex_pre(rasc, (1, "", "HTTP 503: Service Unavailable"))) != [], "pre-publicacao: 503 ao consultar a tag BLOQUEIA (nao e 'tag inexistente')")
+confere(V.pre_publicacao(REPO, "v1.8.2", SHA, ex_pre(rasc, http(403, msg_erro="gh: Not Found 404 (HTTP 403)"))) != [], "P3: pre-publicacao com 403 contendo '404' BLOQUEIA (nao trata como tag a criar)")
+confere(V.pre_publicacao(REPO, "v1.8.2", SHA, ex_pre(rasc, http(503))) != [], "pre-publicacao: 503 ao consultar a tag BLOQUEIA (nao e 'tag inexistente')")
 confere(V.pre_publicacao(REPO, "v1.8.2", SHA, ex_pre(resp_lista(rel("v1.8.2", False)), tag_ok)) != [], "pre-publicacao: release ja publicada BLOQUEIA")
 confere(V.pre_publicacao(REPO, "v1.8.2", SHA, ex_pre(resp_lista(), tag_ok)) != [], "pre-publicacao: release inexistente BLOQUEIA")
 confere(V.pre_publicacao(REPO, "v1.8.2", SHA, ex_pre((1, "", "HTTP 502"), tag_ok)) != [], "pre-publicacao: falha ao ler a release BLOQUEIA")
@@ -238,11 +256,12 @@ a = sys.argv[1:]
 open(os.environ["GH_LOG"], "a", encoding="utf-8").write(" ".join(a) + "\n")
 modo = os.environ.get("GH_MODO", "")
 if modo == "503": sys.stderr.write("gh: HTTP 503: Service Unavailable\n"); sys.exit(1)
-rels = {"vazio": [], "rascunho": [{"tag_name": "v1.8.2", "draft": True, "id": 7, "assets": []}], "publicada": [{"tag_name": "v1.8.2", "draft": False, "id": 8, "assets": [], "html_url": "u"}]}[modo]
+rels = {"403_404": [{"tag_name": "v1.8.2", "draft": True, "id": 7, "assets": [], "target_commitish": "a" * 40}], "vazio": [], "rascunho": [{"tag_name": "v1.8.2", "draft": True, "id": 7, "assets": []}], "publicada": [{"tag_name": "v1.8.2", "draft": False, "id": 8, "assets": [], "html_url": "u"}]}[modo]
 if "--paginate" in a: print(json.dumps([rels])); sys.exit(0)
 if a[0] == "api" and "/git/ref/tags/" in a[-1]:
-    if modo == "publicada": print(json.dumps({"object": {"sha": "c" * 40, "type": "tag"}})); sys.exit(0)
-    sys.stderr.write("HTTP 404: Not Found\n"); sys.exit(1)
+    if modo == "publicada": print('HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n' + json.dumps({"object": {"sha": "c" * 40, "type": "tag"}})); sys.exit(0)
+    if modo == "403_404": print('HTTP/1.1 403 Forbidden\r\n\r\n{"message": "Resource not accessible (ref 404)"}'); sys.stderr.write("gh: Resource not accessible (ref 404) (HTTP 403)\n"); sys.exit(1)
+    print('HTTP/1.1 404 Not Found\r\n\r\n{"message": "Not Found"}'); sys.stderr.write("gh: Not Found (HTTP 404)\n"); sys.exit(1)
 if a[0] == "api" and "/git/tags/" in a[-1]: print(json.dumps({"object": {"sha": "a" * 40, "type": "commit"}})); sys.exit(0)
 sys.exit(1)
 ''')
@@ -265,6 +284,7 @@ confere(cli("503", "--acao", "exigir-inexistente")[0] == 1, "CLI exigir-inexiste
 confere(cli("publicada", "--acao", "conferir-tag", "--sha", SHA)[0] == 0, "CLI conferir-tag: tag ANOTADA resolvida para o commit -> 0")
 confere(cli("publicada", "--acao", "conferir-tag", "--sha", OUTRO)[0] == 1, "CLI conferir-tag: commit diferente -> 1")
 confere(cli("503", "--acao", "conferir-tag", "--sha", SHA)[0] == 1, "CLI conferir-tag: falha na consulta -> 1")
+confere(cli("403_404", "--acao", "pre-publicacao", "--sha", SHA)[0] == 1, "P3 CLI: pre-publicacao com HTTP 403 contendo '404' na mensagem -> codigo 1")
 confere(cli("vazio", "--acao", "excluir-rascunho")[0] != 0, "CLI: a acao excluir-rascunho nao existe mais")
 chamadas = open(logf, encoding="utf-8").read()
 confere("DELETE" not in chamadas and "delete" not in chamadas, "CLI: nenhuma chamada DELETE/delete chegou ao gh em nenhum cenario")

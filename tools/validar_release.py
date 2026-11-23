@@ -129,14 +129,29 @@ def conferir_anexos(repo, tag, arquivos, executar=executar_gh):
     return erros
 
 
+def resposta_http(saida):
+    """Separa a resposta de `gh api -i` (linha de status, cabecalhos, linha em branco, corpo). Devolve (status:int|None, corpo:str).
+    O status vem SO da linha de status (HTTP/x.y NNN ...); nunca de texto de mensagem de erro."""
+    texto = (saida or "").replace("\r\n", "\n")
+    m = re.match(r"HTTP/\d(?:\.\d)?\s+(\d{3})\b[^\n]*\n", texto)
+    if not m:
+        return None, texto
+    _, _, corpo = texto.partition("\n\n")
+    return int(m.group(1)), corpo
+
+
 def resolver_tag(repo, tag, executar=executar_gh):
     """Resolve a tag ATE O COMMIT (tag leve: o proprio objeto; tag anotada: segue o objeto da tag). Devolve (estado, sha_ou_mensagem):
-    ('existe', sha_do_commit) | ('inexistente', '') | ('erro', mensagem). So 404 e 'inexistente'; qualquer outra falha e 'erro'."""
-    rc, out, err = executar(["api", "repos/%s/git/ref/tags/%s" % (repo, tag)])
-    if rc != 0:
-        if "404" in (err or "") or "Not Found" in (err or ""):
-            return "inexistente", ""
-        return "erro", "falha ao consultar a tag %s (gh rc=%s): %s" % (tag, rc, (err or "").strip()[:200])
+    ('existe', sha_do_commit) | ('inexistente', '') | ('erro', mensagem).
+    Build bc (P3): 'inexistente' SO com status HTTP 404 lido da linha de status (`gh api -i`); 403 cuja mensagem contenha '404', falta de
+    linha de status ou qualquer outro codigo = 'erro'."""
+    rc, out, err = executar(["api", "-i", "repos/%s/git/ref/tags/%s" % (repo, tag)])
+    status, corpo = resposta_http(out)
+    if status == 404:
+        return "inexistente", ""
+    if status is None or not (200 <= status < 300) or rc != 0:
+        return "erro", "falha ao consultar a tag %s (gh rc=%s, HTTP %s): %s" % (tag, rc, status if status is not None else "sem status", (err or "").strip()[:200])
+    out = corpo
     try:
         obj = json.loads(out)["object"]
         sha, tipo = obj["sha"], obj.get("type")
