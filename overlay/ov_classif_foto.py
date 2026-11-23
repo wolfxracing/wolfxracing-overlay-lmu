@@ -755,7 +755,7 @@ def construir(base):
                     f = base.fonte(9, QFont.Bold, p=p)
                     esq, dir_, topo_t, base_t, adv = tinta_texto(f, sessao)
                     # build ba: a etiqueta cresce para conter a tinta real (altura e largura); no padrao continua 20 px de altura
-                    alt = max(20.0, min(float(ALTURA_BARRA - 6), math.ceil(base_t - topo_t) + 8.0))
+                    alt = max(20.0, min(float(ALTURA_BARRA - 6), math.ceil(base_t - topo_t) + 4.0))
                     p.setPen(Qt.NoPen)
                     p.setBrush(QColor(176, 40, 56))
                     p.drawRoundedRect(QRectF(x, 21 - alt / 2.0, larg, alt), 5, 5)
