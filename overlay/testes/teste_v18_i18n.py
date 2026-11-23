@@ -41,10 +41,21 @@ orig = QC.QLocale.system
 class _L:
     def __init__(self, n): self._n = n
     def name(self): return self._n
+# build ba: o teste isola TODAS as fontes que idioma_do_sistema() consulta (WOLFX_IDIOMA, QLocale, locale.getlocale, LANG). Antes so o QLocale e o LANG
+# eram isolados: num Windows pt_BR, locale.getlocale() devolve pt_BR e "ja_JP -> en" virava "pt" (dependencia do computador de teste, nao defeito do produto).
+import locale as _loc
+_orig_gl, _orig_wi = _loc.getlocale, os.environ.pop("WOLFX_IDIOMA", None)
+_loc.getlocale = lambda *a, **k: (None, None)
 for nome, esp in (("pt_BR", "pt"), ("es_MX", "es"), ("fr_CA", "fr"), ("it_IT", "it"), ("ja_JP", "en"), ("de_AT", "de")):
     QC.QLocale.system = staticmethod(lambda n=nome: _L(n))
     confere(i18n.idioma_do_sistema() == esp, f"Windows {nome} -> {esp}")
-QC.QLocale.system = orig
+# comportamento documentado: vale a PRIMEIRA fonte reconhecida (WOLFX_IDIOMA, Qt, locale do processo, LANG); o locale do processo so entra se o Qt nao reconhecer
+QC.QLocale.system = staticmethod(lambda: _L("ja_JP")); _loc.getlocale = lambda *a, **k: ("pt_BR", "cp1252")
+confere(i18n.idioma_do_sistema() == "pt", "ja_JP no Qt + pt_BR no locale do processo -> pt (primeira fonte reconhecida)")
+QC.QLocale.system = staticmethod(lambda: _L("ja_JP")); _loc.getlocale = lambda *a, **k: ("Japanese_Japan", "cp932")
+confere(i18n.idioma_do_sistema() == "en", "ja_JP no Qt e no locale do processo -> en (idioma desconhecido)")
+QC.QLocale.system = orig; _loc.getlocale = _orig_gl
+if _orig_wi is not None: os.environ["WOLFX_IDIOMA"] = _orig_wi
 
 # ganchos do Qt
 from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QMenu, QCheckBox

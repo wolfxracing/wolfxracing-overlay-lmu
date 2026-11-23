@@ -14,6 +14,7 @@ O gap e o intervalo, na corrida, sao ESTIMADOS: diferenca de progresso na pista 
 referencia da classe. Fora da corrida, sao a diferenca entre as melhores voltas.
 """
 import math
+import sys
 import statistics
 
 IDIOMAS = {
@@ -384,6 +385,84 @@ ALTURA_TOPO_FOTO = ALTURA_BARRA + ALTURA_ROTULOS + 6
 _cache_classe = {}
 
 
+_cache_tinta = {}
+
+
+def tinta_texto(fonte, texto):
+    """Build ba: extensao REAL da tinta de `texto` com `fonte`, medida renderizando-o (nao pelo avanco do glifo).
+    Devolve (esq, dir, topo, base, avanco) em px, relativos ao ponto de origem do texto e a linha de base (esq < 0 = a tinta passa
+    da origem para a esquerda, como no italico; dir > avanco = passa do avanco para a direita). Sem tinta: (0, 0, 0, 0, avanco)."""
+    chave = (fonte.key(), texto)
+    if chave in _cache_tinta:
+        return _cache_tinta[chave]
+    from PySide6.QtCore import QPointF
+    from PySide6.QtGui import QColor, QFontMetricsF, QImage, QPainter
+    fm = QFontMetricsF(fonte)
+    avanco = fm.horizontalAdvance(texto)
+    pad = int(math.ceil(fm.height())) + 8
+    w, h = int(math.ceil(avanco)) + 2 * pad, int(math.ceil(fm.height())) + 2 * pad
+    im = QImage(w, h, QImage.Format_ARGB32)
+    im.fill(0)
+    q = QPainter(im)
+    q.setFont(fonte)
+    q.setPen(QColor(255, 255, 255))
+    q.drawText(QPointF(pad, pad + fm.ascent()), texto)
+    q.end()
+    dados, passo = bytes(im.constBits()), im.bytesPerLine()
+    # ARGB32 no ordenamento nativo: o canal alfa e o 4o byte de cada pixel (little-endian) ou o 1o (big-endian)
+    off = 3 if sys.byteorder == "little" else 0
+    linhas = [y for y in range(h) if any(dados[y * passo + off:(y + 1) * passo:4])]
+    if not linhas:
+        res = (0.0, 0.0, 0.0, 0.0, avanco)
+    else:
+        colunas = [x for x in range(w) if any(dados[off + 4 * x + y * passo] for y in range(linhas[0], linhas[-1] + 1))]
+        res = (float(colunas[0] - pad), float(colunas[-1] + 1 - pad), float(linhas[0] - pad - fm.ascent()),
+               float(linhas[-1] + 1 - pad - fm.ascent()), avanco)
+    _cache_tinta[chave] = res
+    return res
+
+
+def largura_reservada(fonte, texto, folga=8):
+    """Largura (px) a reservar para `texto`: a do avanco mais a folga de sempre; so cresce se a tinta REAL (largura medida renderizando)
+    nao couber nisso, como no negrito italico de 200 %. Com fontes e tamanhos normais devolve o valor de antes (avanco + folga)."""
+    from PySide6.QtGui import QFontMetrics
+    esq, dir_, _t, _b, _a = tinta_texto(fonte, texto)
+    return max(QFontMetrics(fonte).horizontalAdvance(texto) + folga, int(math.ceil(dir_)) - int(math.floor(esq)) + 2)
+
+
+def precisa_sem_recorte(fonte, texto, rect, alinh):
+    """True se a tinta REAL do texto, desenhado em `rect` com o alinhamento `alinh`, passa do retangulo (em qualquer lado). So entao o desenho usa
+    Qt.TextDontClip; com o texto dentro do retangulo a chamada de desenho continua exatamente a de antes (aparencia padrao intacta)."""
+    from PySide6.QtGui import QFontMetricsF
+    from PySide6.QtCore import Qt
+    esq, dir_, topo, base_, adv = tinta_texto(fonte, texto)
+    fm = QFontMetricsF(fonte)
+    base_y = rect.y() + (rect.height() - fm.height()) / 2.0 + fm.ascent()
+    if base_y + topo < rect.y() - 0.01 or base_y + base_ > rect.bottom() + 0.01:
+        return True
+    if alinh & int(Qt.AlignRight):
+        ox = rect.right() - adv
+    elif alinh & int(Qt.AlignHCenter):
+        ox = rect.x() + (rect.width() - adv) / 2.0
+    else:
+        ox = rect.x()
+    return ox + esq < rect.x() - 0.01 or ox + dir_ > rect.right() + 0.01
+
+
+def texto_inteiro(p, rect, alinh, texto):
+    """drawText(rect, alinh, texto) que so deixa de recortar no retangulo quando o recorte comeria pixels da tinta real do texto."""
+    from PySide6.QtCore import Qt
+    if precisa_sem_recorte(p.font(), texto, rect, int(alinh)):
+        alinh = alinh | Qt.TextDontClip
+    p.drawText(rect, alinh, texto)
+
+
+def deslocamento_esquerdo(fonte, texto):
+    """px que a origem do texto anda para a direita quando a tinta passa MUITO (mais de 4 px, a folga entre itens) da origem para a
+    esquerda; ate 4 px o texto fica onde sempre ficou (o desenho nao recorta mais, entao a tinta aparece inteira)."""
+    return max(0.0, -tinta_texto(fonte, texto)[0] - 4.0)
+
+
 def construir(base):
     """Cria (uma vez) e devolve a classe JanelaClassificacaoFoto, subclasse de base.JanelaClassificacao.
     `base` e o modulo do overlay (fonte, cores, emblemas e bandeiras vem dele)."""
@@ -633,7 +712,7 @@ def construir(base):
                 if not self.visivel(eid) or not self._abre(p, eid):
                     return None
                 try:
-                    return QFontMetrics(base.fonte(tam, peso, p=p)).horizontalAdvance(texto) + 8
+                    return largura_reservada(base.fonte(tam, peso, p=p), texto)
                 finally:
                     self._fecha(p)
             if cab.get("clima") and "clima" not in off:
@@ -641,7 +720,7 @@ def construir(base):
                 if larg is not None and self._abre(p, "clima"):
                     p.setFont(base.fonte(10, QFont.Bold, p=p))
                     p.setPen(QColor(235, 235, 240))
-                    p.drawText(QRectF(xd - larg, 11, larg, 20), Qt.AlignRight | Qt.AlignVCenter, cab["clima"])
+                    texto_inteiro(p, QRectF(xd - larg, 11, larg, 20), Qt.AlignRight | Qt.AlignVCenter, cab["clima"])
                     self._fecha(p)
                     xd -= larg + 14
             if cab.get("inc") is not None and "inc" not in off:
@@ -656,11 +735,11 @@ def construir(base):
                 if larg is not None and self._abre(p, "incidentes"):
                     p.setFont(base.fonte(10, QFont.Bold, p=p))
                     p.setPen(cor)
-                    p.drawText(QRectF(xd - larg, 11, larg, 20), Qt.AlignRight | Qt.AlignVCenter, txt)
+                    texto_inteiro(p, QRectF(xd - larg, 11, larg, 20), Qt.AlignRight | Qt.AlignVCenter, txt)
                     rot_w = QFontMetrics(base.fonte(8, QFont.DemiBold, p=p)).horizontalAdvance("INC") + 6
                     p.setFont(base.fonte(8, QFont.DemiBold, p=p))
                     p.setPen(base.COR_CINZA)
-                    p.drawText(QRectF(xd - larg - rot_w - 2, 11, rot_w, 20), Qt.AlignRight | Qt.AlignVCenter, "INC")
+                    texto_inteiro(p, QRectF(xd - larg - rot_w - 2, 11, rot_w, 20), Qt.AlignRight | Qt.AlignVCenter, "INC")
                     self._fecha(p)
                     xd -= larg + rot_w + 4
             limite = xd - 10 - self._reserva   # com colunas escondidas a janela fica mais estreita: o que nao couber some, sem sobrepor
@@ -670,16 +749,24 @@ def construir(base):
             if sessao and "sessao" not in off:
                 larg = (medir("sessao", sessao, 9) or 8) + 10
                 ocupa = getattr(self, "_ncars_ocupa", None)   # so o LMU define, inclusive 0 quando o contador nao aparece
-                if ocupa is not None and x + larg > xd - 10 - ocupa:
+                if (x + larg > xd - 10 - ocupa) if ocupa is not None else (x + larg > xd - 2):      # build ba: o iRacing tambem esconde a etiqueta que nao cabe (antes passava por cima de INC/clima); 2 px = folga do layout padrao
                     parar = True                              # sessao nao cabe ao lado do contador: some inteira, e os itens seguintes tambem (ordem de prioridade)
                 elif self._abre(p, "sessao"):
                     f = base.fonte(9, QFont.Bold, p=p)
+                    esq, dir_, topo_t, base_t, adv = tinta_texto(f, sessao)
+                    # build ba: a etiqueta cresce para conter a tinta real (altura e largura); no padrao continua 20 px de altura
+                    alt = max(20.0, min(float(ALTURA_BARRA - 6), math.ceil(base_t - topo_t) + 4.0))
                     p.setPen(Qt.NoPen)
                     p.setBrush(QColor(176, 40, 56))
-                    p.drawRoundedRect(QRectF(x, 11, larg, 20), 5, 5)
+                    p.drawRoundedRect(QRectF(x, 21 - alt / 2.0, larg, alt), 5, 5)
                     p.setFont(f)
                     p.setPen(QColor(255, 255, 255))
-                    p.drawText(QRectF(x, 11, larg, 20), Qt.AlignCenter, sessao)
+                    ox_c = x + (larg - adv) / 2.0
+                    if ox_c + esq >= x - 0.01 and ox_c + dir_ <= x + larg + 0.01:
+                        texto_inteiro(p, QRectF(x, 11, larg, 20), Qt.AlignCenter, sessao)
+                    else:                                     # a tinta passa do avanco (italico, glifo largo): centraliza pela tinta
+                        ox = x + (larg - (dir_ - esq)) / 2.0 - esq
+                        texto_inteiro(p, QRectF(ox, 11, adv + 2.0, 20), Qt.AlignLeft | Qt.AlignVCenter, sessao)
                     self._fecha(p)
                 x += larg + 16
             itens = []
@@ -716,10 +803,10 @@ def construir(base):
         @staticmethod
         def _item(p, x, texto, cor, tam, larg_min=0):
             f = base.fonte(tam, QFont.Bold, p=p)
-            larg = max(larg_min, QFontMetrics(f).horizontalAdvance(texto) + 8)
+            larg = max(larg_min, largura_reservada(f, texto))
             p.setFont(f)
             p.setPen(cor)
-            p.drawText(QRectF(x, 11, larg, 20), Qt.AlignLeft | Qt.AlignVCenter, texto)
+            texto_inteiro(p, QRectF(x + deslocamento_esquerdo(f, texto), 11, larg, 20), Qt.AlignLeft | Qt.AlignVCenter, texto)
             return x + larg + 12
 
         # rotulos das colunas ----------------------------------------------------------------

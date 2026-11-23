@@ -748,6 +748,7 @@ def teste_principal():
             estado["conectado"] = telemetria_.ultimo_estado
         QTimer.singleShot(1200, conferir)
         QTimer.singleShot(1600, app.quit)
+    m.criar_api_teclas = lambda: None        # build ba: hermetico, nao registra atalhos GLOBAIS reais (no Windows tomaria as teclas do overlay em uso e o log traria 'erro 1409')
     codigo = m.principal(leitor=leitor, config_extra={"auto_modo": False, "travado": True}, ao_iniciar=ao_iniciar)
     confere(codigo == 0, "principal terminou sem erro")
     confere(estado.get("janelas") == 35, f"35 janelas criadas (obtido {estado.get('janelas')})")

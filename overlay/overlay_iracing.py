@@ -166,8 +166,8 @@ except Exception:
     ov_i18n = None
 
 PASTA = _PASTA_BASE
-VERSAO_PRODUTO = "1.8.1"                      # versao do produto; as correcoes da auditoria entram como BUILD (az = primeira build da 1.8.1)
-BUILD = "az"                                    # identificacao da entrega dentro da 1.8.1 (aparece no cabecalho do log)
+VERSAO_PRODUTO = "1.8.2"                      # versao do produto; as correcoes da auditoria entram como BUILD (ba = primeira build da 1.8.2)
+BUILD = "ba"                                    # identificacao da entrega dentro da 1.8.2 (aparece no cabecalho do log)
 ARQ_CONFIG = PASTA / "config.json"
 ARQ_LOG = PASTA / "overlay_log.txt"
 ARQ_MAPAS = PASTA / "mapas_pistas.json"
@@ -4822,6 +4822,19 @@ _ELEM_PILHA = []                                            # itens abertos por 
 # O ultimo item da lista e o "contexto" de fonte()/_cor_do_elemento(): o pintor que mais recentemente abriu ou fechou um item.
 
 
+def pastas_fontes():
+    """Pastas onde procurar a pasta fontes/, na ordem: ao lado do .exe (versao empacotada), dentro do pacote do PyInstaller
+    (_MEIPASS, onde o spec instala os dados) e ao lado do codigo (versao em Python). Build ba: antes so a ultima era consultada."""
+    pastas = []
+    if getattr(sys, "frozen", False):
+        pastas.append(Path(sys.executable).resolve().parent / "fontes")
+        mei = getattr(sys, "_MEIPASS", None)
+        if mei:
+            pastas.append(Path(mei) / "fontes")
+    pastas.append(Path(os.path.dirname(os.path.abspath(__file__))) / "fontes")
+    return pastas
+
+
 def carregar_fontes_corrida():
     """Registra as fontes de corrida da pasta fontes/ (uma vez) e devolve {id: (familia, aceita_negrito)}. Nunca levanta erro."""
     if _FONTES_REG["carregado"]:
@@ -4829,12 +4842,12 @@ def carregar_fontes_corrida():
     _FONTES_REG["carregado"] = True
     try:
         from PySide6.QtGui import QFontDatabase
-        pasta = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fontes")
+        pastas = pastas_fontes()
         for fid, _rot, arquivos, negrito in FONTES_CORRIDA:
             fam = None
             for arq in arquivos:
-                caminho = os.path.join(pasta, arq)
-                if os.path.exists(caminho):
+                caminho = next((str(pa / arq) for pa in pastas if (pa / arq).exists()), None)
+                if caminho:
                     ident = QFontDatabase.addApplicationFont(caminho)
                     fams = QFontDatabase.applicationFontFamilies(ident) if ident >= 0 else []
                     if fams and fam is None:
@@ -4844,6 +4857,60 @@ def carregar_fontes_corrida():
     except Exception:
         pass
     return _FONTES_REG["familias"]
+
+
+def verificar_fontes_cli():
+    """--verificar-fontes: confere, com o proprio carregador do programa, se Orbitron, Michroma e Bungee (e as demais) foram
+    carregadas e se o motor de estilo por elemento as APLICA (familia efetiva da fonte e tinta desenhada diferentes do padrao).
+    Grava fontes_verificacao.json ao lado do programa e devolve 0 (ok) ou 1. Nao abre janela do overlay."""
+    import json
+    from PySide6.QtGui import QFontInfo, QGuiApplication, QImage, QPainter
+    from PySide6.QtWidgets import QApplication
+    app = QApplication.instance() or QApplication(sys.argv)
+    pastas = pastas_fontes()
+    reg = carregar_fontes_corrida()
+
+    def tinta(est):
+        im = QImage(420, 72, QImage.Format_ARGB32)
+        im.fill(QColor(0, 0, 0))
+        q = QPainter(im)
+        if est is not None:
+            _ELEM_PILHA.append((weakref.ref(q), est, None))
+        try:
+            f = fonte(24, QFont.Normal, p=q)
+            fam_efetiva = QFontInfo(f).family()
+            q.setFont(f)
+            q.setPen(QColor(255, 255, 255))
+            q.drawText(8, 50, "WOLFX Rg 0123")
+        finally:
+            q.end()
+            if est is not None:
+                _ELEM_PILHA[:] = [e for e in _ELEM_PILHA if e[0]() is not None]
+        return fam_efetiva, bytes(im.constBits())
+
+    _fam0, tinta0 = tinta(None)
+    itens, ok_geral = {}, True
+    for fid, rot, arquivos, _neg in FONTES_CORRIDA:
+        carregada = fid in reg
+        aplicada, fam_efetiva = False, ""
+        if carregada:
+            fam_efetiva, t = tinta({"fonte": fid})
+            aplicada = (fam_efetiva == reg[fid][0]) and (t != tinta0)
+        itens[fid] = {"rotulo": rot, "arquivos": list(arquivos), "carregada": carregada, "familia": reg.get(fid, ("", 0))[0],
+                      "familia_efetiva": fam_efetiva, "aplicada": aplicada}
+        ok_geral = ok_geral and carregada and aplicada
+    obrigatorias = ("orbitron", "michroma", "bungee")
+    ok_obrig = all(itens[i]["carregada"] and itens[i]["aplicada"] for i in obrigatorias)
+    saida = {"ok": bool(ok_geral), "ok_obrigatorias": bool(ok_obrig), "obrigatorias": list(obrigatorias),
+             "pastas_consultadas": [str(x) for x in pastas], "pasta_existente": [str(x) for x in pastas if x.is_dir()],
+             "empacotado": bool(getattr(sys, "frozen", False)), "licenca_ofl_presente": any((x / "LICENCAS_OFL.txt").exists() for x in pastas),
+             "fontes": itens}
+    try:
+        (_PASTA_BASE / "fontes_verificacao.json").write_text(json.dumps(saida, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+    print(json.dumps(saida, ensure_ascii=False, indent=2))
+    return 0 if (ok_geral and saida["licenca_ofl_presente"]) else 1
 
 
 def fontes_corrida_disponiveis():
@@ -11904,6 +11971,8 @@ def principal():
 
 
 if __name__ == "__main__":
+    if "--verificar-fontes" in sys.argv:
+        sys.exit(verificar_fontes_cli())
     try:
         sys.exit(principal())
     except Exception:
