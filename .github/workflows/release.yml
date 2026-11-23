@@ -2,7 +2,7 @@ name: Release e EXE (Windows)
 
 # Publica uma release vX.Y.Z presa ao COMMIT da tag: valida o SHA/versao/CHANGELOG, roda TODAS as suites no Qt nativo do Windows, monta os ativos
 # desse mesmo commit, confere o EXE extraido em pasta limpa (fontes), gera os SHA-256 e so entao publica. Release publicada nunca e reescrita
-# (sem --clobber). Disparo manual (Run workflow): informe a tag; sem tag so gera o EXE como arquivo da execucao.
+# (sem --clobber; build bc: o fluxo nunca exclui nem edita release existente). Disparo manual (Run workflow): informe a tag; sem tag so gera o EXE como arquivo da execucao.
 on:
   push:
     tags: ["v*"]
@@ -15,6 +15,11 @@ on:
 
 permissions:
   contents: write
+
+# build bc: no maximo UMA publicacao por repositorio e tag de cada vez; uma execucao ativa nunca e cancelada (a seguinte espera na fila)
+concurrency:
+  group: release-${{ github.repository }}-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 
 env:
   TAG: ${{ inputs.tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || '' }}
@@ -159,26 +164,27 @@ jobs:
           $env:PYTHONIOENCODING = 'utf-8'
           $v = $env:TAG.TrimStart('v')
           $arqs = @(Get-ChildItem dist/*.zip) + @(Get-ChildItem overlay/exe/*.zip) + @(Get-ChildItem dash/*.simhubdash) + @(Get-ChildItem streamdeck/*.streamDeckProfile | Where-Object { $_.Name -notlike '*_ajustado*' }) + @(Get-Item "SHA256_v$v.txt")
-          python tools/notas_release.py $env:TAG | Out-File -Encoding utf8 notas.md
+          # build bb: cada comando externo tem o codigo de saida conferido (PowerShell nao interrompe sozinho em comando nativo)
+          function Exec([scriptblock]$bloco, [string]$oque) { & $bloco; if ($LASTEXITCODE -ne 0) { throw "$oque falhou (codigo de saida $LASTEXITCODE)" } }
+          $repo = "${{ github.repository }}"
+          $notas = python tools/notas_release.py $env:TAG
+          if ($LASTEXITCODE -ne 0) { throw "geracao das notas falhou (codigo de saida $LASTEXITCODE)" }
+          $notas | Out-File -Encoding utf8 notas.md
           "`n### SHA-256 e origem`nCommit: ``$($env:ALVO)``. Hashes de cada ativo: ``SHA256_v$v.txt`` (anexo desta release)." | Add-Content -Encoding utf8 notas.md
           $titulo = "WolfxRacing Overlay LMU " + $v
-          gh release view $env:TAG *> $null
-          if ($LASTEXITCODE -eq 0) { gh release delete $env:TAG --yes }       # so chega aqui um RASCUNHO antigo (o validador recusa release publicada)
-          $tagExiste = (git rev-parse --verify --quiet "refs/tags/$($env:TAG)^{commit}")
-          if ($tagExiste) { gh release create $env:TAG --draft --verify-tag --title $titulo --notes-file notas.md $arqs.FullName }
-          else { gh release create $env:TAG --draft --target $env:ALVO --title $titulo --notes-file notas.md $arqs.FullName }
-          $info = gh release view $env:TAG --json assets | ConvertFrom-Json
-          foreach ($a in $arqs) {
-            $local = (Get-FileHash $a.FullName -Algorithm SHA256).Hash.ToLower()
-            $enviado = $info.assets | Where-Object { $_.name -eq ($a.Name -replace '[^A-Za-z0-9._-]','.') } | Select-Object -First 1
-            if (-not $enviado) { throw "ativo $($a.Name) nao foi enviado" }
-            if ($enviado.digest) {
-              $no_gh = $enviado.digest -replace '^sha256:', ''
-              if ($local -ne $no_gh) { throw "ativo $($a.Name): SHA-256 local $local difere do enviado ($no_gh)" }
-            } elseif ($enviado.size -ne $a.Length) { throw "ativo $($a.Name): tamanho local $($a.Length) difere do enviado ($($enviado.size))" }
-          }
+          # build bc: o fluxo NUNCA exclui, edita ou reaproveita release existente. Imediatamente antes de criar, exige que nao haja release nem
+          # rascunho da tag; rascunho anterior para o fluxo e pede decisao humana (exclusao manual no GitHub ou outra versao).
+          Exec { python tools/validar_release.py --acao exigir-inexistente --tag $env:TAG --repo $repo } "conferencia de release/rascunho anterior"
+          git rev-parse --verify --quiet "refs/tags/$($env:TAG)^{commit}" *> $null
+          $tagExiste = ($LASTEXITCODE -eq 0)
+          if ($tagExiste) { Exec { gh release create $env:TAG --draft --verify-tag --title $titulo --notes-file notas.md $arqs.FullName } "criacao do rascunho" }
+          else { Exec { gh release create $env:TAG --draft --target $env:ALVO --title $titulo --notes-file notas.md $arqs.FullName } "criacao do rascunho" }
+          # SHA-256 verificavel de cada anexo (digest do GitHub ou conteudo baixado); so tamanho nunca basta
+          Exec { python tools/validar_release.py --acao conferir-anexos --tag $env:TAG --repo $repo --arquivos $arqs.FullName } "conferencia dos anexos"
           Write-Host "$($arqs.Count) ativos enviados e conferidos"
-          gh release edit $env:TAG --draft=false
-          $ref = gh api "repos/${{ github.repository }}/git/ref/tags/$($env:TAG)" | ConvertFrom-Json
-          if ($ref.object.sha -ne $env:ALVO) { throw "a tag $($env:TAG) aponta para $($ref.object.sha), nao para $($env:ALVO)" }
-          Write-Host "release $($env:TAG) publicada; tag -> $($ref.object.sha)"
+          # tudo conferido ANTES de publicar: rascunho, SHA da tag (ou alvo do rascunho)
+          Exec { python tools/validar_release.py --acao pre-publicacao --tag $env:TAG --repo $repo --sha $env:ALVO } "conferencia pre-publicacao"
+          Exec { gh release edit $env:TAG --draft=false } "publicacao da release"
+          # build bc: a conferencia depois de publicar resolve a tag ATE O COMMIT (tag leve ou anotada), com a mesma funcao da pre-publicacao
+          Exec { python tools/validar_release.py --acao conferir-tag --tag $env:TAG --repo $repo --sha $env:ALVO } "conferencia da tag publicada"
+          Write-Host "release $($env:TAG) publicada; tag -> commit $($env:ALVO)"

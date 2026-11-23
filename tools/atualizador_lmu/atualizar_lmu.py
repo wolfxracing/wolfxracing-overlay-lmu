@@ -169,30 +169,105 @@ def estado_trava(trava, agora=None):
     return "orfa", f"PID {pid} nao existe mais"
 
 
-def tomar_trava(destino):
-    """Cria a trava. Devolve (arquivo_da_trava | None, mensagem). Trava ORFA e removida (com aviso); trava ATIVA recusa."""
-    trava = destino / NOME_TRAVA
-    for _ in range(3):
+GUARDA_ESPERA_S = 15                # tempo maximo esperando a guarda (ela e segurada por milissegundos)
+_DONOS = {}                         # caminho da trava -> token do dono (so o proprio processo que tomou a trava a libera)
+
+
+class _Guarda:
+    """Exclusao mutua do SISTEMA OPERACIONAL (msvcrt.locking no Windows, fcntl.flock no POSIX) em volta de toda decisao sobre a trava
+    (ler, julgar orfa, remover, criar). Vale por pasta de destino e e solta pelo proprio sistema se o processo morrer, entao nao fica guarda
+    orfa e nao ha janela entre 'ler a trava orfa' e 'remove-la': ninguem mais mexe na trava nesse intervalo."""
+
+    def __init__(self, destino):
+        import hashlib as _h
+        chave = _h.sha1(os.path.normcase(os.path.realpath(str(destino))).encode("utf-8")).hexdigest()[:20]
+        self.caminho = Path(tempfile.gettempdir()) / f"wolfx_lmu_atualizador_{chave}.guarda"
+        self.arquivo = None
+
+    def __enter__(self):
+        self.arquivo = open(self.caminho, "a+b")
+        limite = time.monotonic() + GUARDA_ESPERA_S
+        while True:
+            try:
+                if os.name == "nt":
+                    import msvcrt
+                    self.arquivo.seek(0)
+                    msvcrt.locking(self.arquivo.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(self.arquivo.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return self
+            except OSError:
+                if time.monotonic() > limite:
+                    self.arquivo.close()
+                    raise TimeoutError("guarda da trava ocupada por outro processo")
+                time.sleep(0.02)
+
+    def __exit__(self, *exc):
         try:
-            with trava.open("x", encoding="utf-8") as arquivo:
-                arquivo.write(json.dumps({"pid": os.getpid(), "inicio": time.time(), "maquina": socket.gethostname()}))
-            return trava, ""
-        except FileExistsError:
-            estado, detalhe = estado_trava(trava)
-            if estado == "ativa":
-                return None, f"outra atualização está em andamento nesta pasta ({detalhe}). Aguarde terminar."
-            if estado == "orfa":
+            if os.name == "nt":
+                import msvcrt
+                self.arquivo.seek(0)
+                msvcrt.locking(self.arquivo.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(self.arquivo.fileno(), fcntl.LOCK_UN)
+        finally:
+            self.arquivo.close()
+        return False
+
+
+def tomar_trava(destino):
+    """Cria a trava. Devolve (arquivo_da_trava | None, mensagem). Trava ORFA e removida (com aviso); trava ATIVA recusa.
+    Toda a sequencia roda sob a guarda do sistema: outro processo nunca troca a trava entre o julgamento 'orfa' e a remocao."""
+    import uuid
+    trava = destino / NOME_TRAVA
+    try:
+        with _Guarda(destino):
+            for _ in range(3):
+                token = uuid.uuid4().hex
                 try:
-                    antes = trava.read_text(encoding="utf-8", errors="replace")
-                    descartada = destino / f"{NOME_TRAVA}.orfa_{os.getpid()}_{int(time.time())}"
-                    os.replace(trava, descartada)
-                    if descartada.read_text(encoding="utf-8", errors="replace") != antes:      # outro processo trocou a trava no meio
-                        return None, "a trava mudou durante a verificação; tente de novo."
-                    descartada.unlink()
-                    print(f"Aviso: trava órfã de uma atualização interrompida removida ({detalhe}).")
-                except OSError as erro:
-                    return None, f"não foi possível remover a trava órfã {trava}: {erro}. Apague esse arquivo e rode de novo."
-    return None, "não foi possível obter a trava; tente de novo."
+                    with trava.open("x", encoding="utf-8") as arquivo:
+                        arquivo.write(json.dumps({"pid": os.getpid(), "inicio": time.time(), "maquina": socket.gethostname(), "token": token}))
+                    _DONOS[str(trava)] = token
+                    return trava, ""
+                except FileExistsError:
+                    estado, detalhe = estado_trava(trava)
+                    if estado == "ativa":
+                        return None, f"outra atualização está em andamento nesta pasta ({detalhe}). Aguarde terminar."
+                    if estado == "orfa":
+                        try:
+                            trava.unlink(missing_ok=True)       # sob a guarda: nenhum outro processo cria, move ou apaga a trava agora
+                            print(f"Aviso: trava órfã de uma atualização interrompida removida ({detalhe}).")
+                        except OSError as erro:
+                            return None, f"não foi possível remover a trava órfã {trava}: {erro}. Apague esse arquivo e rode de novo."
+            return None, "não foi possível obter a trava; tente de novo."
+    except TimeoutError as erro:
+        return None, f"{erro}; tente de novo."
+
+
+def liberar_trava(trava):
+    """Apaga a trava SOMENTE se ela ainda e a deste processo (token). Devolve (ok, mensagem). Nunca remove a trava ativa de outro processo."""
+    token = _DONOS.get(str(trava))
+    if token is None:
+        return False, "esta execução não é dona da trava; nada foi apagado."
+    try:
+        with _Guarda(trava.parent):
+            try:
+                atual = json.loads(trava.read_text(encoding="utf-8")).get("token")
+            except FileNotFoundError:
+                _DONOS.pop(str(trava), None)
+                return True, ""
+            except (OSError, ValueError, AttributeError):
+                atual = None
+            if atual != token:
+                _DONOS.pop(str(trava), None)
+                return False, "a trava agora pertence a outro processo; não foi apagada."
+            trava.unlink()
+            _DONOS.pop(str(trava), None)
+            return True, ""
+    except (OSError, TimeoutError) as erro:
+        return False, str(erro)
 
 
 def planejar(destino, esperado):
@@ -334,10 +409,9 @@ def main(argv=None):
                 return 0
             return aplicar(destino, esperado, plano, build)
         finally:
-            try:
-                trava.unlink()
-            except OSError as erro:
-                print(f"Aviso: não foi possível apagar a trava {trava}: {erro}. Ela é reconhecida como órfã na próxima execução.")
+            ok, aviso = liberar_trava(trava)
+            if not ok:
+                print(f"Aviso: a trava {trava} não foi apagada ({aviso}). Se for deste processo, ela é reconhecida como órfã na próxima execução.")
     except (OSError, ValueError, SyntaxError) as erro:
         print(f"ERRO ao validar o pacote ou preparar a atualização: {erro}")
     return 1
