@@ -139,7 +139,7 @@ jobs:
           $v = (Select-String -Path CHANGELOG.md -Pattern '^## \[(\d+\.\d+\.\d+)\]' | Select-Object -First 1).Matches[0].Groups[1].Value
           $arqs = @(Get-ChildItem dist/*.zip) + @(Get-ChildItem overlay/exe/*.zip) + @(Get-ChildItem dash/*.simhubdash) + @(Get-ChildItem streamdeck/*.streamDeckProfile | Where-Object { $_.Name -notlike '*_ajustado*' })
           $linhas = @("WolfxRacing Overlay LMU $v - SHA-256 dos ativos", "commit: ${{ github.sha }}", "")
-          $arqs | Sort-Object Name | ForEach-Object { $linhas += ("{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name) }
+          $arqs | Sort-Object Name | ForEach-Object { $linhas += ("{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), ($_.Name -replace '[^A-Za-z0-9._-]','.')) }
           $linhas | Out-File -Encoding utf8 "SHA256_v$v.txt"
           Get-Content "SHA256_v$v.txt"
       - uses: actions/upload-artifact@v4
@@ -170,7 +170,7 @@ jobs:
           $info = gh release view $env:TAG --json assets | ConvertFrom-Json
           foreach ($a in $arqs) {
             $local = (Get-FileHash $a.FullName -Algorithm SHA256).Hash.ToLower()
-            $enviado = $info.assets | Where-Object { $_.name -eq $a.Name } | Select-Object -First 1
+            $enviado = $info.assets | Where-Object { $_.name -eq ($a.Name -replace '[^A-Za-z0-9._-]','.') } | Select-Object -First 1
             if (-not $enviado) { throw "ativo $($a.Name) nao foi enviado" }
             if ($enviado.digest) {
               $no_gh = $enviado.digest -replace '^sha256:', ''
