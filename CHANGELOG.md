@@ -4,6 +4,7 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 
 ## 1.8.3 (publicacao da build bc)
 - Versao 1.8.3 = codigo da build bc da 1.8.2 (auditada), publicado como nova versao porque a release v1.8.2 ja publicada (build ba) nao e reescrita. Mudam so os numeros de versao; nenhum codigo de funcionalidade foi alterado.
+- Publicacao: a primeira tentativa da v1.8.3 foi BLOQUEADA com seguranca pelo validador (nada foi criado): no Windows o texto do `gh` era decodificado em cp1252 e a lista de releases (com acentos) virava resposta invalida. Correcao: saida do `gh` lida como UTF-8; o passo de logs cria a pasta antes de gravar COMMIT.txt. Teste novo com texto UTF-8 fora do cp1252.
 
 ## 1.8.2 build bc (corretiva - auditoria da build bb; produto continua 1.8.2)
 - Publicacao: removida a exclusao automatica de releases. `excluir_rascunho()` e a acao `--acao excluir-rascunho` deixaram de existir; nenhum DELETE e enviado pelo validador nem pelo workflow. Havendo rascunho anterior da tag, a validacao e a nova acao `--acao exigir-inexistente` (rodada imediatamente antes de criar o rascunho) BLOQUEIAM e pedem decisao humana (exclusao manual no GitHub ou outra versao). A pre-publicacao exige exatamente UMA release com a tag (dois rascunhos = execucoes cruzadas = ninguem publica). Substitui o item da build bb que excluia o rascunho antigo.

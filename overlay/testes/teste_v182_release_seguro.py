@@ -61,6 +61,20 @@ confere(V.estado_release("v1.8.2", REPO, fake([(lista(), resp_lista(rel("v1.8.2"
 confere(V.estado_release("v1.8.2", REPO, fake([(lista(), resp_lista(rel("v1.8.2", False)))]))[0] == "publicada", "estado_release: publicada")
 confere(V.estado_release("v1.8.2", REPO, fake([(lista(), resp_lista(rel("v1.8.2", True, 1), rel("v1.8.2", False, 2)))]))[0] == "publicada", "estado_release: rascunho + publicada da mesma tag = publicada (a mais restritiva)")
 
+# 1.8.3: o gh responde em UTF-8; a decodificacao nao pode depender da pagina de codigo do Windows (cp1252 perdia a resposta inteira)
+_chamadas = []
+_run_real = V.subprocess.run
+def _run_espiao(args, **kw):
+    _chamadas.append(kw)
+    return subprocess.CompletedProcess(args, 0, "{}" if kw.get("text") else b"{}", "" if kw.get("text") else b"")
+V.subprocess.run = _run_espiao
+try:
+    V.executar_gh(["api", "x"]); V.executar_gh(["api", "x"], binario=True)
+finally:
+    V.subprocess.run = _run_real
+confere(_chamadas[0].get("encoding") == "utf-8" and _chamadas[0].get("errors") == "replace", "executar_gh: texto do gh decodificado como UTF-8 (independe da pagina de codigo do Windows)")
+confere(not _chamadas[1].get("text"), "executar_gh: download de anexo continua em bytes")
+
 # ---------------------------------------------------------------- validar() (repositorio temporario)
 def repo_temp(versao="1.8.2", changelog_versao=None, com_origin=True):
     d = tempfile.mkdtemp(prefix="wolfx_rel_")
@@ -256,8 +270,8 @@ a = sys.argv[1:]   # bytes crus no stdout: no Windows o print em modo texto troc
 open(os.environ["GH_LOG"], "a", encoding="utf-8").write(" ".join(a) + "\n")
 modo = os.environ.get("GH_MODO", "")
 if modo == "503": sys.stderr.write("gh: HTTP 503: Service Unavailable\n"); sys.exit(1)
-rels = {"403_404": [{"tag_name": "v1.8.2", "draft": True, "id": 7, "assets": [], "target_commitish": "a" * 40}], "vazio": [], "rascunho": [{"tag_name": "v1.8.2", "draft": True, "id": 7, "assets": []}], "publicada": [{"tag_name": "v1.8.2", "draft": False, "id": 8, "assets": [], "html_url": "u"}]}[modo]
-if "--paginate" in a: print(json.dumps([rels])); sys.exit(0)
+rels = {"403_404": [{"tag_name": "v1.8.2", "draft": True, "id": 7, "assets": [], "target_commitish": "a" * 40}], "utf8": [{"tag_name": "v1.8.1", "draft": False, "id": 3, "assets": [], "body": "Classifica\u00e7\u00e3o \u00c1gua \u2192 \u2713"}], "vazio": [], "rascunho": [{"tag_name": "v1.8.2", "draft": True, "id": 7, "assets": []}], "publicada": [{"tag_name": "v1.8.2", "draft": False, "id": 8, "assets": [], "html_url": "u"}]}[modo]
+if "--paginate" in a: sys.stdout.buffer.write(json.dumps([rels], ensure_ascii=False).encode("utf-8")); sys.stdout.flush(); sys.exit(0)   # bytes UTF-8 crus, como o gh real
 if a[0] == "api" and "/git/ref/tags/" in a[-1]:
     if modo == "publicada": sys.stdout.buffer.write(('HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n' + json.dumps({"object": {"sha": "c" * 40, "type": "tag"}})).encode()); sys.stdout.flush(); sys.exit(0)
     if modo == "403_404": sys.stdout.buffer.write(('HTTP/1.1 403 Forbidden\r\n\r\n{"message": "Resource not accessible (ref 404)"}').encode()); sys.stdout.flush(); sys.stderr.write("gh: Resource not accessible (ref 404) (HTTP 403)\n"); sys.exit(1)
@@ -277,6 +291,7 @@ confere(cli("503", "--acao", "estado")[0] == 1, "CLI estado: 503 -> codigo de sa
 confere(cli("vazio", "--acao", "estado")[1].strip() == "inexistente", "CLI estado: inexistente")
 confere(cli("rascunho", "--acao", "estado")[1].strip() == "rascunho" and cli("publicada", "--acao", "estado")[1].strip() == "publicada", "CLI estado: rascunho e publicada")
 open(logf, "w").close()
+confere(cli("utf8", "--acao", "estado")[1].strip() == "inexistente", "CLI estado: lista de releases com texto UTF-8 (\u00c1, \u2192) lida corretamente no Windows (1.8.3: antes virava indeterminado)")
 confere(cli("vazio", "--acao", "exigir-inexistente")[0] == 0, "CLI exigir-inexistente: sem release -> 0")
 confere(cli("rascunho", "--acao", "exigir-inexistente")[0] == 1, "CLI exigir-inexistente: rascunho -> 1")
 confere(cli("publicada", "--acao", "exigir-inexistente")[0] == 1, "CLI exigir-inexistente: publicada -> 1")

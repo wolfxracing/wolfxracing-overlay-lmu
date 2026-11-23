@@ -44,7 +44,10 @@ def executar_gh(args, binario=False, timeout=180):
     """Roda `gh ...`. Devolve (returncode, stdout, stderr). Excecao de execucao/timeout vira (-1, '', mensagem)."""
     exe = shutil.which("gh") or "gh"            # which respeita PATHEXT (gh.exe / gh.cmd) e a ordem do PATH
     try:
-        r = subprocess.run([exe, *args], capture_output=True, text=not binario, timeout=timeout)
+        if binario:
+            r = subprocess.run([exe, *args], capture_output=True, timeout=timeout)
+        else:                                    # a API do GitHub responde em UTF-8; sem isto o Windows decodifica em cp1252 e a resposta se perde
+            r = subprocess.run([exe, *args], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
         return r.returncode, r.stdout, (r.stderr if not binario else r.stderr.decode("utf-8", "replace"))
     except (OSError, subprocess.SubprocessError) as erro:
         return -1, "", str(erro)
