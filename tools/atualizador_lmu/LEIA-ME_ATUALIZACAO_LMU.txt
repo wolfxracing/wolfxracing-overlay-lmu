@@ -1,0 +1,36 @@
+WOLFXRACING OVERLAY LMU - PACOTE COMPLETO DE ATUALIZACAO
+========================================================
+Versao, build e commit deste pacote: veja PACOTE.json (o atualizador imprime essas informacoes ao iniciar).
+Este pacote e COMPLETO: serve a partir de QUALQUER build anterior. Nao e preciso aplicar builds intermediarias.
+
+COMO ATUALIZAR (Windows, Python 3.12):
+  1. Feche o overlay (fechar_overlay_lmu.bat).
+  2. Extraia este ZIP em uma pasta qualquer (fora da pasta do overlay).
+  3. Rode:   ATUALIZAR_LMU.bat "C:\caminho\da\pasta_overlay_lmu"
+     (ou: py -3.12 atualizar_lmu.py "C:\caminho\da\pasta_overlay_lmu"     - com --simular so mostra o que faria)
+  4. Confira a ultima linha: "OK: atualizado para a build ...". Para testar tudo: executar_todos_os_testes.bat (dentro da pasta do overlay).
+
+O QUE O ATUALIZADOR GARANTE
+  - ANTES de escrever qualquer coisa, confere o inventario e o SHA-256 de cada arquivo do pacote contra MANIFESTO_SHA256.txt e compila todos os .py.
+    Pacote incompleto ou com conteudo diferente do manifesto e RECUSADO e a sua pasta nao e tocada.
+  - O conteudo de programa\ sai do MESMO commit dos demais arquivos da release (PACOTE.json traz o SHA do commit).
+  - Backup de todo arquivo substituido em <pasta>\backup_pre_build<BUILD>_<data-hora>\.
+  - NAO mexe nos seus dados: config*.json, recordes_pessoais.json, pit_entradas*.json, cronograma.json, logs, referencias\ (historico e proprias).
+    emblemas\ e marca\ so recebem arquivos que ainda nao existem (os seus, editados, ficam como estao).
+  - Se um arquivo estiver bloqueado pelo Windows durante a troca (overlay aberto, antivirus), DESFAZ todas as alteracoes do programa (rollback).
+  - TRAVA: durante a atualizacao existe o arquivo .atualizar_lmu.lock na pasta (PID, hora e maquina). Trava ATIVA (o processo dono existe) recusa uma
+    segunda atualizacao (codigo 4). Trava ORFA (o processo morreu, ou a trava tem mais de 6 h) e removida com aviso e a atualizacao segue.
+    --simular reporta o mesmo estado: trava ativa = codigo 4, igual a atualizacao real.
+  - Codigos de saida: 0 ok | 1 falhou e foi desfeito | 2 pasta de destino invalida (nao tem overlay_lmu.py) | 3 reversao INCOMPLETA (restaure o backup indicado na tela)
+    | 4 outra atualizacao em andamento (trava ativa).
+    Idempotente: rodar de novo nao faz nada.
+
+TESTES (opcional, na pasta do overlay):  pip install -r requirements-teste.txt  e  py -3.12 rodar_todos_os_testes.py
+  Dependencias de teste: PySide6, NumPy e pyirsdk. Codigo de saida por teste em logs_testes\RESUMO.txt; falha final se qualquer uma falhar.
+  Feche o overlay antes de rodar os testes; cada suite usa a sua propria pasta temporaria.
+
+VERIFICACAO DA MIGRACAO (executada na entrega; logs nas evidencias): verificacao\verificar_migracao.py
+  --ae-zip <instalar da ae> --pacote-completo <esta pasta>
+
+Conteudo: programa\ (todo o overlay LMU) | MANIFESTO_SHA256.txt (hash de cada arquivo de programa\) | PACOTE.json | atualizar_lmu.py | ATUALIZAR_LMU.bat | verificacao\
+Sem homologacao em simulador real.

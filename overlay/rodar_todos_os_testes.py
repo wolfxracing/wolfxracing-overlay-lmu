@@ -27,6 +27,20 @@ def ambiente(plataforma):
         linhas.append(f"NumPy AUSENTE ({e})")
     linhas.append(f"Plataforma Qt solicitada: {plataforma}. Uma suite pode definir a propria plataforma.")
     linhas.append("Pacote: " + ("LMU" if os.path.exists("overlay_lmu.py") else "iRacing"))
+    # build ba: o resultado de cada suite fica preso ao commit testado e ao idioma do computador (causas de ambiente separadas dos defeitos do produto)
+    sha = os.environ.get("GITHUB_SHA", "")
+    if not sha:
+        try:
+            sha = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, timeout=30).stdout.strip()
+        except Exception:
+            sha = ""
+    linhas.append("Commit testado: " + (sha or "desconhecido (sem .git)"))
+    try:
+        import locale
+        from PySide6.QtCore import QLocale
+        linhas.append(f"Idioma do computador: Qt {QLocale.system().name()} | locale do processo {locale.getlocale()} | WOLFX_IDIOMA={os.environ.get('WOLFX_IDIOMA', '')!r} | LANG={os.environ.get('LANG', '')!r}")
+    except Exception as e:
+        linhas.append(f"Idioma do computador: indisponivel ({e})")
     return linhas
 
 

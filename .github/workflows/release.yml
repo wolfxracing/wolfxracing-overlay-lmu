@@ -1,39 +1,100 @@
 name: Release e EXE (Windows)
 
-# Ao publicar uma tag vX.Y.Z, compila o EXE (sem precisar de Python), monta o zip do codigo e cria a release.
-# Tambem pode ser rodado a mao (Actions > Run workflow): nesse caso so gera o EXE como arquivo da execucao.
+# Publica uma release vX.Y.Z presa ao COMMIT da tag: valida o SHA/versao/CHANGELOG, roda TODAS as suites no Qt nativo do Windows, monta os ativos
+# desse mesmo commit, confere o EXE extraido em pasta limpa (fontes), gera os SHA-256 e so entao publica. Release publicada nunca e reescrita
+# (sem --clobber). Disparo manual (Run workflow): informe a tag; sem tag so gera o EXE como arquivo da execucao.
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag da release a criar (ex.: v1.6.1). Vazio = so gera o EXE como arquivo da execucao."
+        description: "Tag da release (ex.: v1.8.2). Se a tag ainda nao existe, o commit tem de ser a ponta da main. Vazio = so gera o EXE como arquivo da execucao."
         required: false
         default: ""
 
 permissions:
   contents: write
 
+env:
+  TAG: ${{ inputs.tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || '' }}
+
 jobs:
-  release:
+  testes:
+    name: Testes obrigatorios (Qt nativo do Windows) no commit da release
+    runs-on: windows-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validar tag, commit, versao e CHANGELOG
+        if: ${{ env.TAG != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python tools/validar_release.py --tag "$env:TAG" --sha "${{ github.sha }}" --repo "${{ github.repository }}"
+      - name: Instalar dependencias de teste
+        working-directory: overlay
+        run: python -m pip install --only-binary ":all:" -r requirements-teste.txt
+      - name: Rodar todas as suites
+        working-directory: overlay
+        run: python rodar_todos_os_testes.py --plataforma windows --timeout 1500
+      - name: Guardar logs e resumo vinculados ao commit
+        if: always()
+        shell: pwsh
+        run: |
+          "commit=${{ github.sha }}" | Out-File -Encoding utf8 overlay/logs_testes/COMMIT.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logs_testes_release
+          path: overlay/logs_testes/
+
+  publicar:
+    name: Montar ativos, conferir e publicar
+    needs: testes
     runs-on: windows-latest
     defaults:
       run:
         shell: pwsh
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Validar tag, commit, versao e CHANGELOG
+        if: ${{ env.TAG != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python tools/validar_release.py --tag "$env:TAG" --sha "${{ github.sha }}" --repo "${{ github.repository }}"
       - name: Instalar componentes
         run: python -m pip install --only-binary ":all:" PySide6-Essentials pyinstaller
       - name: Conferir o programa
         working-directory: overlay
-        continue-on-error: true
         run: python -c "import overlay_lmu, ov_janela_lmu; print(overlay_lmu.VERSAO)"
-      - name: Zip do codigo
-        run: python tools/empacotar.py
+      - name: Zip do codigo (do commit)
+        run: python tools/empacotar.py --commit "${{ github.sha }}" --esperar-sha "${{ github.sha }}"
+      - name: Pacote de atualizacao completa (do mesmo commit) e comparacao com o zip de codigo
+        run: |
+          $zc = (Get-ChildItem dist/*-v*.zip | Where-Object { $_.Name -notlike '*atualizacao*' } | Select-Object -First 1).FullName
+          python tools/gerar_atualizador_lmu.py --commit "${{ github.sha }}" --esperar-sha "${{ github.sha }}" --saida dist --codigo-zip $zc
+          if ($LASTEXITCODE -ne 0) { throw "o pacote de atualizacao difere do zip de codigo" }
+          $pa = Get-ChildItem dist/*atualizacao_completa.zip | Select-Object -First 1
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $z = [System.IO.Compression.ZipFile]::OpenRead($pa.FullName)
+          try { $e = $z.GetEntry("PACOTE.json"); $r = New-Object System.IO.StreamReader($e.Open()); $info = $r.ReadToEnd() | ConvertFrom-Json } finally { $z.Dispose() }
+          if ($info.commit -ne "${{ github.sha }}") { throw "PACOTE.json aponta para $($info.commit)" }
+          Write-Host "pacote $($pa.Name): versao $($info.versao) build $($info.build) commit $($info.commit)"
       - name: Gerar o EXE
         working-directory: overlay
         run: |
@@ -42,29 +103,82 @@ jobs:
           Copy-Item -Recurse -Path marca, emblemas -Destination $d
           Copy-Item -Path exe_modelo*/* -Destination $d
           Copy-Item -Path ../LICENSE, ../NOTICE.md -Destination $d
-          Remove-Item exe/_build -Recurse -Force
+          Copy-Item -Path fontes/LICENCAS_OFL.txt -Destination "$d/LICENCAS_OFL_fontes.txt"
           $v = (Select-String -Path ../CHANGELOG.md -Pattern '^## \[(\d+\.\d+\.\d+)\]' | Select-Object -First 1).Matches[0].Groups[1].Value
+          "commit=${{ github.sha }}`nversao=$v`nproduto=WolfxRacing Overlay LMU" | Out-File -Encoding utf8 "$d/COMMIT.txt"
+          Remove-Item exe/_build -Recurse -Force
           Compress-Archive -Path $d -DestinationPath "exe/WolfxRacing_LMU_v${v}_EXE.zip" -Force
-      - name: Criar a release
-        if: ${{ startsWith(github.ref, 'refs/tags/') || inputs.tag != '' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ inputs.tag || github.ref_name }}
-          ALVO: ${{ github.sha }}
+      - name: Conferir o EXE extraido em pasta limpa (fontes Orbitron, Michroma e Bungee)
         run: |
-          $env:PYTHONIOENCODING = 'utf-8'
-          python tools/notas_release.py $env:TAG | Out-File -Encoding utf8 notas.md
-          $arqs = @(Get-ChildItem dist/*.zip) + @(Get-ChildItem overlay/exe/*.zip) + @(Get-ChildItem dash/*.simhubdash) + @(Get-ChildItem streamdeck/*.streamDeckProfile | Where-Object { $_.Name -notlike '*_ajustado*' })
-          $titulo = "WolfxRacing Overlay LMU " + $env:TAG.TrimStart('v')
-          gh release view $env:TAG *> $null
-          if ($LASTEXITCODE -eq 0) {
-            gh release edit $env:TAG --title $titulo --notes-file notas.md
-            gh release upload $env:TAG $arqs.FullName --clobber
-          } else {
-            gh release create $env:TAG --target $env:ALVO --title $titulo --notes-file notas.md $arqs.FullName
-          }
+          $zip = Get-ChildItem overlay/exe/*_EXE.zip | Select-Object -First 1
+          $limpo = Join-Path $env:RUNNER_TEMP "exe_limpo"
+          if (Test-Path $limpo) { Remove-Item $limpo -Recurse -Force }
+          Expand-Archive -Path $zip.FullName -DestinationPath $limpo
+          $pasta = Join-Path $limpo "WolfxRacing_LMU"
+          $ttf = @(Get-ChildItem $pasta -Recurse -Filter *.ttf)
+          Write-Host "arquivos .ttf no pacote extraido: $($ttf.Count)"
+          if ($ttf.Count -lt 9) { throw "faltam fontes no pacote do EXE ($($ttf.Count) .ttf)" }
+          if (-not (Get-ChildItem $pasta -Recurse -Filter LICENCAS_OFL.txt)) { throw "licenca OFL ausente no pacote do EXE" }
+          $p = Start-Process -FilePath (Join-Path $pasta "WolfxRacing_LMU.exe") -ArgumentList "--verificar-fontes" -WorkingDirectory $pasta -PassThru
+          if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "a verificacao de fontes do EXE nao terminou em 180 s" }
+          $json = Join-Path $pasta "fontes_verificacao.json"
+          if (-not (Test-Path $json)) { throw "o EXE nao gravou fontes_verificacao.json (codigo de saida $($p.ExitCode))" }
+          Get-Content $json -Raw | Write-Host
+          $r = Get-Content $json -Raw | ConvertFrom-Json
+          if (-not ($r.empacotado -and $r.ok_obrigatorias -and $r.licenca_ofl_presente)) { throw "fontes nao carregadas/aplicadas a partir do EXE extraido" }
+          foreach ($f in "orbitron", "michroma", "bungee") { if (-not ($r.fontes.$f.carregada -and $r.fontes.$f.aplicada)) { throw "fonte $f nao carregada/aplicada" } }
+          if ($p.ExitCode -ne 0) { throw "verificacao de fontes terminou com codigo $($p.ExitCode)" }
+          New-Item -ItemType Directory -Force -Path evidencias | Out-Null
+          Copy-Item $json evidencias/fontes_verificacao_LMU.json
       - uses: actions/upload-artifact@v4
-        if: ${{ !startsWith(github.ref, 'refs/tags/') && inputs.tag == '' }}
+        with:
+          name: evidencias_exe_LMU
+          path: evidencias/
+      - name: Reunir ativos e gerar SHA-256 (mesmo commit)
+        run: |
+          $v = (Select-String -Path CHANGELOG.md -Pattern '^## \[(\d+\.\d+\.\d+)\]' | Select-Object -First 1).Matches[0].Groups[1].Value
+          $arqs = @(Get-ChildItem dist/*.zip) + @(Get-ChildItem overlay/exe/*.zip) + @(Get-ChildItem dash/*.simhubdash) + @(Get-ChildItem streamdeck/*.streamDeckProfile | Where-Object { $_.Name -notlike '*_ajustado*' })
+          $linhas = @("WolfxRacing Overlay LMU $v - SHA-256 dos ativos", "commit: ${{ github.sha }}", "")
+          $arqs | Sort-Object Name | ForEach-Object { $linhas += ("{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name) }
+          $linhas | Out-File -Encoding utf8 "SHA256_v$v.txt"
+          Get-Content "SHA256_v$v.txt"
+      - uses: actions/upload-artifact@v4
+        if: ${{ env.TAG == '' }}
         with:
           name: WolfxRacing_LMU_EXE
-          path: overlay/exe/*.zip
+          path: |
+            overlay/exe/*.zip
+            SHA256_v*.txt
+      - name: Criar rascunho, conferir os ativos enviados e publicar
+        if: ${{ env.TAG != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ALVO: ${{ github.sha }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $env:PYTHONIOENCODING = 'utf-8'
+          $v = $env:TAG.TrimStart('v')
+          $arqs = @(Get-ChildItem dist/*.zip) + @(Get-ChildItem overlay/exe/*.zip) + @(Get-ChildItem dash/*.simhubdash) + @(Get-ChildItem streamdeck/*.streamDeckProfile | Where-Object { $_.Name -notlike '*_ajustado*' }) + @(Get-Item "SHA256_v$v.txt")
+          python tools/notas_release.py $env:TAG | Out-File -Encoding utf8 notas.md
+          "`n### SHA-256 e origem`nCommit: ``$($env:ALVO)``. Hashes de cada ativo: ``SHA256_v$v.txt`` (anexo desta release)." | Add-Content -Encoding utf8 notas.md
+          $titulo = "WolfxRacing Overlay LMU " + $v
+          gh release view $env:TAG *> $null
+          if ($LASTEXITCODE -eq 0) { gh release delete $env:TAG --yes }       # so chega aqui um RASCUNHO antigo (o validador recusa release publicada)
+          $tagExiste = (git rev-parse --verify --quiet "refs/tags/$($env:TAG)^{commit}")
+          if ($tagExiste) { gh release create $env:TAG --draft --verify-tag --title $titulo --notes-file notas.md $arqs.FullName }
+          else { gh release create $env:TAG --draft --target $env:ALVO --title $titulo --notes-file notas.md $arqs.FullName }
+          $info = gh release view $env:TAG --json assets | ConvertFrom-Json
+          foreach ($a in $arqs) {
+            $local = (Get-FileHash $a.FullName -Algorithm SHA256).Hash.ToLower()
+            $enviado = $info.assets | Where-Object { $_.name -eq $a.Name } | Select-Object -First 1
+            if (-not $enviado) { throw "ativo $($a.Name) nao foi enviado" }
+            if ($enviado.digest) {
+              $no_gh = $enviado.digest -replace '^sha256:', ''
+              if ($local -ne $no_gh) { throw "ativo $($a.Name): SHA-256 local $local difere do enviado ($no_gh)" }
+            } elseif ($enviado.size -ne $a.Length) { throw "ativo $($a.Name): tamanho local $($a.Length) difere do enviado ($($enviado.size))" }
+          }
+          Write-Host "$($arqs.Count) ativos enviados e conferidos"
+          gh release edit $env:TAG --draft=false
+          $ref = gh api "repos/${{ github.repository }}/git/ref/tags/$($env:TAG)" | ConvertFrom-Json
+          if ($ref.object.sha -ne $env:ALVO) { throw "a tag $($env:TAG) aponta para $($ref.object.sha), nao para $($env:ALVO)" }
+          Write-Host "release $($env:TAG) publicada; tag -> $($ref.object.sha)"
