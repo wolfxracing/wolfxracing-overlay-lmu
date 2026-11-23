@@ -22,6 +22,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 
@@ -40,8 +41,9 @@ class Indeterminado(Exception):
 
 def executar_gh(args, binario=False, timeout=180):
     """Roda `gh ...`. Devolve (returncode, stdout, stderr). Excecao de execucao/timeout vira (-1, '', mensagem)."""
+    exe = shutil.which("gh") or "gh"            # which respeita PATHEXT (gh.exe / gh.cmd) e a ordem do PATH
     try:
-        r = subprocess.run(["gh", *args], capture_output=True, text=not binario, timeout=timeout)
+        r = subprocess.run([exe, *args], capture_output=True, text=not binario, timeout=timeout)
         return r.returncode, r.stdout, (r.stderr if not binario else r.stderr.decode("utf-8", "replace"))
     except (OSError, subprocess.SubprocessError) as erro:
         return -1, "", str(erro)

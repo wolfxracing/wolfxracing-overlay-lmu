@@ -37,16 +37,30 @@ for _ in range(rodadas):
 print(json.dumps(res))
 '''
 
+
+def rodar_filhos(comandos, timeout=180):
+    """Lanca todos os comandos juntos; saida de cada um vai para um arquivo. Devolve [(codigo, stdout, stderr)]."""
+    pasta_saida = tempfile.mkdtemp(prefix="wolfx_saida_"); procs = []
+    for i, cmd in enumerate(comandos):
+        fo = open(os.path.join(pasta_saida, "%d.out" % i), "w+", encoding="utf-8"); fe = open(os.path.join(pasta_saida, "%d.err" % i), "w+", encoding="utf-8")
+        procs.append((subprocess.Popen(cmd, stdout=fo, stderr=fe, stdin=subprocess.DEVNULL), fo, fe))
+    res = []
+    for p, fo, fe in procs:
+        try: p.wait(timeout=timeout)
+        except subprocess.TimeoutExpired: p.kill(); p.wait()
+        fo.close(); fe.close()
+        res.append((p.returncode, open(fo.name, encoding="utf-8", errors="replace").read(), open(fe.name, encoding="utf-8", errors="replace").read()))
+    shutil.rmtree(pasta_saida, ignore_errors=True)
+    return res
+
+def ultimo_json(saida, erro):
+    try: return json.loads(saida.strip().splitlines()[-1])
+    except Exception: return {"erro": (saida + erro)[-400:]}
+
 def lancar(n, destino, rodadas, segura, atraso=1.5):
     ini = time.time() + atraso
-    ps = [subprocess.Popen([sys.executable, "-I", "-c", TRABALHADOR, ATU, destino, str(ini), str(rodadas), str(segura)],
-                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) for _ in range(n)]
-    saidas = []
-    for p in ps:
-        o, e = p.communicate(timeout=180)
-        try: saidas.append(json.loads(o.strip().splitlines()[-1]))
-        except Exception: saidas.append({"erro": (o + e)[-400:]})
-    return saidas
+    cmds = [[sys.executable, "-I", "-c", TRABALHADOR, ATU, destino, str(ini), str(rodadas), str(segura)] for _ in range(n)]
+    return [ultimo_json(o, e) for _, o, e in rodar_filhos(cmds)]
 
 sys.path.insert(0, ATU)
 import atualizar_lmu as A
@@ -126,12 +140,7 @@ print(json.dumps({"papel": papel, "obteve": obteve, "dono_ainda": dono_ainda}))
 """
 def corrida():
     d = pasta(); orfa(d); ini = time.time() + 1.0
-    ps = [subprocess.Popen([sys.executable, "-I", "-c", CORRIDA, ATU, d, papel, str(ini)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) for papel in ("A", "B")]
-    res = []
-    for p in ps:
-        o, e = p.communicate(timeout=120)
-        try: res.append(json.loads(o.strip().splitlines()[-1]))
-        except Exception: res.append({"erro": (o + e)[-300:]})
+    res = [ultimo_json(o, e) for _, o, e in rodar_filhos([[sys.executable, "-I", "-c", CORRIDA, ATU, d, papel, str(ini)] for papel in ("A", "B")])]
     shutil.rmtree(d, ignore_errors=True)
     return res
 r = corrida()
