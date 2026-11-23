@@ -252,16 +252,16 @@ bindir = tempfile.mkdtemp(prefix="wolfx_gh_"); logf = os.path.join(bindir, "cham
 script = os.path.join(bindir, "gh_falso.py")
 open(script, "w", encoding="utf-8").write(r'''
 import os, sys, json
-a = sys.argv[1:]
+a = sys.argv[1:]   # bytes crus no stdout: no Windows o print em modo texto trocaria \n por \r\n e duplicaria os CR dos cabecalhos (o gh real nao faz isso)
 open(os.environ["GH_LOG"], "a", encoding="utf-8").write(" ".join(a) + "\n")
 modo = os.environ.get("GH_MODO", "")
 if modo == "503": sys.stderr.write("gh: HTTP 503: Service Unavailable\n"); sys.exit(1)
 rels = {"403_404": [{"tag_name": "v1.8.2", "draft": True, "id": 7, "assets": [], "target_commitish": "a" * 40}], "vazio": [], "rascunho": [{"tag_name": "v1.8.2", "draft": True, "id": 7, "assets": []}], "publicada": [{"tag_name": "v1.8.2", "draft": False, "id": 8, "assets": [], "html_url": "u"}]}[modo]
 if "--paginate" in a: print(json.dumps([rels])); sys.exit(0)
 if a[0] == "api" and "/git/ref/tags/" in a[-1]:
-    if modo == "publicada": print('HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n' + json.dumps({"object": {"sha": "c" * 40, "type": "tag"}})); sys.exit(0)
-    if modo == "403_404": print('HTTP/1.1 403 Forbidden\r\n\r\n{"message": "Resource not accessible (ref 404)"}'); sys.stderr.write("gh: Resource not accessible (ref 404) (HTTP 403)\n"); sys.exit(1)
-    print('HTTP/1.1 404 Not Found\r\n\r\n{"message": "Not Found"}'); sys.stderr.write("gh: Not Found (HTTP 404)\n"); sys.exit(1)
+    if modo == "publicada": sys.stdout.buffer.write(('HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n' + json.dumps({"object": {"sha": "c" * 40, "type": "tag"}})).encode()); sys.stdout.flush(); sys.exit(0)
+    if modo == "403_404": sys.stdout.buffer.write(('HTTP/1.1 403 Forbidden\r\n\r\n{"message": "Resource not accessible (ref 404)"}').encode()); sys.stdout.flush(); sys.stderr.write("gh: Resource not accessible (ref 404) (HTTP 403)\n"); sys.exit(1)
+    sys.stdout.buffer.write(('HTTP/1.1 404 Not Found\r\n\r\n{"message": "Not Found"}').encode()); sys.stdout.flush(); sys.stderr.write("gh: Not Found (HTTP 404)\n"); sys.exit(1)
 if a[0] == "api" and "/git/tags/" in a[-1]: print(json.dumps({"object": {"sha": "a" * 40, "type": "commit"}})); sys.exit(0)
 sys.exit(1)
 ''')
