@@ -2,6 +2,15 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e [SemVer](https://semver.org/lang/pt-BR/).
 
+## 1.8.2 build ba (corretiva - auditoria da v1.8.1 / build az)
+- Fontes: as fontes Orbitron, Michroma e Bungee e a licenca OFL agora vao DENTRO do pacote do EXE (`fontes/` em `_internal`). O carregador procura primeiro na pasta do EXE e depois no pacote; nova opcao `--verificar-fontes` carrega as fontes, confere que cada uma e APLICADA (a tinta muda em relacao ao padrao) e grava `fontes_verificacao.json`. O workflow extrai o ZIP em pasta limpa e executa essa verificacao antes de publicar.
+- Classificacao Foto (iRacing e LMU): o texto da sessao (PRACTICE/TREINO), o clima (AIR 24 graus), INC e o contador passam a ser medidos, reservados e desenhados pela tinta real do texto; so deixam de ser recortados pelo retangulo quando o recorte comeria pixels. A pilula da sessao so cresce quando a tinta exige; aparencia padrao preservada. Teste novo `teste_v182_classif_foto_recorte` compara o que foi efetivamente pintado (inclusive bordas) com uma referencia sem recorte: Michroma/Orbitron/Bungee a 200%, negrito, italico, largura normal e minima.
+- Atualizador do LMU (so repositorio LMU): travas distinguem ATIVA de ORFA (processo morto, trava com mais de 6 h ou vazia/antiga); trava ativa devolve codigo 4, inclusive em `--simular` (antes `--simular` dizia sucesso e a execucao real falhava); trava orfa e removida. Atualizador e manifesto sao gerados a partir do MESMO commit do codigo, e o workflow compara o conteudo antes de publicar. Teste novo `teste_v182_atualizador_lmu` (30 verificacoes: trava ativa/orfa, preservacao de dados do usuario, backup, idempotencia, reversao com arquivo realmente travado no Windows).
+- Publicacao: `release.yml` valida o SHA da tag, a versao interna e o commit do artefato; exige a suite de testes obrigatoria (Windows nativo) antes de publicar; gera o SHA-256 no mesmo fluxo; cria a release como rascunho, confere os digests enviados e so entao publica; nao sobrescreve release existente.
+- Testes - causas separadas do produto: (a) `teste_v18_i18n` dependia do idioma da maquina (ja_JP -> en); agora isola o ambiente e documenta a precedencia; (b) as suites do LMU registravam atalhos globais reais e falhavam quando o ambiente restringe isso; agora sao hermeticas; (c) `teste_v18_posicao_fonte` dependia do relogio real; agora usa relogio congelado.
+- Versao do produto 1.8.2. Telemetria, calculos de corrida e configuracoes dos usuarios nao foram alterados. As tags/assets v1.8.0 e v1.8.1 sao preservados.
+- **Sem homologacao em simulador real e sem teste com Stream Deck real.** Validacao com dados sinteticos e renderizacao Qt.
+
 ## 1.8.1 build az (corretiva - auditoria da build ay)
 - Fontes: a sonda que decide se o negrito muda o desenho da fonte do tema passou a aceitar uma lista de familias (tema, alternativas do tema e, por fim, a Rajdhani embutida) e ficou muito mais rapida (leitura direta dos pixels; mediana de 27,73 ms para 0,18 ms com cache vazio, medida no Windows pela auditoria). As 28 decisoes de peso comparadas permaneceram iguais. Orbitron em italico passa a respeitar o peso pelo eixo variavel (wght).
 - Executor de testes: rodar_todos_os_testes.py ganhou --plataforma windows|offscreen (registrado em AMBIENTE.txt e RESUMO.txt). Testes de cronograma deixam de depender de time.tzset() (inexistente no Windows): sem tzset usam o fuso fixo BRT3 e as verificacoes de horario de verao sao PULADAS com aviso explicito. As suites de cronograma tambem passam a PULAR (com aviso) as verificacoes que usam o cronograma.json real, dado do usuario que nao e versionado; os demais passos usam dados sinteticos.
@@ -139,6 +148,18 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 - Reparo opcional entra na limpeza das marcas; rotulo "Local indefinido" no lugar de "Fora da pista" para contatos sem direcao.
 - Cada impacto e gravado no overlay_log.txt (zona, tipo, g, reparo, incidentes) para diagnostico.
 - Novo teste teste_v18_danos.py (10 verificacoes). Sem homologacao em jogo real.
+
+## [1.8.2] - 2026-11-22
+
+### Resumo da versao 1.8.2 (build ba)
+- Corretiva da auditoria da v1.8.1: fontes dentro do EXE com verificacao de aplicacao; recorte da Classificacao Foto; atualizador LMU com trava ativa/orfa e gerado do mesmo commit; publicacao amarrada ao commit da tag.
+
+### O que foi validado de fato (build ba)
+- GitHub Actions, PR #3, cabeca `94d05fd` (commit testado = merge `d40906e`), Windows Server 2025, Python 3.12, PySide6/Qt 6.12, Qt nativo (`windows`): **57/57 suites com codigo de saida 0**; idioma da maquina Qt en_US.
+- Windows com `offscreen` (informativo, nao bloqueia): 53/57 suites; falham `teste_v170_estados_vazios`, `teste_v170_previa_opcoes`, `teste_v18_integracao` (as tres ja eram conhecidas e dependem de fontes do motor offscreen) e `teste_v182_classif_foto_recorte` (2 verificacoes, so no offscreen do Windows: medidas de fonte de reserva; nao reproduzidas no Qt nativo do Windows nem no Linux). Nao sao defeitos confirmados do produto, mas ficam registradas como pendencia de investigacao.
+- Linux, offscreen: todas as suites com codigo de saida 0.
+- EXE congelado (Linux, PyInstaller) extraido em pasta limpa: `--verificar-fontes` = 0, Orbitron/Michroma/Bungee carregadas e aplicadas; controle sem a pasta de fontes = falha, como esperado. A verificacao com o EXE de Windows roda no workflow de publicacao.
+- **Simulador real: NAO homologado. Stream Deck real: NAO testado.**
 
 ## [1.8.1] - 2026-11-22
 
